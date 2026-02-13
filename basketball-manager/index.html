@@ -307,7 +307,8 @@
         };
 
         const SubstitutionView = ({ players, currentP, localHistory, onCancel, onConfirm }) => {
-            const currentPeriodData = localHistory[currentP] || {};
+            const pData = localHistory[currentP] || {};
+            const currentPeriodData = Array.isArray(pData) ? pData.reduce((acc, id) => ({ ...acc, [id]: 'receptor' }), {}) : pData;
             const currentIds = Object.keys(currentPeriodData);
             const candidatesOut = players.filter(p => currentIds.includes(p.id));
             const candidatesIn = players.filter(p => !currentIds.includes(p.id) && !p.disabled);
@@ -383,7 +384,20 @@
             const roleKeys = Object.keys(roles);
 
             useEffect(() => {
-                if (match?.history) setLocalHistory(match.history);
+                if (match?.history) {
+                    const sanitizedHistory = { ...match.history };
+                    Object.keys(sanitizedHistory).forEach(p => {
+                        if (Array.isArray(sanitizedHistory[p])) {
+                            const asObj = {};
+                            sanitizedHistory[p].forEach(pid => {
+                                const pObj = match.players?.find(pl => pl.id === pid);
+                                asObj[pid] = pObj?.role || 'receptor';
+                            });
+                            sanitizedHistory[p] = asObj;
+                        }
+                    });
+                    setLocalHistory(sanitizedHistory);
+                }
                 if (match?.injuries) setMatchInjuries(match.injuries);
             }, [match]);
 
@@ -840,6 +854,7 @@
                     alert('Debes ingresar un rival y seleccionar al menos un jugador.');
                     return;
                 }
+                const fullPlayers = players.filter(p => selectedPlayers.includes(p.id));
                 const newMatch = {
                     teamId: team.id,
                     opponent,
@@ -848,10 +863,12 @@
                     matchDay,
                     isHome,
                     observations,
-                    selectedPlayers,
+                    players: fullPlayers,
                     currentPeriod: 1,
                     state: 'active',
                     history: {},
+                    injuries: [],
+                    score: { local: 0, visitor: 0 },
                     createdAt: new Date().toISOString()
                 };
                 const docRef = await addDoc(collection(db, 'matches'), newMatch);
