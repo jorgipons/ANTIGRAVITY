@@ -436,7 +436,8 @@
             const handleToggle = async (period, playerId, currentRole, periodState) => {
                 let nextRole = null;
                 if (!currentRole) {
-                    nextRole = roleKeys[0];
+                    const player = match.players?.find(p => p.id === playerId);
+                    nextRole = player?.role || roleKeys[0] || 'receptor';
                 } else {
                     const currentIndex = roleKeys.indexOf(currentRole);
                     if (currentIndex !== -1 && currentIndex < roleKeys.length - 1) {
