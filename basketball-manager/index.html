@@ -675,11 +675,12 @@
                             <tbody>
                                 {players.map(p => {
                                     const isDisabled = p.disabled;
+                                    const isPlayingNow = !!(localHistory[currentP]?.[p.id]);
                                     const hasError = validations.errors.some(e => e.includes(p.name));
                                     const defaultRole = (team.players || []).find(tp => tp.id === p.id)?.role;
                                     return (
-                                        <tr key={p.id} className={`border-b last:border-0 h-10 group/row ${isDisabled ? 'bg-slate-100 text-slate-400' : (hasError ? 'bg-red-100 border-red-200' : 'hover:bg-slate-50')}`}>
-                                            <td className={`p-2 border-r sticky left-0 z-10 font-medium text-xs md:text-sm whitespace-nowrap flex items-center justify-between ${isDisabled ? 'bg-slate-100 text-slate-400' : (hasError ? 'bg-red-100 text-red-900 font-bold' : 'bg-white text-slate-800 group-hover/row:bg-slate-50')}`}>
+                                        <tr key={p.id} className={`border-b last:border-0 h-10 group/row ${isDisabled ? 'bg-slate-100 text-slate-400' : (hasError ? 'bg-red-100 border-red-200' : (isPlayingNow ? 'bg-blue-50/30' : 'hover:bg-slate-50'))}`}>
+                                            <td className={`p-2 border-r sticky left-0 z-10 font-medium text-xs md:text-sm whitespace-nowrap flex items-center justify-between ${isDisabled ? 'bg-slate-100 text-slate-400' : (hasError ? 'bg-red-100 text-red-900 font-bold' : (isPlayingNow ? 'bg-blue-50 text-blue-900 font-extrabold' : 'bg-white text-slate-800 group-hover/row:bg-slate-50'))}`}>
                                                 <div className={isDisabled ? 'line-through decoration-slate-400' : ''}><span className="inline-block w-6">#{p.number}</span><span className="mr-1">{p.name}</span>{!isDisabled && defaultRole && roles[defaultRole] && (<span className={`w-2 h-2 rounded-full inline-block mb-0.5 ${roles[defaultRole].bg.replace('-50', '-400')}`}></span>)}</div>
                                                 {!isLocked && (<button onClick={() => togglePlayerActiveStatus(p.id, p.name, isDisabled)} className={`p-1 opacity-0 group-hover/row:opacity-100 transition-opacity ${isDisabled ? 'text-green-500 hover:text-green-700' : 'text-slate-300 hover:text-red-500'}`}><span dangerouslySetInnerHTML={{ __html: `<i data-lucide="${isDisabled ? 'rotate-ccw' : 'ban'}" class="w-3 h-3"></i>` }}></span></button>)}
                                             </td>
@@ -705,6 +706,29 @@
                             </tbody>
                         </table>
                     </div>
+
+                    {!isLocked && (
+                        <div className="mt-4 p-4 bg-blue-50/50 rounded-xl border border-blue-100 animate-in fade-in slide-in-from-bottom-2">
+                            <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <i data-lucide="users" className="w-4 h-4"></i> En pista (P{currentP})
+                            </h3>
+                            <div className="flex flex-wrap gap-2">
+                                {players.filter(p => localHistory[currentP]?.[p.id]).map(p => {
+                                    const role = localHistory[currentP][p.id];
+                                    return (
+                                        <span key={p.id} className="bg-white px-3 py-1.5 rounded-full border border-blue-200 text-sm font-bold text-blue-900 shadow-sm flex items-center gap-2 animate-in zoom-in-95">
+                                            <span className="opacity-50">#{p.number}</span>
+                                            {p.name}
+                                            {role && roles[role] && <span className={`w-2 h-2 rounded-full ${roles[role].bg.replace('-50', '-400')}`}></span>}
+                                        </span>
+                                    );
+                                })}
+                                {Object.keys(localHistory[currentP] || {}).length === 0 && (
+                                    <span className="text-sm text-slate-400 italic">No hay jugadores seleccionados</span>
+                                )}
+                            </div>
+                        </div>
+                    )}
                     {!isLocked && (
                         <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto flex gap-2">
                             <div className="flex-1 bg-white border border-slate-200 p-2 rounded-xl shadow-lg flex items-center justify-between px-4">
