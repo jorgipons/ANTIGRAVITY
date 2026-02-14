@@ -1127,6 +1127,24 @@
 
             const addLatePlayer = () => setMode("add-player");
 
+            const addAllLatePlayers = async () => {
+                const team = teams.find(t => t.id === match.teamId);
+                if (!team) return;
+
+                const currentPlayerIds = (match.players || []).map(p => p.id);
+                const availablePlayers = (team.players || []).filter(p => !currentPlayerIds.includes(p.id));
+
+                if (availablePlayers.length === 0) {
+                    alert('No hay jugadores disponibles para añadir.');
+                    return;
+                }
+
+                if (!confirm(`¿Añadir ${availablePlayers.length} jugador(es) al partido?`)) return;
+
+                const updatedPlayers = [...(match.players || []), ...availablePlayers];
+                await updateMatchInDb(match.id, { players: updatedPlayers });
+            };
+
             const confirmAddPlayer = async (player) => {
                 const updatedPlayers = [...(match.players || []), player];
                 await updateMatchInDb(match.id, { players: updatedPlayers });
@@ -1239,6 +1257,7 @@
                                 {isFinished && isLocked && <button onClick={() => setForceEdit(true)} className="p-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors" title="Habilitar Edición"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="lock" class="w-5 h-5"></i>' }}></span></button>}
                                 <button onClick={() => setEditAllMode(!editAllMode)} disabled={isLocked} className={`p-2 rounded-lg transition-colors border ${isLocked ? 'bg-slate-50 text-slate-300 opacity-50 cursor-not-allowed border-transparent' : (editAllMode ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-slate-100 text-slate-500 border-transparent hover:bg-slate-200')}`} title="Modo Edición Total"><span dangerouslySetInnerHTML={{ __html: `<i data-lucide="${editAllMode ? 'unlock' : 'lock'}" class="w-5 h-5"></i>` }}></span></button>
                                 <button onClick={addLatePlayer} disabled={isLocked} className={`p-2 rounded-lg transition-colors ${isLocked ? 'bg-slate-50 text-slate-300 opacity-50 cursor-not-allowed' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`} title="Añadir Convocado"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="user-plus" class="w-5 h-5"></i>' }}></span></button>
+                                <button onClick={addAllLatePlayers} disabled={isLocked} className={`p-2 rounded-lg transition-colors ${isLocked ? 'bg-slate-50 text-slate-300 opacity-50 cursor-not-allowed' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`} title="Añadir Todos"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="users-plus" class="w-5 h-5"></i>' }}></span></button>
                                 <button onClick={() => setMode('edit-match')} className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors" title="Configurar Partido"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="settings" class="w-5 h-5"></i>' }}></span></button>
                                 <button onClick={deleteMatch} disabled={isLocked} className={`p-2 rounded-lg transition-colors ${isLocked ? 'bg-slate-50 text-slate-300 opacity-50 cursor-not-allowed' : 'bg-red-50 text-red-600 hover:bg-red-100'}`} title="Eliminar Partido"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trash-2" class="w-5 h-5"></i>' }}></span></button>
                             </div>
@@ -2130,7 +2149,7 @@
         };
 
         const App = () => {
-            const { collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, orderBy, where, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } = window.firebaseMethods || {};
+            const { collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, orderBy, where, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } = window.firebaseMethods || {};
             const db = window.db;
 
             const [user, setUser] = useState(null);
