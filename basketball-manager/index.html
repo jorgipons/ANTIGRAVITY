@@ -75,7 +75,7 @@
 
         // --- Logic & Types ---
         const TOTAL_PERIODS = 8;
-        const APP_VERSION = '1.3.1';
+        const APP_VERSION = '1.3.2';
         const CHECK_PERIOD = 6;
         const MIN_PLAY = 2;
         const MIN_REST = 2;
@@ -1522,8 +1522,8 @@
                     const checkoutRef = collection(db, 'customers', user.uid, 'checkout_sessions');
                     const docRef = await addDoc(checkoutRef, {
                         price: 'price_1T0gwQKPQKkc3mVNhH05plnK', // ID real del producto del usuario
-                        success_url: window.location.origin,
-                        cancel_url: window.location.origin,
+                        success_url: window.location.href,
+                        cancel_url: window.location.href,
                     });
 
                     // La extensión detectará este doc y pondrá un campo 'url' cuando esté lista
