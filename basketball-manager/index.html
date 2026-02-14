@@ -75,7 +75,7 @@
 
         // --- Logic & Types ---
         const TOTAL_PERIODS = 8;
-        const APP_VERSION = '1.3.3';
+        const APP_VERSION = '1.3.4';
         const CHECK_PERIOD = 6;
         const MIN_PLAY = 2;
         const MIN_REST = 2;
@@ -1437,6 +1437,7 @@
             const [user, setUser] = useState(null);
             const [authLoading, setAuthLoading] = useState(true);
             const [subscription, setSubscription] = useState(undefined); // undefined: loading, null: none, 'active'/'trialing': active
+            const [checkoutLoading, setCheckoutLoading] = useState(false);
             const [teams, setTeams] = useState([]);
             const [matches, setMatches] = useState([]);
             const [view, setView] = useState('teams-list');
@@ -1518,6 +1519,7 @@
             }, [user]);
 
             const startCheckout = async () => {
+                setCheckoutLoading(true);
                 try {
                     const checkoutRef = collection(db, 'customers', user.uid, 'checkout_sessions');
                     const docRef = await addDoc(checkoutRef, {
@@ -1526,13 +1528,16 @@
                         cancel_url: window.location.href,
                     });
 
-                    // La extensión detectará este doc y pondrá un campo 'url' cuando esté lista
                     onSnapshot(docRef, (snap) => {
                         const { url, error } = snap.data();
                         if (url) window.location.assign(url);
-                        if (error) alert(`Error de Stripe: ${error.message}`);
+                        if (error) {
+                            setCheckoutLoading(false);
+                            alert(`Error de Stripe: ${error.message}`);
+                        }
                     });
                 } catch (err) {
+                    setCheckoutLoading(false);
                     alert(err.message);
                 }
             };
@@ -1574,6 +1579,16 @@
                     <footer className="p-4 text-center mt-auto">
                         <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">v{APP_VERSION}</span>
                     </footer>
+
+                    {checkoutLoading && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6 text-center">
+                            <div className="bg-white rounded-3xl p-8 max-w-xs w-full shadow-2xl animate-in fade-in zoom-in duration-300">
+                                <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+                                <h3 className="text-xl font-bold text-slate-800 mb-2">Preparando pago</h3>
+                                <p className="text-slate-500 text-sm">Te estamos redirigiendo a la pasarela segura de Stripe...</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         };
