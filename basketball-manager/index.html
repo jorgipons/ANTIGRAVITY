@@ -75,6 +75,7 @@
 
         // --- Logic & Types ---
         const TOTAL_PERIODS = 8;
+        const APP_VERSION = '1.2.2';
         const CHECK_PERIOD = 6;
         const MIN_PLAY = 2;
         const MIN_REST = 2;
@@ -877,8 +878,8 @@
             };
 
             useEffect(() => {
-                lucide.createIcons();
-            }, [teams, showForm]);
+                if (window.lucide) lucide.createIcons();
+            }, [teams, showForm, subscription]);
 
             return (
                 <div className="p-4 max-w-md mx-auto">
@@ -1406,13 +1407,14 @@
                                 </button>
                             </div>
 
-                            <div className="mt-8 text-center pt-6 border-t border-slate-100">
+                            <div className="mt-8 text-center pt-6 border-t border-slate-100 flex flex-col items-center gap-2">
                                 <p className="text-sm text-slate-500">
                                     {isLogin ? '¿No tienes cuenta?' : '¿Ya eres usuario?'}
                                     <button onClick={() => setIsLogin(!isLogin)} className="ml-2 text-blue-600 font-bold hover:underline">
                                         {isLogin ? 'Regístrate aquí' : 'Inicia sesión'}
                                     </button>
                                 </p>
+                                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-2">v{APP_VERSION}</span>
                             </div>
                         </div>
                     </div>
@@ -1426,7 +1428,7 @@
 
             const [user, setUser] = useState(null);
             const [authLoading, setAuthLoading] = useState(true);
-            const [subscription, setSubscription] = useState(null); // 'active', 'trialing', null
+            const [subscription, setSubscription] = useState(undefined); // undefined: loading, null: none, 'active'/'trialing': active
             const [teams, setTeams] = useState([]);
             const [matches, setMatches] = useState([]);
             const [view, setView] = useState('teams-list');
@@ -1540,9 +1542,12 @@
                 await updateDoc(matchRef, updates);
             };
 
-            if (authLoading) return (
+            if (authLoading || (user && subscription === undefined)) return (
                 <div className="min-h-screen flex items-center justify-center bg-slate-50">
-                    <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest animate-pulse">Cargando perfil...</p>
+                    </div>
                 </div>
             );
 
@@ -1564,7 +1569,7 @@
                                 <h2 className="text-2xl font-bold text-slate-800 mb-2">Función Premium</h2>
                                 <p className="text-slate-500 mb-8">El gestor de partidos en vivo requiere una suscripción activa para procesar datos en tiempo real.</p>
                                 <button onClick={startCheckout} className="w-full py-4 bg-slate-800 text-white rounded-2xl font-bold shadow-lg hover:bg-slate-900 transition-all">
-                                    Suscribirse por 9.99€/mes
+                                    Suscribirse por 1€/mes
                                 </button>
                                 <button onClick={() => setView('team-detail')} className="mt-4 text-slate-400 font-bold text-sm">Volver</button>
                             </div>
