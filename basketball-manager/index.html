@@ -75,7 +75,7 @@
 
         // --- Logic & Types ---
         const TOTAL_PERIODS = 8;
-        const APP_VERSION = '1.2.2';
+        const APP_VERSION = '1.3.1';
         const CHECK_PERIOD = 6;
         const MIN_PLAY = 2;
         const MIN_REST = 2;
@@ -860,6 +860,14 @@
             const createTeam = async (e) => {
                 e.preventDefault();
                 if (!newTeamName.trim() || !window.auth.currentUser) return;
+
+                // --- Nueva Lógica de Límites ---
+                if (teams.length >= 1 && !subscription) {
+                    alert('Límite del Plan Gratuito: Solo puedes gestionar 1 equipo. Pásate a Premium para equipos ilimitados.');
+                    startCheckout();
+                    return;
+                }
+
                 await addDoc(collection(db, 'teams'), {
                     name: newTeamName,
                     players: [],
@@ -918,9 +926,9 @@
                             </div>
                             <div className="relative z-10">
                                 <h3 className="text-white font-bold text-lg leading-tight mb-1">Pásate a Premium</h3>
-                                <p className="text-blue-100 text-xs mb-3">Gestión de partidos en vivo, estadísticas avanzadas y más.</p>
+                                <p className="text-blue-100 text-xs mb-3">Gestión de equipos ilimitados, estadísticas avanzadas y más.</p>
                                 <button onClick={startCheckout} className="px-4 py-2 bg-white text-blue-600 rounded-lg font-bold text-xs shadow-sm active:scale-95 transition-all">
-                                    Saber más
+                                    Desbloquear equipos
                                 </button>
                             </div>
                         </div>
@@ -958,7 +966,7 @@
                                         <p className="font-extrabold text-xl text-slate-800 group-hover:text-blue-600 transition-colors">{team.name}</p>
                                         <p className="text-xs text-slate-400 mt-0.5">{team.players?.length || 0} Jugadores</p>
                                     </button>
-                                    <button onClick={() => deleteTeam(team.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100">
+                                    <button onClick={() => deleteTeam(team.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all md:opacity-0 group-hover:opacity-100">
                                         <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trash-2" class="w-5 h-5"></i>' }}></span>
                                     </button>
                                 </div>
@@ -1558,23 +1566,7 @@
                     {view === 'teams-list' && <TeamsListView teams={teams} setView={setView} setSelectedTeamId={setSelectedTeamId} addDoc={addDoc} collection={collection} db={db} deleteDoc={deleteDoc} doc={doc} subscription={subscription} startCheckout={startCheckout} />}
                     {view === 'team-detail' && <TeamDetailView team={getSelectedTeam()} matches={matches} setView={setView} setActiveMatchId={setActiveMatchId} updateTeamInDb={updateTeamInDb} getRoles={getRoles} />}
                     {view === 'match-setup' && <MatchSetupView team={getSelectedTeam()} setView={setView} setActiveMatchId={setActiveMatchId} addDoc={addDoc} collection={collection} db={db} />}
-                    {view === 'active-match' && (
-                        subscription ? (
-                            <ActiveMatchView match={getActiveMatch()} teams={teams} updateMatchInDb={updateMatchInDb} setView={setView} setActiveMatchId={setActiveMatchId} getRoles={getRoles} />
-                        ) : (
-                            <div className="p-8 text-center max-w-md mx-auto">
-                                <div className="w-20 h-20 bg-amber-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="crown" class="w-10 h-10 text-amber-600"></i>' }}></span>
-                                </div>
-                                <h2 className="text-2xl font-bold text-slate-800 mb-2">Función Premium</h2>
-                                <p className="text-slate-500 mb-8">El gestor de partidos en vivo requiere una suscripción activa para procesar datos en tiempo real.</p>
-                                <button onClick={startCheckout} className="w-full py-4 bg-slate-800 text-white rounded-2xl font-bold shadow-lg hover:bg-slate-900 transition-all">
-                                    Suscribirse por 1€/mes
-                                </button>
-                                <button onClick={() => setView('team-detail')} className="mt-4 text-slate-400 font-bold text-sm">Volver</button>
-                            </div>
-                        )
-                    )}
+                    {view === 'active-match' && <ActiveMatchView match={getActiveMatch()} teams={teams} updateMatchInDb={updateMatchInDb} setView={setView} setActiveMatchId={setActiveMatchId} getRoles={getRoles} />}
                     {view === 'manage-players' && <ManagePlayersView team={getSelectedTeam()} setView={setView} updateTeamInDb={updateTeamInDb} getRoles={getRoles} />}
                     {view === 'manage-roles' && <ManageRolesView team={getSelectedTeam()} setView={setView} updateTeamInDb={updateTeamInDb} getRoles={getRoles} />}
                 </div>
