@@ -74,7 +74,7 @@
         const { useState, useEffect, useMemo } = React;
 
         // --- Logic & Types ---
-        const APP_VERSION = '1.8.0';
+        const APP_VERSION = '1.8.1';
         const RULESETS = {
             'fbcv_8p': {
                 id: 'fbcv_8p',
@@ -298,6 +298,14 @@
                                         <div className="flex items-center gap-1.5">
                                             {m.state !== 'finished' && (
                                                 <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-100 opacity-0 group-hover/match:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); navigate('edit-match', team.id, m.id); }}
+                                                        className="p-1 px-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                                                        title="Editar Partido"
+                                                    >
+                                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="edit-2" class="w-3.5 h-3.5"></i>' }}></span>
+                                                    </button>
+                                                    <div className="w-px h-3 bg-slate-200 mx-0.5"></div>
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); copyToClipboard(generateConvocatoria(m, team, 'val')); }}
                                                         className="p-1 px-1.5 text-[10px] font-bold text-emerald-600 hover:bg-emerald-50 rounded"
@@ -1879,6 +1887,19 @@
                         {view === 'team-detail' && <TeamDetailView team={getSelectedTeam()} matches={matches} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} />}
                         {view === 'match-setup' && <MatchSetupView team={getSelectedTeam()} navigate={navigate} addDoc={addDoc} collection={collection} db={db} />}
                         {view === 'active-match' && <ActiveMatchView match={getActiveMatch()} teams={teams} updateMatchInDb={updateMatchInDb} navigate={navigate} getRoles={getRoles} />}
+                        {view === 'edit-match' && (
+                            <div className="p-4 max-w-md mx-auto">
+                                <header className="mb-6 flex items-center gap-2">
+                                    <button onClick={() => navigate('team-detail', selectedTeamId)} className="p-2 -ml-2 text-slate-400 hover:text-slate-800 transition-colors"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
+                                    <h1 className="text-2xl font-bold text-slate-800">Editar Partido</h1>
+                                </header>
+                                <EditMatchView
+                                    match={getActiveMatch()}
+                                    team={getSelectedTeam()}
+                                    onSave={async (updates) => { await updateMatchInDb(activeMatchId, updates); navigate('team-detail', selectedTeamId); }}
+                                />
+                            </div>
+                        )}
                         {view === 'manage-players' && <ManagePlayersView team={getSelectedTeam()} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} />}
                         {view === 'manage-roles' && <ManageRolesView team={getSelectedTeam()} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} />}
                     </div>
