@@ -852,7 +852,7 @@
         };
 
 
-        const TeamsListView = ({ teams, setView, setSelectedTeamId, addDoc, collection, db, deleteDoc, doc }) => {
+        const TeamsListView = ({ teams, setView, setSelectedTeamId, addDoc, collection, db, deleteDoc, doc, subscription, startCheckout }) => {
             const [newTeamName, setNewTeamName] = useState('');
             const [showForm, setShowForm] = useState(false);
 
@@ -882,12 +882,24 @@
 
             return (
                 <div className="p-4 max-w-md mx-auto">
-                    <header className="flex justify-between items-center mb-8">
+                    <header className="flex justify-between items-center mb-4">
                         <div>
                             <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">Equipos</h1>
-                            <button onClick={() => window.firebaseMethods.signOut(window.auth)} className="text-[10px] font-bold text-slate-400 hover:text-red-500 uppercase tracking-widest mt-1 flex items-center gap-1">
-                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="log-out" class="w-2 h-2"></i>' }}></span> Cerrar Sesión
-                            </button>
+                            <div className="flex items-center gap-2 mt-1">
+                                <button onClick={() => window.firebaseMethods.signOut(window.auth)} className="text-[10px] font-bold text-slate-400 hover:text-red-500 uppercase tracking-widest flex items-center gap-1">
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="log-out" class="w-2 h-2"></i>' }}></span> Cerrar Sesión
+                                </button>
+                                <span className="text-[10px] text-slate-300">•</span>
+                                {subscription ? (
+                                    <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest flex items-center gap-1">
+                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="crown" class="w-2 h-2"></i>' }}></span> Premium
+                                    </span>
+                                ) : (
+                                    <button onClick={startCheckout} className="text-[10px] font-bold text-blue-600 hover:underline uppercase tracking-widest flex items-center gap-1">
+                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="zap" class="w-2 h-2"></i>' }}></span> Plan Gratuito
+                                    </button>
+                                )}
+                            </div>
                         </div>
                         <button
                             onClick={() => setShowForm(!showForm)}
@@ -897,6 +909,21 @@
                             <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="plus" class="w-6 h-6"></i>' }}></span>
                         </button>
                     </header>
+
+                    {!subscription && (
+                        <div className="mb-6 p-4 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl shadow-lg relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="crown" class="w-20 h-20 text-white"></i>' }}></span>
+                            </div>
+                            <div className="relative z-10">
+                                <h3 className="text-white font-bold text-lg leading-tight mb-1">Pásate a Premium</h3>
+                                <p className="text-blue-100 text-xs mb-3">Gestión de partidos en vivo, estadísticas avanzadas y más.</p>
+                                <button onClick={startCheckout} className="px-4 py-2 bg-white text-blue-600 rounded-lg font-bold text-xs shadow-sm active:scale-95 transition-all">
+                                    Saber más
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {showForm && (
                         <form onSubmit={createTeam} className="mb-8 flex gap-2 animate-in slide-in-from-top-2 duration-200">
@@ -1399,6 +1426,7 @@
 
             const [user, setUser] = useState(null);
             const [authLoading, setAuthLoading] = useState(true);
+            const [subscription, setSubscription] = useState(null); // 'active', 'trialing', null
             const [teams, setTeams] = useState([]);
             const [matches, setMatches] = useState([]);
             const [view, setView] = useState('teams-list');
@@ -1465,6 +1493,40 @@
                 return () => unsubscribe();
             }, [user]);
 
+            useEffect(() => {
+                if (!user) {
+                    setSubscription(null);
+                    return;
+                }
+                const subRef = collection(db, 'customers', user.uid, 'subscriptions');
+                const q = query(subRef, where("status", "in", ["active", "trialing"]));
+                const unsubscribe = onSnapshot(q, (snapshot) => {
+                    if (snapshot.empty) setSubscription(null);
+                    else setSubscription(snapshot.docs[0].data().status);
+                });
+                return () => unsubscribe();
+            }, [user]);
+
+            const startCheckout = async () => {
+                try {
+                    const checkoutRef = collection(db, 'customers', user.uid, 'checkout_sessions');
+                    const docRef = await addDoc(checkoutRef, {
+                        price: 'price_1T0gwQKPQKkc3mVNhH05plnK', // ID real del producto del usuario
+                        success_url: window.location.origin,
+                        cancel_url: window.location.origin,
+                    });
+
+                    // La extensión detectará este doc y pondrá un campo 'url' cuando esté lista
+                    onSnapshot(docRef, (snap) => {
+                        const { url, error } = snap.data();
+                        if (url) window.location.assign(url);
+                        if (error) alert(`Error de Stripe: ${error.message}`);
+                    });
+                } catch (err) {
+                    alert(err.message);
+                }
+            };
+
             const getSelectedTeam = () => teams.find(t => t.id === selectedTeamId);
             const getActiveMatch = () => matches.find(m => m.id === activeMatchId);
 
@@ -1488,10 +1550,26 @@
 
             return (
                 <div>
-                    {view === 'teams-list' && <TeamsListView teams={teams} setView={setView} setSelectedTeamId={setSelectedTeamId} addDoc={addDoc} collection={collection} db={db} deleteDoc={deleteDoc} doc={doc} />}
+                    {view === 'teams-list' && <TeamsListView teams={teams} setView={setView} setSelectedTeamId={setSelectedTeamId} addDoc={addDoc} collection={collection} db={db} deleteDoc={deleteDoc} doc={doc} subscription={subscription} startCheckout={startCheckout} />}
                     {view === 'team-detail' && <TeamDetailView team={getSelectedTeam()} matches={matches} setView={setView} setActiveMatchId={setActiveMatchId} updateTeamInDb={updateTeamInDb} getRoles={getRoles} />}
                     {view === 'match-setup' && <MatchSetupView team={getSelectedTeam()} setView={setView} setActiveMatchId={setActiveMatchId} addDoc={addDoc} collection={collection} db={db} />}
-                    {view === 'active-match' && <ActiveMatchView match={getActiveMatch()} teams={teams} updateMatchInDb={updateMatchInDb} setView={setView} setActiveMatchId={setActiveMatchId} getRoles={getRoles} />}
+                    {view === 'active-match' && (
+                        subscription ? (
+                            <ActiveMatchView match={getActiveMatch()} teams={teams} updateMatchInDb={updateMatchInDb} setView={setView} setActiveMatchId={setActiveMatchId} getRoles={getRoles} />
+                        ) : (
+                            <div className="p-8 text-center max-w-md mx-auto">
+                                <div className="w-20 h-20 bg-amber-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="crown" class="w-10 h-10 text-amber-600"></i>' }}></span>
+                                </div>
+                                <h2 className="text-2xl font-bold text-slate-800 mb-2">Función Premium</h2>
+                                <p className="text-slate-500 mb-8">El gestor de partidos en vivo requiere una suscripción activa para procesar datos en tiempo real.</p>
+                                <button onClick={startCheckout} className="w-full py-4 bg-slate-800 text-white rounded-2xl font-bold shadow-lg hover:bg-slate-900 transition-all">
+                                    Suscribirse por 9.99€/mes
+                                </button>
+                                <button onClick={() => setView('team-detail')} className="mt-4 text-slate-400 font-bold text-sm">Volver</button>
+                            </div>
+                        )
+                    )}
                     {view === 'manage-players' && <ManagePlayersView team={getSelectedTeam()} setView={setView} updateTeamInDb={updateTeamInDb} getRoles={getRoles} />}
                     {view === 'manage-roles' && <ManageRolesView team={getSelectedTeam()} setView={setView} updateTeamInDb={updateTeamInDb} getRoles={getRoles} />}
                 </div>
