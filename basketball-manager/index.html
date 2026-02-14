@@ -74,7 +74,7 @@
         const { useState, useEffect, useMemo } = React;
 
         // --- Logic & Types ---
-        const APP_VERSION = '1.6.0';
+        const APP_VERSION = '1.6.1';
         const RULESETS = {
             'fbcv_8p': {
                 id: 'fbcv_8p',
@@ -413,7 +413,6 @@
         };
 
         const ActiveMatchView = ({ match, teams, updateMatchInDb, setView, setActiveMatchId, getRoles }) => {
-            if (!match) return <div className="p-4">Cargando partido...</div>;
             const [localHistory, setLocalHistory] = useState(match?.history || {});
             const [mode, setMode] = useState('matrix');
             const [matchInjuries, setMatchInjuries] = useState(match?.injuries || []);
@@ -433,6 +432,8 @@
             }, [showFinishModal, match?.score]);
 
             const team = teams.find(t => t.id === match?.teamId);
+            if (!match || !team) return <div className="p-4 flex flex-col items-center justify-center min-h-[50vh] text-slate-400 gap-2"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div><p>Cargando datos...</p></div>;
+
             const rulesetId = match?.rulesetId || team?.rulesetId || DEFAULT_RULESET;
             const ruleset = RULESETS[rulesetId] || RULESETS[DEFAULT_RULESET];
             const currentP = match?.currentPeriod || 1;
