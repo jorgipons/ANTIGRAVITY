@@ -75,7 +75,7 @@
 
         // --- Logic & Types ---
         const TOTAL_PERIODS = 8;
-        const APP_VERSION = '1.3.5';
+        const APP_VERSION = '1.4.0';
         const CHECK_PERIOD = 6;
         const MIN_PLAY = 2;
         const MIN_REST = 2;
@@ -113,7 +113,21 @@
             const [newPlayerNumber, setNewPlayerNumber] = useState('');
             const [newRoleName, setNewRoleName] = useState('');
             const [newRoleColor, setNewRoleColor] = useState('blue');
+            const [isEditingName, setIsEditingName] = useState(false);
+            const [tempName, setTempName] = useState(team?.name || '');
 
+            useEffect(() => {
+                setTempName(team?.name || '');
+            }, [team]);
+
+            const saveTeamName = async () => {
+                if (!tempName.trim() || tempName === team.name) {
+                    setIsEditingName(false);
+                    return;
+                }
+                await updateTeamInDb(team.id, { name: tempName.trim() });
+                setIsEditingName(false);
+            };
             useEffect(() => {
                 lucide.createIcons();
             }, [team, matches]);
@@ -155,27 +169,49 @@
             return (
                 <div className="p-4 max-w-md mx-auto pb-24">
                     <header className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-2">
-                            <button onClick={() => setView('teams-list')} className="p-2 -ml-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
-                            <h1 className="text-2xl font-bold">{team.name}</h1>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => setView('manage-players')}
-                                className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600"
-                                title="Gestionar Jugadores"
-                            >
-                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="users" class="w-5 h-5"></i>' }}></span>
-                            </button>
-                            <button
-                                onClick={() => setView('manage-roles')}
-                                className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600"
-                                title="Configurar Roles"
-                            >
-                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="settings" class="w-5 h-5"></i>' }}></span>
-                            </button>
+                        <div className="flex items-center gap-2 flex-1">
+                            <button onClick={() => setView('teams-list')} className="p-2 -ml-2 text-slate-400 hover:text-slate-800 transition-colors"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
+                            {isEditingName ? (
+                                <div className="flex items-center gap-2 flex-1">
+                                    <input
+                                        autoFocus
+                                        className="text-xl font-bold bg-slate-50 border-b-2 border-blue-500 outline-none w-full"
+                                        value={tempName}
+                                        onChange={e => setTempName(e.target.value)}
+                                        onBlur={saveTeamName}
+                                        onKeyDown={e => e.key === 'Enter' && saveTeamName()}
+                                    />
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-3">
+                                    <h1 className="text-2xl font-bold text-slate-800">{team.name}</h1>
+                                    <button onClick={() => { setTempName(team.name); setIsEditingName(true); }} className="p-1.5 text-slate-300 hover:text-blue-500 transition-colors">
+                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="edit-3" class="w-4 h-4"></i>' }}></span>
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </header>
+                    <div className="grid grid-cols-2 gap-3 mb-8">
+                        <button
+                            onClick={() => setView('manage-players')}
+                            className="flex flex-col items-center justify-center p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-200 transition-all group"
+                        >
+                            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="users" class="w-5 h-5"></i>' }}></span>
+                            </div>
+                            <span className="font-bold text-slate-700 text-sm">Jugadores</span>
+                        </button>
+                        <button
+                            onClick={() => setView('manage-roles')}
+                            className="flex flex-col items-center justify-center p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-amber-200 transition-all group"
+                        >
+                            <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="settings" class="w-5 h-5"></i>' }}></span>
+                            </div>
+                            <span className="font-bold text-slate-700 text-sm">Posiciones</span>
+                        </button>
+                    </div>
 
                     <div className="space-y-8">
                         <section>
@@ -1509,6 +1545,7 @@
                     setSubscription(null);
                     return;
                 }
+                setSubscription(undefined); // Reset state to loading when user changes to avoid flicker
                 const subRef = collection(db, 'customers', user.uid, 'subscriptions');
                 const q = query(subRef, where("status", "in", ["active", "trialing"]));
                 const unsubscribe = onSnapshot(q, (snapshot) => {
