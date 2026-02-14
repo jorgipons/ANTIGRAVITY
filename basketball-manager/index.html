@@ -74,12 +74,28 @@
         const { useState, useEffect, useMemo } = React;
 
         // --- Logic & Types ---
-        const TOTAL_PERIODS = 8;
-        const APP_VERSION = '1.5.0';
-        const CHECK_PERIOD = 6;
-        const MIN_PLAY = 2;
-        const MIN_REST = 2;
-
+        const APP_VERSION = '1.6.0';
+        const RULESETS = {
+            'fbcv_8p': {
+                id: 'fbcv_8p',
+                name: 'FBCV 8 periodos',
+                totalPeriods: 8,
+                checkPeriod: 6,
+                minPlay: 2,
+                minRest: 2,
+                maxPlay: 4
+            },
+            'fbcv_6p': {
+                id: 'fbcv_6p',
+                name: 'FBCV 6 periodos',
+                totalPeriods: 6,
+                checkPeriod: 5,
+                minPlay: 2,
+                minRest: 2,
+                maxPlay: 3
+            }
+        };
+        const DEFAULT_RULESET = 'fbcv_8p';
         const DEFAULT_ROLES = {
             'receptor': { label: 'Receptor', order: 1, color: 'text-blue-600', bg: 'bg-blue-50' },
             'medio': { label: 'Medio', order: 2, color: 'text-green-600', bg: 'bg-green-50' },
@@ -416,13 +432,15 @@
                 }
             }, [showFinishModal, match?.score]);
 
+            const team = teams.find(t => t.id === match?.teamId);
+            const rulesetId = match?.rulesetId || team?.rulesetId || DEFAULT_RULESET;
+            const ruleset = RULESETS[rulesetId] || RULESETS[DEFAULT_RULESET];
             const currentP = match?.currentPeriod || 1;
             const isFinished = match?.state === 'finished';
             const isLocked = isFinished && !forceEdit;
-            const totalRenderedPeriods = Math.max(TOTAL_PERIODS, currentP);
+            const totalRenderedPeriods = Math.max(ruleset.totalPeriods, currentP);
             const periodsArray = Array.from({ length: totalRenderedPeriods }, (_, i) => i + 1);
 
-            const team = teams.find(t => t.id === match?.teamId);
             const roles = getRoles(team);
             const roleKeys = Object.keys(roles);
 
@@ -559,7 +577,7 @@
                 const errors = [];
                 const warnings = [];
                 const historyArray = {};
-                for (let i = 1; i <= totalRenderedPeriods; i++) {
+                for (let i = 1; i <= ruleset.totalPeriods; i++) {
                     const pData = localHistory[i];
                     historyArray[i] = Array.isArray(pData) ? pData : (pData ? Object.keys(pData) : []);
                 }
@@ -567,39 +585,41 @@
                 (match.players || []).forEach(p => {
                     if (p.disabled) return;
 
-                    let playedInFirst6 = 0;
-                    let restedInFirst6 = 0;
-                    let limboInFirst6 = 0;
+                    let playedInCheckRange = 0;
+                    let restedInCheckRange = 0;
+                    let limboInCheckRange = 0;
 
-                    for (let i = 1; i <= 6; i++) {
+                    for (let i = 1; i <= ruleset.checkPeriod; i++) {
                         const isInjured = matchInjuries.find(inj => inj.period === i && (inj.playerOut === p.id || inj.playerIn === p.id));
                         if (isInjured) {
-                            limboInFirst6++;
+                            limboInCheckRange++;
                             continue;
                         }
 
                         if (i <= currentP) {
-                            if (historyArray[i]?.includes(p.id)) playedInFirst6++;
-                            else restedInFirst6++;
+                            if (historyArray[i]?.includes(p.id)) playedInCheckRange++;
+                            else restedInCheckRange++;
                         }
                     }
 
-                    const remainingPeriods = 6 - Math.min(6, currentP);
-                    const maxPossiblePlayed = playedInFirst6 + remainingPeriods;
-                    const maxPossibleRested = restedInFirst6 + remainingPeriods;
+                    const remainingPeriods = ruleset.checkPeriod - Math.min(ruleset.checkPeriod, currentP);
+                    const maxPossiblePlayed = playedInCheckRange + remainingPeriods;
+                    const maxPossibleRested = restedInCheckRange + remainingPeriods;
 
-                    if (playedInFirst6 > 4) errors.push(`${p.name} excede 4 periodos en los primeros 6.`);
-
-                    if (maxPossiblePlayed < 2) {
-                        errors.push(`¡Error Pasarela!: Es matemáticamente imposible que ${p.name} juegue los 2 periodos mínimos (solo llegaría a ${maxPossiblePlayed}).`);
-                    } else if (playedInFirst6 < 2 && (isFinished || currentP >= 6)) {
-                        errors.push(`${p.name} no cumple el mínimo de 2 periodos en los primeros 6.`);
+                    if (playedInCheckRange > ruleset.maxPlay) {
+                        errors.push(`${p.name} excede ${ruleset.maxPlay} periodos en los primeros ${ruleset.checkPeriod}.`);
                     }
 
-                    if (maxPossibleRested < 2) {
-                        errors.push(`¡Error Pasarela!: Es matemáticamente imposible que ${p.name} descanse los 2 periodos mínimos (solo llegaría a ${maxPossibleRested}).`);
-                    } else if (restedInFirst6 < 2 && (isFinished || currentP >= 6)) {
-                        errors.push(`${p.name} no cumple el mínimo de 2 periodos de descanso en los primeros 6.`);
+                    if (maxPossiblePlayed < ruleset.minPlay) {
+                        errors.push(`¡Error Pasarela!: Es matemáticamente imposible que ${p.name} juegue los ${ruleset.minPlay} periodos mínimos (solo llegaría a ${maxPossiblePlayed}).`);
+                    } else if (playedInCheckRange < ruleset.minPlay && (isFinished || currentP >= ruleset.checkPeriod)) {
+                        errors.push(`${p.name} no cumple el mínimo de ${ruleset.minPlay} periodos en los primeros ${ruleset.checkPeriod}.`);
+                    }
+
+                    if (maxPossibleRested < ruleset.minRest) {
+                        errors.push(`¡Error Pasarela!: Es matemáticamente imposible que ${p.name} descanse los ${ruleset.minRest} periodos mínimos (solo llegaría a ${maxPossibleRested}).`);
+                    } else if (restedInCheckRange < ruleset.minRest && (isFinished || currentP >= ruleset.checkPeriod)) {
+                        errors.push(`${p.name} no cumple el mínimo de ${ruleset.minRest} periodos de descanso en los primeros ${ruleset.checkPeriod}.`);
                     }
                 });
                 return { errors, warnings };
@@ -613,7 +633,7 @@
                 if (count !== 5) {
                     if (!confirm(`Has seleccionado ${count} jugadores. ¿Seguro que quieres cerrar el periodo?`)) return;
                 }
-                if (currentP >= TOTAL_PERIODS) {
+                if (currentP >= ruleset.totalPeriods) {
                     setShowFinishModal(true);
                     return;
                 }
@@ -891,12 +911,12 @@
 
         const TeamsListView = ({ teams, setView, setSelectedTeamId, addDoc, collection, db, deleteDoc, doc, subscription, startCheckout }) => {
             const [newTeamName, setNewTeamName] = useState('');
+            const [newTeamRuleset, setNewTeamRuleset] = useState(DEFAULT_RULESET);
             const [showForm, setShowForm] = useState(false);
 
             const createTeam = async (e) => {
                 e.preventDefault();
                 if (!newTeamName.trim() || !window.auth.currentUser) return;
-
                 // --- Nueva Lógica de Límites ---
                 if (teams.length >= 1 && subscription === null) {
                     alert('Límite del Plan Gratuito: Solo puedes gestionar 1 equipo. Pásate a Premium para equipos ilimitados.');
@@ -906,15 +926,16 @@
 
                 await addDoc(collection(db, 'teams'), {
                     name: newTeamName,
+                    rulesetId: newTeamRuleset,
                     players: [],
                     roles: DEFAULT_ROLES,
                     ownerId: window.auth.currentUser.uid,
                     createdAt: new Date().toISOString()
                 });
                 setNewTeamName('');
+                setNewTeamRuleset(DEFAULT_RULESET);
                 setShowForm(false);
             };
-
             const deleteTeam = async (id) => {
                 if (confirm('¿Eliminar equipo?')) {
                     await deleteDoc(doc(db, 'teams', id));
@@ -983,18 +1004,40 @@
                         )}
 
                         {showForm && (
-                            <form onSubmit={createTeam} className="mb-8 flex gap-2 animate-in slide-in-from-top-2 duration-200">
-                                <input
-                                    autoFocus
-                                    className="flex-1 p-3 border-2 border-slate-200 rounded-xl focus:border-slate-800 outline-none transition-all bg-white"
-                                    placeholder="Nombre del nuevo equipo..."
-                                    value={newTeamName}
-                                    onChange={e => setNewTeamName(e.target.value)}
-                                />
-                                <button className="bg-slate-800 text-white px-6 rounded-xl font-bold shadow-md hover:bg-slate-900 transition-colors">
-                                    Crear
-                                </button>
-                            </form>
+                            <div className="mb-8 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm animate-in slide-in-from-top-2 duration-200">
+                                <form onSubmit={createTeam}>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nombre del Equipo</label>
+                                            <input
+                                                autoFocus
+                                                className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all bg-slate-50"
+                                                placeholder="Ej: Alevín Masculino..."
+                                                value={newTeamName}
+                                                onChange={e => setNewTeamName(e.target.value)}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Reglamento por Defecto</label>
+                                            <select
+                                                className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all bg-slate-50 text-slate-700 font-medium"
+                                                value={newTeamRuleset}
+                                                onChange={e => setNewTeamRuleset(e.target.value)}
+                                            >
+                                                {Object.values(RULESETS).map(r => (
+                                                    <option key={r.id} value={r.id}>{r.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all mt-2"
+                                        >
+                                            Crear Equipo
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         )}
 
                         {teams.length === 0 ? (
@@ -1032,6 +1075,7 @@
             const [matchDate, setMatchDate] = useState(new Date().toISOString().split('T')[0]);
             const [matchTime, setMatchTime] = useState(new Date().toTimeString().split(' ')[0].substring(0, 5));
             const [matchDay, setMatchDay] = useState('');
+            const [rulesetId, setRulesetId] = useState(team?.rulesetId || DEFAULT_RULESET);
             const [isHome, setIsHome] = useState(true);
             const [observations, setObservations] = useState('');
             const [selectedPlayers, setSelectedPlayers] = useState([]);
@@ -1061,6 +1105,7 @@
                     history: {},
                     injuries: [],
                     score: { local: 0, visitor: 0 },
+                    rulesetId: rulesetId,
                     ownerId: window.auth.currentUser.uid,
                     createdAt: new Date().toISOString()
                 };
@@ -1092,6 +1137,18 @@
                                 <input type="radio" checked={!isHome} onChange={() => setIsHome(false)} />
                                 <span>Visitante</span>
                             </label>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Reglamento</label>
+                            <select
+                                className="w-full p-3 border rounded-xl focus:border-blue-500 outline-none transition-all bg-slate-50 text-slate-700 font-medium"
+                                value={rulesetId}
+                                onChange={e => setRulesetId(e.target.value)}
+                            >
+                                {Object.values(RULESETS).map(r => (
+                                    <option key={r.id} value={r.id}>{r.name}</option>
+                                ))}
+                            </select>
                         </div>
                         <textarea className="w-full p-3 border rounded-lg" placeholder="Observaciones (opcional)" rows="3" value={observations} onChange={e => setObservations(e.target.value)}></textarea>
                     </div>
