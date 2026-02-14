@@ -75,7 +75,7 @@
 
         // --- Logic & Types ---
         const TOTAL_PERIODS = 8;
-        const APP_VERSION = '1.4.0';
+        const APP_VERSION = '1.4.1';
         const CHECK_PERIOD = 6;
         const MIN_PLAY = 2;
         const MIN_REST = 2;
@@ -935,7 +935,9 @@
                                     <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="log-out" class="w-2 h-2"></i>' }}></span> Cerrar Sesión
                                 </button>
                                 <span className="text-[10px] text-slate-300">•</span>
-                                {subscription ? (
+                                {subscription === undefined ? (
+                                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest animate-pulse">Comprobando...</span>
+                                ) : (subscription === 'active' || subscription === 'trialing') ? (
                                     <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest flex items-center gap-1">
                                         <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="crown" class="w-2 h-2"></i>' }}></span> Premium
                                     </span>
@@ -1549,8 +1551,17 @@
                 const subRef = collection(db, 'customers', user.uid, 'subscriptions');
                 const q = query(subRef, where("status", "in", ["active", "trialing"]));
                 const unsubscribe = onSnapshot(q, (snapshot) => {
-                    if (snapshot.empty) setSubscription(null);
-                    else setSubscription(snapshot.docs[0].data().status);
+                    if (snapshot.empty) {
+                        // Delay verifying as "null" to swallow initial empty snapshots during sync
+                        setTimeout(() => {
+                            setSubscription(curr => {
+                                // If after 400ms we still have no data, set to null
+                                return curr === undefined ? null : curr;
+                            });
+                        }, 400);
+                    } else {
+                        setSubscription(snapshot.docs[0].data().status);
+                    }
                 });
                 return () => unsubscribe();
             }, [user]);
