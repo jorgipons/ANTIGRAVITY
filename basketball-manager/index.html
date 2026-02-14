@@ -1426,26 +1426,7 @@
 
             return (
                 <div className="max-w-md mx-auto">
-                    {/* Top Bar Navigation */}
-                    <div className="flex justify-between items-center px-4 py-3 bg-slate-50/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 mb-6">
-                        <div className="flex items-center gap-2">
-                            {subscription === undefined ? (
-                                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest animate-pulse flex items-center gap-1">
-                                    <span className="w-2 h-2 rounded-full bg-slate-200"></span> Comprobando...
-                                </span>
-                            ) : (subscription === 'active' || subscription === 'trialing') ? (
-                                <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest flex items-center gap-1.5 bg-amber-50 px-2 py-1 rounded-full border border-amber-100">
-                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="crown" class="w-3 h-3"></i>' }}></span> Premium
-                                </span>
-                            ) : (
-                                <button onClick={startCheckout} className="text-[10px] font-bold text-blue-600 hover:text-blue-800 uppercase tracking-widest flex items-center gap-1.5 bg-blue-50 px-2 py-1 rounded-full border border-blue-100 transition-colors">
-                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="zap" class="w-3 h-3"></i>' }}></span> Plan Gratuito
-                                </button>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="px-4">
+                    <div className="px-4 pt-6">
                         <header className="flex justify-between items-center mb-8">
                             <div>
                                 <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Equipos</h1>
