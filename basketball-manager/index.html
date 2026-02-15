@@ -746,20 +746,21 @@
             const [syncing, setSyncing] = useState(false);
             const [showSyncMenu, setShowSyncMenu] = useState(false);
 
-            const handleSyncFederation = async () => {
+            const handleSyncFederation = async (silent = false) => {
                 if (!team.federationId) return;
                 setSyncing(true);
                 try {
                     const result = await syncWithFederation(team.federationId);
                     if (result.success) {
                         await updateTeamInDb(team.id, { federationData: result.data });
-                        alert('✅ Sincronización completada');
+                        if (!silent) alert('✅ Sincronización completada');
                     } else {
-                        alert(`❌ Error: ${result.error} `);
+                        if (!silent) alert(`❌ Error: ${result.error} `);
+                        console.error("Auto-sync error:", result.error);
                     }
                 } catch (error) {
                     console.error('❌ Unexpected error in handleSyncFederation:', error);
-                    alert(`❌ Error inesperado: ${error.message} `);
+                    if (!silent) alert(`❌ Error inesperado: ${error.message} `);
                 } finally {
                     setSyncing(false);
                 }
@@ -846,6 +847,28 @@
             useEffect(() => {
                 lucide.createIcons();
             }, [team, matches]);
+
+            // Auto-Sync Federation Data (15 min cooldown)
+            useEffect(() => {
+                const autoSync = async () => {
+                    if (!team?.federationId) return;
+
+                    const lastSync = team.federationData?.lastSync;
+                    const now = Date.now();
+                    const COOLDOWN = 24 * 60 * 60 * 1000; // 24 hours
+
+                    const needsSync = !lastSync || (now - new Date(lastSync).getTime() > COOLDOWN);
+
+                    if (needsSync) {
+                        console.log("🔄 Auto-syncing federation data (expired or missing)...");
+                        // We silence the alert for auto-sync by passing a flag if we wanted, 
+                        // but handleSyncFederation currently alerts. 
+                        // Let's modify handleSyncFederation to accept 'silent' param.
+                        await handleSyncFederation(true);
+                    }
+                };
+                autoSync();
+            }, [team?.id]);
 
             const players = team?.players || [];
 
