@@ -1153,196 +1153,7 @@
             );
         };
 
-        const EditMatchView = ({ match, team, onSave, onDelete }) => {
-            const [opponent, setOpponent] = useState(match.opponent || '');
-            const [matchDate, setMatchDate] = useState(match.date || '');
-            const [matchTime, setMatchTime] = useState(match.time || '');
-            const [callTime, setCallTime] = useState(match.callTime || '');
-            const [location, setLocation] = useState(match.location || '');
-            const [matchDay, setMatchDay] = useState(match.matchDay || '');
-            const [isHome, setIsHome] = useState(match.isHome !== undefined ? match.isHome : true);
-            const [observations, setObservations] = useState(match.observations || '');
-            const [localScore, setLocalScore] = useState(match.score?.local || '');
-            const [visitorScore, setVisitorScore] = useState(match.score?.visitor || '');
-            const [result, setResult] = useState(match.result || '');
 
-            const [departureTime, setDepartureTime] = useState(match.departureTime || '');
-            const [departureLocation, setDepartureLocation] = useState(match.departureLocation || '');
-            const [transportType, setTransportType] = useState(match.transportType || 'bus');
-            const [arrivalTime, setArrivalTime] = useState(match.arrivalTime || '');
-
-            useEffect(() => {
-                lucide.createIcons();
-            }, [isHome]); // Re-create icons when conditional fields toggle
-
-            return (
-                <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-4 shadow-sm">
-                    <div>
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1">Rival</label>
-                        <input
-                            className="w-full p-3 text-lg font-bold border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all shadow-sm"
-                            placeholder="Nombre del rival"
-                            value={opponent}
-                            onChange={e => setOpponent(e.target.value)}
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase ml-1">Fecha</label>
-                            <input type="date" className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" value={matchDate} onChange={e => setMatchDate(e.target.value)} />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase ml-1">Hora Inicio</label>
-                            <input type="time" className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" value={matchTime} onChange={e => setMatchTime(e.target.value)} />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase ml-1">Convocatoria</label>
-                            <input type="time" className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" value={callTime} onChange={e => setCallTime(e.target.value)} />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase ml-1">Jornada</label>
-                            <input className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" placeholder="J1, J2..." value={matchDay} onChange={e => setMatchDay(e.target.value)} />
-                        </div>
-                    </div>
-
-                    <div className="space-y-1">
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase ml-1">Lugar</label>
-                        <input className="w-full p-3 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all shadow-sm" placeholder={isHome ? "📍 Lugar (por defecto: Local)" : "📍 Lugar (por defecto: Visitante)"} value={location} onChange={e => setLocation(e.target.value)} />
-                    </div>
-
-                    <div className="flex bg-slate-100 p-1 rounded-xl">
-                        <button onClick={() => setIsHome(true)} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${isHome ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>LOCAL</button>
-                        <button onClick={() => setIsHome(false)} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${!isHome ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>VISITANTE</button>
-                    </div>
-
-                    {!isHome && (
-                        <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                            <p className="text-[10px] font-extrabold text-blue-600 uppercase tracking-widest flex items-center gap-2">
-                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="truck" class="w-3 h-3"></i>' }}></span> Desplazamiento
-                            </p>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                    <label className="block text-[10px] font-bold text-blue-400 uppercase ml-1">Hora Salida</label>
-                                    <input type="time" className="w-full p-2.5 border border-blue-200 rounded-lg focus:border-blue-500 outline-none transition-all bg-white text-sm" value={departureTime} onChange={e => setDepartureTime(e.target.value)} />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="block text-[10px] font-bold text-blue-400 uppercase ml-1">Transporte</label>
-                                    <div className="flex bg-white border border-blue-200 rounded-lg p-0.5">
-                                        <button onClick={() => setTransportType('bus')} className={`flex-1 py-1.5 rounded-md flex items-center justify-center gap-1 transition-all ${transportType === 'bus' ? 'bg-blue-600 text-white shadow-sm' : 'text-blue-400 hover:bg-blue-50'}`}>
-                                            <span className="text-sm">🚌</span>
-                                        </button>
-                                        <button onClick={() => setTransportType('car')} className={`flex-1 py-1.5 rounded-md flex items-center justify-center gap-1 transition-all ${transportType === 'car' ? 'bg-blue-600 text-white shadow-sm' : 'text-blue-400 hover:bg-blue-50'}`}>
-                                            <span className="text-sm">🚗</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                    <label className="block text-[10px] font-bold text-blue-400 uppercase ml-1">Lugar Salida</label>
-                                    <input className="w-full p-2.5 border border-blue-200 rounded-lg focus:border-blue-500 outline-none transition-all bg-white text-sm" placeholder="Pabellón..." value={departureLocation} onChange={e => setDepartureLocation(e.target.value)} />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="block text-[10px] font-bold text-blue-400 uppercase ml-1">Hora Llegada</label>
-                                    <input type="time" className="w-full p-2.5 border border-blue-200 rounded-lg focus:border-blue-500 outline-none transition-all bg-white text-sm" value={arrivalTime} onChange={e => setArrivalTime(e.target.value)} />
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="space-y-1">
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase ml-1">Observaciones</label>
-                        <textarea className="w-full p-3 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" rows="2" placeholder="Notas sobre el partido..." value={observations} onChange={e => setObservations(e.target.value)}></textarea>
-                    </div>
-
-                    <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
-                        <p className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-widest mb-1 flex items-center gap-2">
-                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="share-2" class="w-3 h-3"></i>' }}></span> Copiar Convocatoria
-                        </p>
-                        <p className="text-[10px] text-emerald-600/70 mb-3">Copia el mensaje para compartirlo con los padres por WhatsApp</p>
-                        <div className="grid grid-cols-2 gap-2">
-                            <button
-                                onClick={() => copyToClipboard(generateConvocatoria({ opponent, date: matchDate, time: matchTime, callTime, location, isHome, departureTime, departureLocation, transportType, arrivalTime }, team, 'val'))}
-                                className="bg-white border border-emerald-200 text-emerald-700 py-2.5 rounded-lg font-bold text-xs hover:bg-emerald-100 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
-                            >
-                                Valencià
-                            </button>
-                            <button
-                                onClick={() => copyToClipboard(generateConvocatoria({ opponent, date: matchDate, time: matchTime, callTime, location, isHome, departureTime, departureLocation, transportType, arrivalTime }, team, 'cas'))}
-                                className="bg-white border border-emerald-200 text-emerald-700 py-2.5 rounded-lg font-bold text-xs hover:bg-emerald-100 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
-                            >
-                                Castellano
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Resultado (Opcional)</h3>
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                            <div>
-                                <label className="block text-[10px] font-bold text-slate-400 mb-1 ml-1">Local</label>
-                                <input type="number" className="w-full p-2.5 border border-slate-200 rounded-xl text-center font-bold bg-white" value={localScore} onChange={e => setLocalScore(e.target.value)} />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-bold text-slate-400 mb-1 ml-1">Visitante</label>
-                                <input type="number" className="w-full p-2.5 border border-slate-200 rounded-xl text-center font-bold bg-white" value={visitorScore} onChange={e => setVisitorScore(e.target.value)} />
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-[10px] font-bold text-slate-400 mb-1 ml-1">Estado</label>
-                            <select className="w-full p-2.5 border border-slate-200 rounded-xl bg-white font-medium" value={result} onChange={e => setResult(e.target.value)}>
-                                <option value="">-- Automático --</option>
-                                <option value="won">Victoria</option>
-                                <option value="lost">Derrota</option>
-                                <option value="draw">Empate</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <button
-                        onClick={() => {
-                            const scoreObj = (localScore !== '' && visitorScore !== '') ? { local: parseInt(localScore), visitor: parseInt(visitorScore) } : null;
-                            let derivedResult = result;
-                            if (!derivedResult && scoreObj) {
-                                const we = isHome ? scoreObj.local : scoreObj.visitor;
-                                const they = isHome ? scoreObj.visitor : scoreObj.local;
-                                derivedResult = we > they ? 'won' : (we < they ? 'lost' : 'draw');
-                            }
-                            onSave({
-                                opponent, date: matchDate, time: matchTime, callTime, location,
-                                matchDay, isHome, observations, score: scoreObj, result: derivedResult,
-                                departureTime: !isHome ? departureTime : '',
-                                departureLocation: !isHome ? departureLocation : '',
-                                transportType: !isHome ? transportType : '',
-                                arrivalTime: !isHome ? arrivalTime : ''
-                            });
-                        }}
-                        className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-100 flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-[0.98] transition-all"
-                    >
-                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="save"></i>' }}></span> Guardar Cambios
-                    </button>
-
-                    {onDelete && (
-                        <div className="mt-8 bg-red-50 p-4 rounded-xl border border-red-100">
-                            <h3 className="font-bold text-red-900 mb-2 flex items-center gap-2">
-                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="alert-triangle" class="w-4 h-4"></i>' }}></span> Zona de Peligro
-                            </h3>
-                            <p className="text-xs text-red-700/70 mb-4">La eliminación es permanente y no se puede deshacer.</p>
-                            <button
-                                onClick={onDelete}
-                                className="w-full py-3 bg-white border border-red-200 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-2"
-                            >
-                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trash-2" class="w-4 h-4"></i>' }}></span> Eliminar Partido
-                            </button>
-                        </div>
-                    )}
-                </div>
-            );
-        };
 
         const SubstitutionView = ({ players, currentP, localHistory, onCancel, onConfirm }) => {
             const pData = localHistory[currentP] || {};
@@ -2385,705 +2196,836 @@
                                 </div>
                             )}
                         </div>
+                    </div>
+                </div>
+            );
+        };
 
+        const MatchSetupView = ({ team, navigate, addDoc, collection, db }) => {
+            useEffect(() => {
+                if (!team) navigate('teams-list');
+            }, [team]);
 
-                        const MatchSetupView = ({team, navigate, addDoc, collection, db}) => {
-            if (!team) {useEffect(() => navigate('teams-list'), []); return null; }
-                        const [opponent, setOpponent] = useState('');
-                        const [matchDate, setMatchDate] = useState(new Date().toISOString().split('T')[0]);
-                        const [matchTime, setMatchTime] = useState('');
-                        const [matchDay, setMatchDay] = useState('');
-                        const [rulesetId, setRulesetId] = useState(team?.rulesetId || DEFAULT_RULESET);
-                        const [isHome, setIsHome] = useState(true);
-                        const [observations, setObservations] = useState('');
-                        const [selectedPlayers, setSelectedPlayers] = useState([]);
-                        const [callTime, setCallTime] = useState('');
-                        const [location, setLocation] = useState('');
+            if (!team) return null;
+            const [opponent, setOpponent] = useState('');
+            const [matchDate, setMatchDate] = useState(new Date().toISOString().split('T')[0]);
+            const [matchTime, setMatchTime] = useState('');
+            const [matchDay, setMatchDay] = useState('');
+            const [rulesetId, setRulesetId] = useState(team?.rulesetId || DEFAULT_RULESET);
+            const [isHome, setIsHome] = useState(true);
+            const [observations, setObservations] = useState('');
+            const [selectedPlayers, setSelectedPlayers] = useState([]);
+            const [callTime, setCallTime] = useState('');
+            const [location, setLocation] = useState('');
 
-                        // New fields Phase 11
-                        const [departureTime, setDepartureTime] = useState('');
-                        const [departureLocation, setDepartureLocation] = useState('');
-                        const [transportType, setTransportType] = useState('bus');
-                        const [arrivalTime, setArrivalTime] = useState('');
+            // New fields Phase 11
+            const [departureTime, setDepartureTime] = useState('');
+            const [departureLocation, setDepartureLocation] = useState('');
+            const [transportType, setTransportType] = useState('bus');
+            const [arrivalTime, setArrivalTime] = useState('');
 
-                        const players = team?.players || [];
+            const players = team?.players || [];
 
             // Auto-set call time to 1 hour before match time for home games
             useEffect(() => {
                 if (isHome && matchTime && !callTime) {
                     const [h, m] = matchTime.split(':').map(Number);
-                        const callDate = new Date();
-                        callDate.setHours(h - 1, m);
-                        setCallTime(callDate.toTimeString().substring(0, 5));
+                    const callDate = new Date();
+                    callDate.setHours(h - 1, m);
+                    setCallTime(callDate.toTimeString().substring(0, 5));
                 }
             }, [matchTime]);
 
             const togglePlayer = (playerId) => {
-                            setSelectedPlayers(prev =>
-                                prev.includes(playerId) ? prev.filter(id => id !== playerId) : [...prev, playerId]
-                            );
+                setSelectedPlayers(prev =>
+                    prev.includes(playerId) ? prev.filter(id => id !== playerId) : [...prev, playerId]
+                );
             };
 
             const createMatch = async () => {
                 if (!opponent.trim() || selectedPlayers.length === 0) {
-                            alert('Debes ingresar un rival y seleccionar al menos un jugador.');
-                        return;
+                    alert('Debes ingresar un rival y seleccionar al menos un jugador.');
+                    return;
                 }
                 const fullPlayers = players.filter(p => selectedPlayers.includes(p.id));
-                        const newMatch = {
-                            teamId: team.id,
-                        opponent,
-                        date: matchDate,
-                        time: matchTime,
-                        callTime,
-                        location,
-                        matchDay,
-                        isHome,
-                        observations,
-                        players: fullPlayers,
-                        currentPeriod: 1,
-                        state: 'active',
-                        history: { },
-                        injuries: [],
-                        score: {local: 0, visitor: 0 },
-                        rulesetId: rulesetId,
-                        ownerId: window.auth.currentUser.uid,
-                        createdAt: new Date().toISOString(),
-                        departureTime: !isHome ? departureTime : '',
-                        departureLocation: !isHome ? departureLocation : '',
-                        transportType: !isHome ? transportType : '',
-                        arrivalTime: !isHome ? arrivalTime : ''
+                const newMatch = {
+                    teamId: team.id,
+                    opponent,
+                    date: matchDate,
+                    time: matchTime,
+                    callTime,
+                    location,
+                    matchDay,
+                    isHome,
+                    observations,
+                    players: fullPlayers,
+                    currentPeriod: 1,
+                    state: 'active',
+                    history: {},
+                    injuries: [],
+                    score: { local: 0, visitor: 0 },
+                    rulesetId: rulesetId,
+                    ownerId: window.auth.currentUser.uid,
+                    createdAt: new Date().toISOString(),
+                    departureTime: !isHome ? departureTime : '',
+                    departureLocation: !isHome ? departureLocation : '',
+                    transportType: !isHome ? transportType : '',
+                    arrivalTime: !isHome ? arrivalTime : ''
                 };
-                        const docRef = await addDoc(collection(db, 'matches'), newMatch);
-                        navigate('active-match', team.id, docRef.id);
+                const docRef = await addDoc(collection(db, 'matches'), newMatch);
+                navigate('active-match', team.id, docRef.id);
             };
 
             useEffect(() => {
-                            lucide.createIcons();
+                lucide.createIcons();
             }, []);
 
-                        return (
-                        <div className="p-4 max-w-md mx-auto">
-                            <header className="flex items-center gap-2 mb-6">
-                                <button onClick={() => navigate('team-detail', team.id)} className="p-2 -ml-2 text-slate-400 hover:text-slate-800 transition-colors"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
-                                <h1 className="text-2xl font-bold text-slate-800">Nuevo Partido</h1>
-                            </header>
-                            <div className="space-y-4 mb-6">
-                                <input className="w-full p-3 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all shadow-sm" placeholder="Rival" value={opponent} onChange={e => setOpponent(e.target.value)} />
+            return (
+                <div className="p-4 max-w-md mx-auto">
+                    <header className="flex items-center gap-2 mb-6">
+                        <button onClick={() => navigate('team-detail', team.id)} className="p-2 -ml-2 text-slate-400 hover:text-slate-800 transition-colors"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
+                        <h1 className="text-2xl font-bold text-slate-800">Nuevo Partido</h1>
+                    </header>
+                    <div className="space-y-4 mb-6">
+                        <input className="w-full p-3 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all shadow-sm" placeholder="Rival" value={opponent} onChange={e => setOpponent(e.target.value)} />
 
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-1">
-                                        <label className="block text-[10px] font-bold text-slate-400 uppercase ml-1">Fecha</label>
-                                        <input type="date" className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" value={matchDate} onChange={e => setMatchDate(e.target.value)} />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="block text-[10px] font-bold text-slate-400 uppercase ml-1">Hora Inicio</label>
-                                        <input type="time" className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" value={matchTime} onChange={e => setMatchTime(e.target.value)} />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-1">
-                                        <label className="block text-[10px] font-bold text-slate-400 uppercase ml-1">Convocatoria</label>
-                                        <input type="time" className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" value={callTime} onChange={e => setCallTime(e.target.value)} />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="block text-[10px] font-bold text-slate-400 uppercase ml-1">Jornada</label>
-                                        <input className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" placeholder="J1, J2..." value={matchDay} onChange={e => setMatchDay(e.target.value)} />
-                                    </div>
-                                </div>
-
-                                <input className="w-full p-3 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all shadow-sm" placeholder={isHome ? "📍 Lugar (por defecto: Local)" : "📍 Lugar (por defecto: Visitante)"} value={location} onChange={e => setLocation(e.target.value)} />
-
-                                <div className="flex bg-slate-100 p-1 rounded-xl">
-                                    <button onClick={() => setIsHome(true)} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${isHome ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>LOCAL</button>
-                                    <button onClick={() => setIsHome(false)} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${!isHome ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>VISITANTE</button>
-                                </div>
-
-                                {!isHome && (
-                                    <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                                        <p className="text-[10px] font-extrabold text-blue-600 uppercase tracking-widest flex items-center gap-2">
-                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="truck" class="w-3 h-3"></i>' }}></span> Desplazamiento
-                                        </p>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="space-y-1">
-                                                <label className="block text-[10px] font-bold text-blue-400 uppercase ml-1">Hora Salida</label>
-                                                <input type="time" className="w-full p-2.5 border border-blue-200 rounded-lg focus:border-blue-500 outline-none transition-all bg-white text-sm" value={departureTime} onChange={e => setDepartureTime(e.target.value)} />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="block text-[10px] font-bold text-blue-400 uppercase ml-1">Transporte</label>
-                                                <div className="flex bg-white border border-blue-200 rounded-lg p-0.5">
-                                                    <button onClick={() => setTransportType('bus')} className={`flex-1 py-1.5 rounded-md flex items-center justify-center gap-1 transition-all ${transportType === 'bus' ? 'bg-blue-600 text-white shadow-sm' : 'text-blue-400 hover:bg-blue-50'}`}>
-                                                        <span className="text-sm">🚌</span>
-                                                    </button>
-                                                    <button onClick={() => setTransportType('car')} className={`flex-1 py-1.5 rounded-md flex items-center justify-center gap-1 transition-all ${transportType === 'car' ? 'bg-blue-600 text-white shadow-sm' : 'text-blue-400 hover:bg-blue-50'}`}>
-                                                        <span className="text-sm">🚗</span>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="space-y-1">
-                                                <label className="block text-[10px] font-bold text-blue-400 uppercase ml-1">Lugar Salida</label>
-                                                <input className="w-full p-2.5 border border-blue-200 rounded-lg focus:border-blue-500 outline-none transition-all bg-white text-sm" placeholder="Pabellón..." value={departureLocation} onChange={e => setDepartureLocation(e.target.value)} />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="block text-[10px] font-bold text-blue-400 uppercase ml-1">Hora Llegada</label>
-                                                <input type="time" className="w-full p-2.5 border border-blue-200 rounded-lg focus:border-blue-500 outline-none transition-all bg-white text-sm" value={arrivalTime} onChange={e => setArrivalTime(e.target.value)} />
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
-                                    <p className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-widest mb-1 flex items-center gap-2">
-                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="share-2" class="w-3 h-3"></i>' }}></span> Copiar Convocatoria
-                                    </p>
-                                    <p className="text-[10px] text-emerald-600/70 mb-3">Copia el mensaje para compartirlo con los padres por WhatsApp</p>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <button
-                                            onClick={() => copyToClipboard(generateConvocatoria({ opponent, date: matchDate, time: matchTime, callTime, location, isHome, departureTime, departureLocation, transportType, arrivalTime }, team, 'val'))}
-                                            className="bg-white border border-emerald-200 text-emerald-700 py-2.5 rounded-lg font-bold text-xs hover:bg-emerald-100 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
-                                        >
-                                            Valencià
-                                        </button>
-                                        <button
-                                            onClick={() => copyToClipboard(generateConvocatoria({ opponent, date: matchDate, time: matchTime, callTime, location, isHome, departureTime, departureLocation, transportType, arrivalTime }, team, 'cas'))}
-                                            className="bg-white border border-emerald-200 text-emerald-700 py-2.5 rounded-lg font-bold text-xs hover:bg-emerald-100 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
-                                        >
-                                            Castellano
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-1">
-                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Reglamento</label>
-                                    <select
-                                        className="w-full p-3 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white text-slate-700 font-medium shadow-sm"
-                                        value={rulesetId}
-                                        onChange={e => setRulesetId(e.target.value)}
-                                    >
-                                        {Object.values(RULESETS).map(r => (
-                                            <option key={r.id} value={r.id}>{r.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <textarea className="w-full p-3 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" placeholder="Observaciones (opcional)" rows="2" value={observations} onChange={e => setObservations(e.target.value)}></textarea>
-
-                                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
-                                    <p className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="share-2" class="w-3 h-3"></i>' }}></span> Copiar Convocatoria
-                                    </p>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <button
-                                            onClick={() => copyToClipboard(generateConvocatoria({ opponent, date: matchDate, time: matchTime, callTime, location }, team, 'val'))}
-                                            className="bg-white border border-emerald-200 text-emerald-700 py-2.5 rounded-lg font-bold text-xs hover:bg-emerald-100 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
-                                        >
-                                            Valencià
-                                        </button>
-                                        <button
-                                            onClick={() => copyToClipboard(generateConvocatoria({ opponent, date: matchDate, time: matchTime, callTime, location }, team, 'cas'))}
-                                            className="bg-white border border-emerald-200 text-emerald-700 py-2.5 rounded-lg font-bold text-xs hover:bg-emerald-100 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
-                                        >
-                                            Castellano
-                                        </button>
-                                    </div>
-                                </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase ml-1">Fecha</label>
+                                <input type="date" className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" value={matchDate} onChange={e => setMatchDate(e.target.value)} />
                             </div>
-
-                            <h3 className="font-bold text-slate-800 mb-2 ml-1">Seleccionar Jugadores ({selectedPlayers.length})</h3>
-                            <div className="space-y-2 mb-6 max-h-[300px] overflow-y-auto pr-2 no-scrollbar">
-                                {players.map(p => (
-                                    <button
-                                        key={p.id}
-                                        onClick={() => togglePlayer(p.id)}
-                                        className={`w-full p-3 rounded-xl border flex items-center justify-between transition-all ${selectedPlayers.includes(p.id) ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500' : 'bg-white border-slate-200 hover:border-slate-300'}`}
-                                    >
-                                        <span className="font-bold text-slate-700">#{p.number} {p.name}</span>
-                                        {selectedPlayers.includes(p.id) ? (
-                                            <span className="bg-blue-500 text-white rounded-full p-1"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="check" class="w-3 h-3"></i>' }}></span></span>
-                                        ) : (
-                                            <div className="w-5 h-5 rounded-full border-2 border-slate-100"></div>
-                                        )}
-                                    </button>
-                                ))}
+                            <div className="space-y-1">
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase ml-1">Hora Inicio</label>
+                                <input type="time" className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" value={matchTime} onChange={e => setMatchTime(e.target.value)} />
                             </div>
-                            <button onClick={createMatch} className="w-full bg-slate-900 text-white p-4 rounded-xl font-extrabold shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="play" class="w-5 h-5 fill-white"></i>' }}></span> Empezar Partido
-                            </button>
                         </div>
-                        );
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase ml-1">Convocatoria</label>
+                                <input type="time" className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" value={callTime} onChange={e => setCallTime(e.target.value)} />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase ml-1">Jornada</label>
+                                <input className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" placeholder="J1, J2..." value={matchDay} onChange={e => setMatchDay(e.target.value)} />
+                            </div>
+                        </div>
+
+                        <input className="w-full p-3 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all shadow-sm" placeholder={isHome ? "📍 Lugar (por defecto: Local)" : "📍 Lugar (por defecto: Visitante)"} value={location} onChange={e => setLocation(e.target.value)} />
+
+                        <div className="flex bg-slate-100 p-1 rounded-xl">
+                            <button onClick={() => setIsHome(true)} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${isHome ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>LOCAL</button>
+                            <button onClick={() => setIsHome(false)} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${!isHome ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>VISITANTE</button>
+                        </div>
+
+                        {!isHome && (
+                            <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <p className="text-[10px] font-extrabold text-blue-600 uppercase tracking-widest flex items-center gap-2">
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="truck" class="w-3 h-3"></i>' }}></span> Desplazamiento
+                                </p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="block text-[10px] font-bold text-blue-400 uppercase ml-1">Hora Salida</label>
+                                        <input type="time" className="w-full p-2.5 border border-blue-200 rounded-lg focus:border-blue-500 outline-none transition-all bg-white text-sm" value={departureTime} onChange={e => setDepartureTime(e.target.value)} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="block text-[10px] font-bold text-blue-400 uppercase ml-1">Transporte</label>
+                                        <div className="flex bg-white border border-blue-200 rounded-lg p-0.5">
+                                            <button onClick={() => setTransportType('bus')} className={`flex-1 py-1.5 rounded-md flex items-center justify-center gap-1 transition-all ${transportType === 'bus' ? 'bg-blue-600 text-white shadow-sm' : 'text-blue-400 hover:bg-blue-50'}`}>
+                                                <span className="text-sm">🚌</span>
+                                            </button>
+                                            <button onClick={() => setTransportType('car')} className={`flex-1 py-1.5 rounded-md flex items-center justify-center gap-1 transition-all ${transportType === 'car' ? 'bg-blue-600 text-white shadow-sm' : 'text-blue-400 hover:bg-blue-50'}`}>
+                                                <span className="text-sm">🚗</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="block text-[10px] font-bold text-blue-400 uppercase ml-1">Lugar Salida</label>
+                                        <input className="w-full p-2.5 border border-blue-200 rounded-lg focus:border-blue-500 outline-none transition-all bg-white text-sm" placeholder="Pabellón..." value={departureLocation} onChange={e => setDepartureLocation(e.target.value)} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="block text-[10px] font-bold text-blue-400 uppercase ml-1">Hora Llegada</label>
+                                        <input type="time" className="w-full p-2.5 border border-blue-200 rounded-lg focus:border-blue-500 outline-none transition-all bg-white text-sm" value={arrivalTime} onChange={e => setArrivalTime(e.target.value)} />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                            <p className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-widest mb-1 flex items-center gap-2">
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="share-2" class="w-3 h-3"></i>' }}></span> Copiar Convocatoria
+                            </p>
+                            <p className="text-[10px] text-emerald-600/70 mb-3">Copia el mensaje para compartirlo con los padres por WhatsApp</p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    onClick={() => copyToClipboard(generateConvocatoria({ opponent, date: matchDate, time: matchTime, callTime, location, isHome, departureTime, departureLocation, transportType, arrivalTime }, team, 'val'))}
+                                    className="bg-white border border-emerald-200 text-emerald-700 py-2.5 rounded-lg font-bold text-xs hover:bg-emerald-100 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+                                >
+                                    Valencià
+                                </button>
+                                <button
+                                    onClick={() => copyToClipboard(generateConvocatoria({ opponent, date: matchDate, time: matchTime, callTime, location, isHome, departureTime, departureLocation, transportType, arrivalTime }, team, 'cas'))}
+                                    className="bg-white border border-emerald-200 text-emerald-700 py-2.5 rounded-lg font-bold text-xs hover:bg-emerald-100 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+                                >
+                                    Castellano
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Reglamento</label>
+                            <select
+                                className="w-full p-3 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white text-slate-700 font-medium shadow-sm"
+                                value={rulesetId}
+                                onChange={e => setRulesetId(e.target.value)}
+                            >
+                                {Object.values(RULESETS).map(r => (
+                                    <option key={r.id} value={r.id}>{r.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <textarea className="w-full p-3 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" placeholder="Observaciones (opcional)" rows="2" value={observations} onChange={e => setObservations(e.target.value)}></textarea>
+
+                        <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                            <p className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="share-2" class="w-3 h-3"></i>' }}></span> Copiar Convocatoria
+                            </p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    onClick={() => copyToClipboard(generateConvocatoria({ opponent, date: matchDate, time: matchTime, callTime, location }, team, 'val'))}
+                                    className="bg-white border border-emerald-200 text-emerald-700 py-2.5 rounded-lg font-bold text-xs hover:bg-emerald-100 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+                                >
+                                    Valencià
+                                </button>
+                                <button
+                                    onClick={() => copyToClipboard(generateConvocatoria({ opponent, date: matchDate, time: matchTime, callTime, location }, team, 'cas'))}
+                                    className="bg-white border border-emerald-200 text-emerald-700 py-2.5 rounded-lg font-bold text-xs hover:bg-emerald-100 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+                                >
+                                    Castellano
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 className="font-bold text-slate-800 mb-2 ml-1">Seleccionar Jugadores ({selectedPlayers.length})</h3>
+                    <div className="space-y-2 mb-6 max-h-[300px] overflow-y-auto pr-2 no-scrollbar">
+                        {players.map(p => (
+                            <button
+                                key={p.id}
+                                onClick={() => togglePlayer(p.id)}
+                                className={`w-full p-3 rounded-xl border flex items-center justify-between transition-all ${selectedPlayers.includes(p.id) ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500' : 'bg-white border-slate-200 hover:border-slate-300'}`}
+                            >
+                                <span className="font-bold text-slate-700">#{p.number} {p.name}</span>
+                                {selectedPlayers.includes(p.id) ? (
+                                    <span className="bg-blue-500 text-white rounded-full p-1"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="check" class="w-3 h-3"></i>' }}></span></span>
+                                ) : (
+                                    <div className="w-5 h-5 rounded-full border-2 border-slate-100"></div>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                    <button onClick={createMatch} className="w-full bg-slate-900 text-white p-4 rounded-xl font-extrabold shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="play" class="w-5 h-5 fill-white"></i>' }}></span> Empezar Partido
+                    </button>
+                </div>
+            );
         };
 
-                        const ManagePlayersView = ({team, navigate, updateTeamInDb, getRoles, match, updateMatchInDb}) => {
-            if (!team) {useEffect(() => navigate('teams-list'), []); return null; }
-                        const rolesObj = getRoles(team);
-            const rolesList = Object.entries(rolesObj).map(([id, info]) => ({id, ...info }));
-                        const isFromMatch = !!match; // Detectar si venimos desde un partido
+        const EditMatchView = ({ match, updateMatchInDb, navigate, team, deleteDoc, doc, db }) => {
+            useEffect(() => {
+                if (!match || !team) navigate('teams-list');
+                if (window.lucide) window.lucide.createIcons();
+            }, [match, team]);
 
-                        const [newPlayerName, setNewPlayerName] = useState('');
-                        const [newPlayerNumber, setNewPlayerNumber] = useState('');
-                        const [newPlayerRole, setNewPlayerRole] = useState(rolesList[0]?.id || 'receptor');
-                        const [editingId, setEditingId] = useState(null);
-                        const [editName, setEditName] = useState('');
-                        const [editNumber, setEditNumber] = useState('');
-                        const [editRole, setEditRole] = useState('');
+            if (!match || !team) return null;
 
-                        const players = team.players || [];
+            const [opponent, setOpponent] = useState(match.opponent || '');
+            const [matchDate, setMatchDate] = useState(match.date || '');
+            const [matchTime, setMatchTime] = useState(match.time || '');
+            const [location, setLocation] = useState(match.location || '');
+            const [isHome, setIsHome] = useState(match.isHome === false ? false : true);
+            const [departureTime, setDepartureTime] = useState(match.departureTime || '');
+            const [departureLocation, setDepartureLocation] = useState(match.departureLocation || '');
+            const [transportType, setTransportType] = useState(match.transportType || 'car');
+            const [arrivalTime, setArrivalTime] = useState(match.arrivalTime || '');
+            const [callTime, setCallTime] = useState(match.callTime || '');
+            const [matchDay, setMatchDay] = useState(match.matchDay || '');
+            const [observations, setObservations] = useState(match.observations || '');
+
+            const handleUpdate = async () => {
+                if (!opponent.trim()) return alert('Rival es obligatorio');
+                await updateMatchInDb(match.id, {
+                    opponent, date: matchDate, time: matchTime, location, isHome,
+                    departureTime, departureLocation, transportType, arrivalTime,
+                    callTime, matchDay, observations
+                });
+                alert('Partido actualizado');
+                navigate('active-match', team.id, match.id);
+            };
+
+            const handleDelete = async () => {
+                if (!confirm('¿Eliminar partido?')) return;
+                await deleteDoc(doc(db, 'matches', match.id));
+                navigate('team-detail', team.id);
+            };
+
+            return (
+                <div className="p-4 max-w-md mx-auto">
+                    <header className="flex items-center gap-2 mb-6">
+                        <button onClick={() => navigate('active-match', team.id, match.id)} className="p-2 -ml-2 text-slate-400 hover:text-slate-800 transition-colors"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
+                        <h1 className="text-2xl font-bold text-slate-800">Editar Partido</h1>
+                    </header>
+                    <div className="space-y-4 mb-6">
+                        <input className="w-full p-3 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all shadow-sm" placeholder="Rival" value={opponent} onChange={e => setOpponent(e.target.value)} />
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase ml-1">Fecha</label>
+                                <input type="date" className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" value={matchDate} onChange={e => setMatchDate(e.target.value)} />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase ml-1">Hora Inicio</label>
+                                <input type="time" className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" value={matchTime} onChange={e => setMatchTime(e.target.value)} />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase ml-1">Convocatoria</label>
+                                <input type="time" className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" value={callTime} onChange={e => setCallTime(e.target.value)} />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase ml-1">Jornada</label>
+                                <input className="w-full p-2.5 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" placeholder="J1, J2..." value={matchDay} onChange={e => setMatchDay(e.target.value)} />
+                            </div>
+                        </div>
+
+                        <input className="w-full p-3 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all shadow-sm" placeholder={isHome ? "📍 Lugar (por defecto: Local)" : "📍 Lugar (por defecto: Visitante)"} value={location} onChange={e => setLocation(e.target.value)} />
+
+                        <div className="flex bg-slate-100 p-1 rounded-xl">
+                            <button onClick={() => setIsHome(true)} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${isHome ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>LOCAL</button>
+                            <button onClick={() => setIsHome(false)} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${!isHome ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>VISITANTE</button>
+                        </div>
+
+                        {!isHome && (
+                            <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-3">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="block text-[10px] font-bold text-blue-400 uppercase ml-1">Hora Salida</label>
+                                        <input type="time" className="w-full p-2.5 border border-blue-200 rounded-lg focus:border-blue-500 outline-none transition-all bg-white text-sm" value={departureTime} onChange={e => setDepartureTime(e.target.value)} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="block text-[10px] font-bold text-blue-400 uppercase ml-1">Transporte</label>
+                                        <div className="flex bg-white border border-blue-200 rounded-lg p-0.5">
+                                            <button onClick={() => setTransportType('bus')} className={`flex-1 py-1.5 rounded-md flex items-center justify-center gap-1 transition-all ${transportType === 'bus' ? 'bg-blue-600 text-white shadow-sm' : 'text-blue-400 hover:bg-blue-50'}`}>
+                                                <span className="text-sm">🚌</span>
+                                            </button>
+                                            <button onClick={() => setTransportType('car')} className={`flex-1 py-1.5 rounded-md flex items-center justify-center gap-1 transition-all ${transportType === 'car' ? 'bg-blue-600 text-white shadow-sm' : 'text-blue-400 hover:bg-blue-50'}`}>
+                                                <span className="text-sm">🚗</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="block text-[10px] font-bold text-blue-400 uppercase ml-1">Lugar Salida</label>
+                                        <input className="w-full p-2.5 border border-blue-200 rounded-lg focus:border-blue-500 outline-none transition-all bg-white text-sm" placeholder="Pabellón..." value={departureLocation} onChange={e => setDepartureLocation(e.target.value)} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="block text-[10px] font-bold text-blue-400 uppercase ml-1">Hora Llegada</label>
+                                        <input type="time" className="w-full p-2.5 border border-blue-200 rounded-lg focus:border-blue-500 outline-none transition-all bg-white text-sm" value={arrivalTime} onChange={e => setArrivalTime(e.target.value)} />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <textarea className="w-full p-3 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" placeholder="Observaciones" rows="2" value={observations} onChange={e => setObservations(e.target.value)}></textarea>
+
+                        <button onClick={handleUpdate} className="w-full bg-slate-900 text-white p-4 rounded-xl font-extrabold shadow-xl active:scale-[0.98] transition-all">Guardar Cambios</button>
+                        <button onClick={handleDelete} className="w-full bg-white border border-red-200 text-red-600 p-4 rounded-xl font-bold shadow-sm active:scale-[0.98] transition-all">Eliminar Partido</button>
+                    </div>
+                </div>
+            );
+        };
+
+        const ManagePlayersView = ({ team, navigate, updateTeamInDb, getRoles, match, updateMatchInDb }) => {
+            useEffect(() => {
+                if (!team) navigate('teams-list');
+            }, [team]);
+
+            if (!team) return null;
+            const rolesObj = getRoles(team);
+            const rolesList = Object.entries(rolesObj).map(([id, info]) => ({ id, ...info }));
+            const isFromMatch = !!match; // Detectar si venimos desde un partido
+
+            const [newPlayerName, setNewPlayerName] = useState('');
+            const [newPlayerNumber, setNewPlayerNumber] = useState('');
+            const [newPlayerRole, setNewPlayerRole] = useState(rolesList[0]?.id || 'receptor');
+            const [editingId, setEditingId] = useState(null);
+            const [editName, setEditName] = useState('');
+            const [editNumber, setEditNumber] = useState('');
+            const [editRole, setEditRole] = useState('');
+
+            const players = team.players || [];
 
             const addPlayer = async (e) => {
-                            e.preventDefault();
-                        if (!newPlayerName.trim() || !newPlayerNumber.trim()) return;
-                        const newPlayer = {
-                            id: Date.now().toString(),
-                        name: newPlayerName.trim(),
-                        number: newPlayerNumber.trim(),
-                        role: newPlayerRole
+                e.preventDefault();
+                if (!newPlayerName.trim() || !newPlayerNumber.trim()) return;
+                const newPlayer = {
+                    id: Date.now().toString(),
+                    name: newPlayerName.trim(),
+                    number: newPlayerNumber.trim(),
+                    role: newPlayerRole
                 };
-                        await updateTeamInDb(team.id, {players: [...players, newPlayer] });
-                        setNewPlayerName('');
-                        setNewPlayerNumber('');
+                await updateTeamInDb(team.id, { players: [...players, newPlayer] });
+                setNewPlayerName('');
+                setNewPlayerNumber('');
             };
 
             const startEditing = (p) => {
-                            setEditingId(p.id);
-                        setEditName(p.name || '');
-                        setEditNumber(String(p.number || ''));
-                        setEditRole(p.role || rolesList[0]?.id || 'receptor');
+                setEditingId(p.id);
+                setEditName(p.name || '');
+                setEditNumber(String(p.number || ''));
+                setEditRole(p.role || rolesList[0]?.id || 'receptor');
             };
 
             const saveEdit = async () => {
                 if (!editName.trim() || !String(editNumber).trim()) return;
                 const updatedPlayers = players.map(p =>
-                        p.id === editingId ? {...p, name: editName.trim(), number: String(editNumber).trim(), role: editRole } : p
-                        );
-                        await updateTeamInDb(team.id, {players: updatedPlayers });
-                        setEditingId(null);
+                    p.id === editingId ? { ...p, name: editName.trim(), number: String(editNumber).trim(), role: editRole } : p
+                );
+                await updateTeamInDb(team.id, { players: updatedPlayers });
+                setEditingId(null);
             };
 
             const deletePlayer = async (playerId) => {
                 if (!confirm('¿Seguro que quieres eliminar este jugador?')) return;
-                        await updateTeamInDb(team.id, {players: players.filter(p => p.id !== playerId) });
+                await updateTeamInDb(team.id, { players: players.filter(p => p.id !== playerId) });
             };
 
             useEffect(() => {
-                            lucide.createIcons();
+                lucide.createIcons();
             }, [editingId, players.length]);
 
-                        return (
-                        <div className="p-4 max-w-md mx-auto">
-                            <header className="flex items-center gap-2 mb-6">
-                                <button onClick={() => navigate('team-detail', team.id)} className="p-2 -ml-2 transition-colors hover:bg-slate-100 rounded-lg">
-                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span>
-                                </button>
-                                <h1 className="text-2xl font-bold text-slate-800">Gestionar Jugadores</h1>
-                            </header>
+            return (
+                <div className="p-4 max-w-md mx-auto">
+                    <header className="flex items-center gap-2 mb-6">
+                        <button onClick={() => navigate('team-detail', team.id)} className="p-2 -ml-2 transition-colors hover:bg-slate-100 rounded-lg">
+                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span>
+                        </button>
+                        <h1 className="text-2xl font-bold text-slate-800">Gestionar Jugadores</h1>
+                    </header>
 
-                            {!editingId && (
-                                <form onSubmit={addPlayer} className="mb-6 space-y-2 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                    <div className="flex gap-2">
-                                        <input className="flex-1 p-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:bg-white transition-colors" placeholder="Nombre del jugador" value={newPlayerName} onChange={e => setNewPlayerName(e.target.value)} />
-                                        <input className="w-20 p-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:bg-white transition-colors text-center" placeholder="Nº" value={newPlayerNumber} onChange={e => setNewPlayerNumber(e.target.value)} />
-                                    </div>
-                                    <div className="flex flex-wrap gap-2 pt-1">
-                                        {rolesList.map(r => (
-                                            <button
-                                                key={r.id}
-                                                type="button"
-                                                onClick={() => setNewPlayerRole(r.id)}
-                                                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${newPlayerRole === r.id ? `${r.bg} ${r.color} border-current ring-1 ring-current` : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'}`}
-                                            >
-                                                {r.label || r.name}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button className="flex-1 bg-slate-800 hover:bg-slate-900 text-white p-2 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2">
-                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="plus" class="w-4 h-4"></i>' }}></span> Añadir Jugador
-                                        </button>
-                                        {isFromMatch && (
-                                            <button
-                                                type="button"
-                                                onClick={async () => {
-                                                    const currentPlayerIds = (team.players || []).map(p => p.id);
-                                                    const matchPlayerIds = match?.players?.map(p => p.id) || [];
-                                                    const availablePlayers = (team.players || []).filter(p => !matchPlayerIds.includes(p.id));
-                                                    if (availablePlayers.length === 0) {
-                                                        alert('No hay jugadores disponibles para añadir.');
-                                                        return;
-                                                    }
-                                                    if (!confirm(`¿Añadir ${availablePlayers.length} jugador(es) al partido?`)) return;
-                                                    const updatedPlayers = [...(match.players || []), ...availablePlayers];
-                                                    await updateMatchInDb(match.id, { players: updatedPlayers });
-                                                    navigate('active-match', team.id, match.id);
-                                                }}
-                                                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 p-2 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2"
-                                            >
-                                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="users-plus" class="w-4 h-4"></i>' }}></span> Añadir Todos
-                                            </button>
-                                        )}
-                                    </div>
-                                </form>
-                            )}
-
-                            <div className="space-y-3">
-                                {players.map(p => (
-                                    <div key={p.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                                        {editingId === p.id ? (
-                                            <div className="space-y-3">
-                                                <div className="flex gap-2">
-                                                    <input className="flex-1 p-2 border border-slate-200 rounded-lg text-sm font-bold bg-blue-50" value={editName} onChange={e => setEditName(e.target.value)} />
-                                                    <input className="w-16 p-2 border border-slate-200 rounded-lg text-sm font-bold text-center bg-blue-50" value={editNumber} onChange={e => setEditNumber(e.target.value)} />
-                                                </div>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {rolesList.map(r => (
-                                                        <button
-                                                            key={r.id}
-                                                            type="button"
-                                                            onClick={() => setEditRole(r.id)}
-                                                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${editRole === r.id ? `${r.bg} ${r.color} border-current ring-1 ring-current` : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'}`}
-                                                        >
-                                                            {r.label || r.name}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <button onClick={saveEdit} className="flex-1 bg-blue-600 text-white p-2 rounded-lg text-sm font-bold">Guardar</button>
-                                                    <button onClick={() => setEditingId(null)} className="flex-1 bg-slate-100 text-slate-600 p-2 rounded-lg text-sm font-bold">Cancelar</button>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="flex justify-between items-center">
-                                                <div className="flex items-center gap-3">
-                                                    <span className="w-9 h-9 flex items-center justify-center bg-slate-100 rounded-full text-slate-700 font-bold text-sm">{p.number}</span>
-                                                    <div className="flex flex-col">
-                                                        <span className="font-bold text-slate-800 leading-none">{p.name}</span>
-                                                        {p.role && rolesObj[p.role] && (
-                                                            <span className={`text-[10px] font-bold uppercase mt-1 ${rolesObj[p.role].color}`}>{rolesObj[p.role].label || rolesObj[p.role].name}</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <button onClick={() => startEditing(p)} className="p-2 text-slate-400 hover:text-blue-600">
-                                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="edit-2" class="w-4 h-4"></i>' }}></span>
-                                                    </button>
-                                                    <button onClick={() => deletePlayer(p.id)} className="p-2 text-slate-400 hover:text-red-500">
-                                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trash-2" class="w-4 h-4"></i>' }}></span>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
+                    {!editingId && (
+                        <form onSubmit={addPlayer} className="mb-6 space-y-2 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                            <div className="flex gap-2">
+                                <input className="flex-1 p-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:bg-white transition-colors" placeholder="Nombre del jugador" value={newPlayerName} onChange={e => setNewPlayerName(e.target.value)} />
+                                <input className="w-20 p-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:bg-white transition-colors text-center" placeholder="Nº" value={newPlayerNumber} onChange={e => setNewPlayerNumber(e.target.value)} />
+                            </div>
+                            <div className="flex flex-wrap gap-2 pt-1">
+                                {rolesList.map(r => (
+                                    <button
+                                        key={r.id}
+                                        type="button"
+                                        onClick={() => setNewPlayerRole(r.id)}
+                                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${newPlayerRole === r.id ? `${r.bg} ${r.color} border-current ring-1 ring-current` : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'}`}
+                                    >
+                                        {r.label || r.name}
+                                    </button>
                                 ))}
                             </div>
-                        </div>
-                        );
+                            <div className="flex gap-2">
+                                <button className="flex-1 bg-slate-800 hover:bg-slate-900 text-white p-2 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2">
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="plus" class="w-4 h-4"></i>' }}></span> Añadir Jugador
+                                </button>
+                                {isFromMatch && (
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            const currentPlayerIds = (team.players || []).map(p => p.id);
+                                            const matchPlayerIds = match?.players?.map(p => p.id) || [];
+                                            const availablePlayers = (team.players || []).filter(p => !matchPlayerIds.includes(p.id));
+                                            if (availablePlayers.length === 0) {
+                                                alert('No hay jugadores disponibles para añadir.');
+                                                return;
+                                            }
+                                            if (!confirm(`¿Añadir ${availablePlayers.length} jugador(es) al partido?`)) return;
+                                            const updatedPlayers = [...(match.players || []), ...availablePlayers];
+                                            await updateMatchInDb(match.id, { players: updatedPlayers });
+                                            navigate('active-match', team.id, match.id);
+                                        }}
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 p-2 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="users-plus" class="w-4 h-4"></i>' }}></span> Añadir Todos
+                                    </button>
+                                )}
+                            </div>
+                        </form>
+                    )}
+
+                    <div className="space-y-3">
+                        {players.map(p => (
+                            <div key={p.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                                {editingId === p.id ? (
+                                    <div className="space-y-3">
+                                        <div className="flex gap-2">
+                                            <input className="flex-1 p-2 border border-slate-200 rounded-lg text-sm font-bold bg-blue-50" value={editName} onChange={e => setEditName(e.target.value)} />
+                                            <input className="w-16 p-2 border border-slate-200 rounded-lg text-sm font-bold text-center bg-blue-50" value={editNumber} onChange={e => setEditNumber(e.target.value)} />
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {rolesList.map(r => (
+                                                <button
+                                                    key={r.id}
+                                                    type="button"
+                                                    onClick={() => setEditRole(r.id)}
+                                                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${editRole === r.id ? `${r.bg} ${r.color} border-current ring-1 ring-current` : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'}`}
+                                                >
+                                                    {r.label || r.name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={saveEdit} className="flex-1 bg-blue-600 text-white p-2 rounded-lg text-sm font-bold">Guardar</button>
+                                            <button onClick={() => setEditingId(null)} className="flex-1 bg-slate-100 text-slate-600 p-2 rounded-lg text-sm font-bold">Cancelar</button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex justify-between items-center">
+                                        <div className="flex items-center gap-3">
+                                            <span className="w-9 h-9 flex items-center justify-center bg-slate-100 rounded-full text-slate-700 font-bold text-sm">{p.number}</span>
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-slate-800 leading-none">{p.name}</span>
+                                                {p.role && rolesObj[p.role] && (
+                                                    <span className={`text-[10px] font-bold uppercase mt-1 ${rolesObj[p.role].color}`}>{rolesObj[p.role].label || rolesObj[p.role].name}</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <button onClick={() => startEditing(p)} className="p-2 text-slate-400 hover:text-blue-600">
+                                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="edit-2" class="w-4 h-4"></i>' }}></span>
+                                            </button>
+                                            <button onClick={() => deletePlayer(p.id)} className="p-2 text-slate-400 hover:text-red-500">
+                                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trash-2" class="w-4 h-4"></i>' }}></span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
         };
 
-                        const ManageRolesView = ({team, navigate, updateTeamInDb, getRoles}) => {
-            if (!team) {useEffect(() => navigate('teams-list'), []); return null; }
-                        const [newRoleName, setNewRoleName] = useState('');
-                        const [newRoleColor, setNewRoleColor] = useState('blue');
-                        const [editingRoleId, setEditingRoleId] = useState(null);
-                        const [editRoleName, setEditRoleName] = useState('');
-                        const [editRoleColor, setEditRoleColor] = useState('blue');
+        const ManageRolesView = ({ team, navigate, updateTeamInDb, getRoles }) => {
+            if (!team) { useEffect(() => navigate('teams-list'), []); return null; }
+            const [newRoleName, setNewRoleName] = useState('');
+            const [newRoleColor, setNewRoleColor] = useState('blue');
+            const [editingRoleId, setEditingRoleId] = useState(null);
+            const [editRoleName, setEditRoleName] = useState('');
+            const [editRoleColor, setEditRoleColor] = useState('blue');
 
-                        const roles = getRoles(team);
+            const roles = getRoles(team);
             const rolesList = Object.entries(roles).map(([id, info]) => ({
-                            id,
-                            name: info.label || info.name,
-                        color: info.color?.replace('text-', '').replace('-600', '') || info.color || 'slate'
+                id,
+                name: info.label || info.name,
+                color: info.color?.replace('text-', '').replace('-600', '') || info.color || 'slate'
             }));
 
             const addRole = async (e) => {
-                            e.preventDefault();
-                        if (!newRoleName.trim()) return;
-                        const newRoleId = Date.now().toString();
-                        const updatedRoles = {
-                            ...roles,
-                            [newRoleId]: {
-                            label: newRoleName.trim(),
+                e.preventDefault();
+                if (!newRoleName.trim()) return;
+                const newRoleId = Date.now().toString();
+                const updatedRoles = {
+                    ...roles,
+                    [newRoleId]: {
+                        label: newRoleName.trim(),
                         color: `text-${newRoleColor}-600`,
                         bg: `bg-${newRoleColor}-50`,
                         order: rolesList.length + 1
                     }
                 };
-                        await updateTeamInDb(team.id, {roles: updatedRoles });
-                        setNewRoleName('');
+                await updateTeamInDb(team.id, { roles: updatedRoles });
+                setNewRoleName('');
             };
 
             const startEditingRole = (r) => {
-                            setEditingRoleId(r.id);
-                        setEditRoleName(r.name);
-                        setEditRoleColor(r.color);
+                setEditingRoleId(r.id);
+                setEditRoleName(r.name);
+                setEditRoleColor(r.color);
             };
 
             const saveRoleEdit = async () => {
                 if (!editRoleName.trim()) return;
-                        const updatedRoles = {
-                            ...roles,
-                            [editingRoleId]: {
-                            ...roles[editingRoleId],
-                            label: editRoleName.trim(),
+                const updatedRoles = {
+                    ...roles,
+                    [editingRoleId]: {
+                        ...roles[editingRoleId],
+                        label: editRoleName.trim(),
                         color: `text-${editRoleColor}-600`,
                         bg: `bg-${editRoleColor}-50`
                     }
                 };
-                        await updateTeamInDb(team.id, {roles: updatedRoles });
-                        setEditingRoleId(null);
+                await updateTeamInDb(team.id, { roles: updatedRoles });
+                setEditingRoleId(null);
             };
 
             const deleteRole = async (roleId) => {
                 if (!confirm('¿Seguro?')) return;
-                        const newRoles = {...roles};
-                        delete newRoles[roleId];
-                        await updateTeamInDb(team.id, {roles: newRoles });
+                const newRoles = { ...roles };
+                delete newRoles[roleId];
+                await updateTeamInDb(team.id, { roles: newRoles });
             };
 
             useEffect(() => {
-                            lucide.createIcons();
+                lucide.createIcons();
             }, [editingRoleId, rolesList.length]);
 
-                        return (
-                        <div className="p-4 max-w-md mx-auto">
-                            <header className="flex items-center gap-2 mb-6">
-                                <button onClick={() => navigate('team-detail', team.id)} className="p-2 -ml-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
-                                <h1 className="text-2xl font-bold">Configurar Roles</h1>
-                            </header>
-                            {!editingRoleId && (
-                                <form onSubmit={addRole} className="mb-6 space-y-3 bg-white p-3 rounded-xl border border-slate-200">
-                                    <input className="w-full p-2 border rounded-lg text-sm" placeholder="Nombre del Rol" value={newRoleName} onChange={e => setNewRoleName(e.target.value)} />
-                                    <div className="flex flex-wrap gap-2 p-1 bg-slate-50 rounded-lg">
-                                        {['blue', 'red', 'green', 'orange', 'purple', 'pink', 'slate', 'yellow', 'cyan'].map(color => (
-                                            <button key={color} type="button" onClick={() => setNewRoleColor(color)} className={`w-6 h-6 rounded-full bg-${color}-500 border-2 ${newRoleColor === color ? 'border-slate-800 scale-110' : 'border-transparent'}`}></button>
-                                        ))}
-                                    </div>
-                                    <button className="w-full bg-slate-800 text-white p-2 rounded-lg font-bold text-sm">+ Añadir Rol</button>
-                                </form>
-                            )}
-                            <div className="space-y-2">
-                                {rolesList.map(r => (
-                                    <div key={r.id} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-                                        {editingRoleId === r.id ? (
-                                            <div className="space-y-3">
-                                                <input className="w-full p-2 border rounded-lg text-sm font-bold" value={editRoleName} onChange={e => setEditRoleName(e.target.value)} />
-                                                <div className="flex flex-wrap gap-2 p-1 bg-slate-50 rounded-lg">
-                                                    {['blue', 'red', 'green', 'orange', 'purple', 'pink', 'slate', 'yellow', 'cyan'].map(color => (
-                                                        <button key={color} type="button" onClick={() => setEditRoleColor(color)} className={`w-6 h-6 rounded-full bg-${color}-500 border-2 ${editRoleColor === color ? 'border-slate-800 scale-110' : 'border-transparent'}`}></button>
-                                                    ))}
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <button onClick={saveRoleEdit} className="flex-1 bg-green-600 text-white p-2 rounded-lg text-sm font-bold">Guardar</button>
-                                                    <button onClick={() => setEditingRoleId(null)} className="flex-1 bg-slate-100 text-slate-600 p-2 rounded-lg text-sm font-bold">Cancelar</button>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="flex justify-between items-center">
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`w-3 h-3 rounded-full bg-${r.color}-500`}></div>
-                                                    <span className="font-bold text-slate-800">{r.name}</span>
-                                                </div>
-                                                <div className="flex gap-1">
-                                                    <button onClick={() => startEditingRole(r)} className="p-2 text-slate-400 hover:text-blue-600">
-                                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="edit-2" class="w-4 h-4"></i>' }}></span>
-                                                    </button>
-                                                    <button onClick={() => deleteRole(r.id)} className="p-2 text-slate-400 hover:text-red-600">
-                                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trash-2" class="w-4 h-4"></i>' }}></span>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
+            return (
+                <div className="p-4 max-w-md mx-auto">
+                    <header className="flex items-center gap-2 mb-6">
+                        <button onClick={() => navigate('team-detail', team.id)} className="p-2 -ml-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
+                        <h1 className="text-2xl font-bold">Configurar Roles</h1>
+                    </header>
+                    {!editingRoleId && (
+                        <form onSubmit={addRole} className="mb-6 space-y-3 bg-white p-3 rounded-xl border border-slate-200">
+                            <input className="w-full p-2 border rounded-lg text-sm" placeholder="Nombre del Rol" value={newRoleName} onChange={e => setNewRoleName(e.target.value)} />
+                            <div className="flex flex-wrap gap-2 p-1 bg-slate-50 rounded-lg">
+                                {['blue', 'red', 'green', 'orange', 'purple', 'pink', 'slate', 'yellow', 'cyan'].map(color => (
+                                    <button key={color} type="button" onClick={() => setNewRoleColor(color)} className={`w-6 h-6 rounded-full bg-${color}-500 border-2 ${newRoleColor === color ? 'border-slate-800 scale-110' : 'border-transparent'}`}></button>
                                 ))}
+                            </div>
+                            <button className="w-full bg-slate-800 text-white p-2 rounded-lg font-bold text-sm">+ Añadir Rol</button>
+                        </form>
+                    )}
+                    <div className="space-y-2">
+                        {rolesList.map(r => (
+                            <div key={r.id} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                                {editingRoleId === r.id ? (
+                                    <div className="space-y-3">
+                                        <input className="w-full p-2 border rounded-lg text-sm font-bold" value={editRoleName} onChange={e => setEditRoleName(e.target.value)} />
+                                        <div className="flex flex-wrap gap-2 p-1 bg-slate-50 rounded-lg">
+                                            {['blue', 'red', 'green', 'orange', 'purple', 'pink', 'slate', 'yellow', 'cyan'].map(color => (
+                                                <button key={color} type="button" onClick={() => setEditRoleColor(color)} className={`w-6 h-6 rounded-full bg-${color}-500 border-2 ${editRoleColor === color ? 'border-slate-800 scale-110' : 'border-transparent'}`}></button>
+                                            ))}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={saveRoleEdit} className="flex-1 bg-green-600 text-white p-2 rounded-lg text-sm font-bold">Guardar</button>
+                                            <button onClick={() => setEditingRoleId(null)} className="flex-1 bg-slate-100 text-slate-600 p-2 rounded-lg text-sm font-bold">Cancelar</button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex justify-between items-center">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-3 h-3 rounded-full bg-${r.color}-500`}></div>
+                                            <span className="font-bold text-slate-800">{r.name}</span>
+                                        </div>
+                                        <div className="flex gap-1">
+                                            <button onClick={() => startEditingRole(r)} className="p-2 text-slate-400 hover:text-blue-600">
+                                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="edit-2" class="w-4 h-4"></i>' }}></span>
+                                            </button>
+                                            <button onClick={() => deleteRole(r.id)} className="p-2 text-slate-400 hover:text-red-600">
+                                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trash-2" class="w-4 h-4"></i>' }}></span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const TeamSettingsView = ({ team, navigate, updateTeamInDb, deleteDoc, doc, db }) => {
+            useEffect(() => {
+                if (!team) navigate('teams-list');
+            }, [team]);
+
+            if (!team) return null;
+            const [editTeamName, setEditTeamName] = useState(team.name || '');
+            const [editFederationId, setEditFederationId] = useState(team.federationId || '');
+            const [editRuleset, setEditRuleset] = useState(team.rulesetId || DEFAULT_RULESET);
+
+            useEffect(() => {
+                lucide.createIcons();
+            }, []);
+
+            const saveSettings = async (e) => {
+                e.preventDefault();
+                if (!editTeamName.trim()) return;
+                await updateTeamInDb(team.id, {
+                    name: editTeamName.trim(),
+                    federationId: editFederationId.trim() || null,
+                    rulesetId: editRuleset
+                });
+                alert('✅ Configuración guardada');
+            };
+
+            const archiveTeam = async () => {
+                if (!confirm(`¿Estás seguro de que quieres archivar el equipo "${team.name}"? Se ocultará de la lista principal pero podrás acceder a él desde el filtro de archivados.`)) return;
+                try {
+                    await updateTeamInDb(team.id, { archived: true });
+                    alert('Equipo archivado correctamente');
+                    navigate('teams-list');
+                } catch (e) {
+                    console.error("Error archiving team", e);
+                    alert('Error al archivar el equipo');
+                }
+            };
+
+
+
+            const deleteTeam = async () => {
+                if (!confirm('⚠️ ¿ESTÁS SEGURO? Se eliminará el equipo y todos sus partidos. Esta acción no se puede deshacer.')) return;
+                await deleteDoc(doc(db, 'teams', team.id));
+                navigate('teams-list');
+            };
+
+            return (
+                <div className="bg-slate-50 min-h-screen pb-20">
+                    <div className="bg-white border-b border-slate-200 sticky top-0 z-10 safe-top">
+                        <div className="flex items-center justify-between px-4 py-3">
+                            <button onClick={() => navigate('team-detail', team.id)} className="p-2 -ml-2 text-slate-400 hover:text-slate-600">
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="arrow-left" class="w-6 h-6"></i>' }}></span>
+                            </button>
+                            <h1 className="text-lg font-bold text-slate-800">Ajustes del Equipo</h1>
+                            <div className="w-10"></div>
+                        </div>
+                    </div>
+
+                    <div className="p-4 space-y-6 max-w-lg mx-auto">
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                            <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="settings" class="w-5 h-5 text-blue-600"></i>' }}></span>
+                                Configuración General
+                            </h2>
+                            <form onSubmit={saveSettings} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Nombre del Equipo</label>
+                                    <input
+                                        value={editTeamName}
+                                        onChange={e => setEditTeamName(e.target.value)}
+                                        className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all font-bold text-slate-700"
+                                    />
+                                </div>
+                                <button
+                                    type="submit"
+                                    className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all"
+                                >
+                                    Guardar Cambios
+                                </button>
+                            </form>
+                        </div>
+
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                            <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="calendar-range" class="w-5 h-5 text-indigo-600"></i>' }}></span>
+                                Gestión de Temporada
+                            </h2>
+                            <p className="text-sm text-slate-500 mb-6">Gestiona el ciclo de vida de tu equipo. Archiva temporadas pasadas o comienza una nueva.</p>
+
+                            <div className="space-y-3">
+                                <button
+                                    onClick={duplicateTeam}
+                                    className="w-full py-3 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-xl font-bold hover:bg-indigo-100 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="copy" class="w-4 h-4"></i>' }}></span>
+                                    Nueva Temporada (Duplicar)
+                                </button>
+
+                                <button
+                                    onClick={archiveTeam}
+                                    className="w-full py-3 bg-slate-50 text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-100 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="archive" class="w-4 h-4"></i>' }}></span>
+                                    Archivar Equipo
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="bg-red-50 p-5 rounded-2xl border border-red-100">
+                            <h2 className="font-bold text-red-900 mb-2 flex items-center gap-2">
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="alert-triangle" class="w-5 h-5"></i>' }}></span>
+                                Zona de Peligro
+                            </h2>
+
+                            <div className="space-y-6">
+                                {/* Accesos Directos */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button onClick={() => navigate('manage-players', team.id)} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all flex flex-col items-center gap-2">
+                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="users" class="w-6 h-6 text-blue-600"></i>' }}></span>
+                                        <span className="font-bold text-sm text-slate-700">Jugadores</span>
+                                    </button>
+                                    <button onClick={() => navigate('manage-roles', team.id)} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all flex flex-col items-center gap-2">
+                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="shield" class="w-6 h-6 text-amber-600"></i>' }}></span>
+                                        <span className="font-bold text-sm text-slate-700">Roles / Posiciones</span>
+                                    </button>
+                                </div>
+
+                                {/* Formulario Configuración */}
+                                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                    <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="sliders" class="w-4 h-4"></i>' }}></span> General
+                                    </h3>
+                                    <form onSubmit={saveSettings} className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nombre</label>
+                                            <input className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all bg-slate-50" value={editTeamName} onChange={e => setEditTeamName(e.target.value)} required />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">ID Federación</label>
+                                            <input className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all bg-slate-50" value={editFederationId} onChange={e => setEditFederationId(e.target.value)} placeholder="Opcional" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Reglamento</label>
+                                            <select className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all bg-slate-50" value={editRuleset} onChange={e => setEditRuleset(e.target.value)}>
+                                                {Object.values(RULESETS).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <button type="submit" className="w-full py-3 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 transition-all">Guardar Cambios</button>
+                                    </form>
+                                </div>
+
+                                {/* Zona de Peligro */}
+                                <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+                                    <h3 className="font-bold text-red-900 mb-2 flex items-center gap-2">
+                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="alert-triangle" class="w-4 h-4"></i>' }}></span> Zona de Peligro
+                                    </h3>
+                                    <p className="text-xs text-red-700/70 mb-4">Eliminar el equipo borrará permanentemente todos sus partidos y estadísticas.</p>
+                                    <button onClick={deleteTeam} className="w-full py-3 bg-white border border-red-200 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-all">Eliminar Equipo</button>
+                                </div>
                             </div>
                         </div>
                         );
         };
 
-                        const TeamSettingsView = ({team, navigate, updateTeamInDb, deleteDoc, doc, db}) => {
-            if (!team) {useEffect(() => navigate('teams-list'), []); return null; }
-                        const [editTeamName, setEditTeamName] = useState(team.name || '');
-                        const [editFederationId, setEditFederationId] = useState(team.federationId || '');
-                        const [editRuleset, setEditRuleset] = useState(team.rulesetId || DEFAULT_RULESET);
-
-            useEffect(() => {
-                            lucide.createIcons();
-            }, []);
-
-            const saveSettings = async (e) => {
-                            e.preventDefault();
-                        if (!editTeamName.trim()) return;
-                        await updateTeamInDb(team.id, {
-                            name: editTeamName.trim(),
-                        federationId: editFederationId.trim() || null,
-                        rulesetId: editRuleset
-                });
-                        alert('✅ Configuración guardada');
-            };
-
-            const archiveTeam = async () => {
-                if (!confirm(`¿Estás seguro de que quieres archivar el equipo "${team.name}"? Se ocultará de la lista principal pero podrás acceder a él desde el filtro de archivados.`)) return;
-                        try {
-                            await updateTeamInDb(team.id, { archived: true });
-                        alert('Equipo archivado correctamente');
-                        navigate('teams-list');
-                } catch (e) {
-                            console.error("Error archiving team", e);
-                        alert('Error al archivar el equipo');
-                }
-            };
-
-                }
-            };
-
-            const deleteTeam = async () => {
-                if (!confirm('⚠️ ¿ESTÁS SEGURO? Se eliminará el equipo y todos sus partidos. Esta acción no se puede deshacer.')) return;
-                        await deleteDoc(doc(db, 'teams', team.id));
-                        navigate('teams-list');
-            };
-
-                        return (
-                        <div className="bg-slate-50 min-h-screen pb-20">
-                            <div className="bg-white border-b border-slate-200 sticky top-0 z-10 safe-top">
-                                <div className="flex items-center justify-between px-4 py-3">
-                                    <button onClick={() => navigate('team-detail', team.id)} className="p-2 -ml-2 text-slate-400 hover:text-slate-600">
-                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="arrow-left" class="w-6 h-6"></i>' }}></span>
-                                    </button>
-                                    <h1 className="text-lg font-bold text-slate-800">Ajustes del Equipo</h1>
-                                    <div className="w-10"></div>
-                                </div>
-                            </div>
-
-                            <div className="p-4 space-y-6 max-w-lg mx-auto">
-                                <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                                    <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="settings" class="w-5 h-5 text-blue-600"></i>' }}></span>
-                                        Configuración General
-                                    </h2>
-                                    <form onSubmit={saveSettings} className="space-y-4">
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Nombre del Equipo</label>
-                                            <input
-                                                value={editTeamName}
-                                                onChange={e => setEditTeamName(e.target.value)}
-                                                className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all font-bold text-slate-700"
-                                            />
-                                        </div>
-                                        <button
-                                            type="submit"
-                                            className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all"
-                                        >
-                                            Guardar Cambios
-                                        </button>
-                                    </form>
-                                </div>
-
-                                <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                                    <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="calendar-range" class="w-5 h-5 text-indigo-600"></i>' }}></span>
-                                        Gestión de Temporada
-                                    </h2>
-                                    <p className="text-sm text-slate-500 mb-6">Gestiona el ciclo de vida de tu equipo. Archiva temporadas pasadas o comienza una nueva.</p>
-
-                                    <div className="space-y-3">
-                                        <button
-                                            onClick={duplicateTeam}
-                                            className="w-full py-3 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-xl font-bold hover:bg-indigo-100 transition-all flex items-center justify-center gap-2"
-                                        >
-                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="copy" class="w-4 h-4"></i>' }}></span>
-                                            Nueva Temporada (Duplicar)
-                                        </button>
-
-                                        <button
-                                            onClick={archiveTeam}
-                                            className="w-full py-3 bg-slate-50 text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-100 transition-all flex items-center justify-center gap-2"
-                                        >
-                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="archive" class="w-4 h-4"></i>' }}></span>
-                                            Archivar Equipo
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="bg-red-50 p-5 rounded-2xl border border-red-100">
-                                    <h2 className="font-bold text-red-900 mb-2 flex items-center gap-2">
-                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="alert-triangle" class="w-5 h-5"></i>' }}></span>
-                                        Zona de Peligro
-                                    </h2>
-
-                                    <div className="space-y-6">
-                                        {/* Accesos Directos */}
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <button onClick={() => navigate('manage-players', team.id)} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all flex flex-col items-center gap-2">
-                                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="users" class="w-6 h-6 text-blue-600"></i>' }}></span>
-                                                <span className="font-bold text-sm text-slate-700">Jugadores</span>
-                                            </button>
-                                            <button onClick={() => navigate('manage-roles', team.id)} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all flex flex-col items-center gap-2">
-                                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="shield" class="w-6 h-6 text-amber-600"></i>' }}></span>
-                                                <span className="font-bold text-sm text-slate-700">Roles / Posiciones</span>
-                                            </button>
-                                        </div>
-
-                                        {/* Formulario Configuración */}
-                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                            <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="sliders" class="w-4 h-4"></i>' }}></span> General
-                                            </h3>
-                                            <form onSubmit={saveSettings} className="space-y-4">
-                                                <div>
-                                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nombre</label>
-                                                    <input className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all bg-slate-50" value={editTeamName} onChange={e => setEditTeamName(e.target.value)} required />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">ID Federación</label>
-                                                    <input className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all bg-slate-50" value={editFederationId} onChange={e => setEditFederationId(e.target.value)} placeholder="Opcional" />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Reglamento</label>
-                                                    <select className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all bg-slate-50" value={editRuleset} onChange={e => setEditRuleset(e.target.value)}>
-                                                        {Object.values(RULESETS).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                                                    </select>
-                                                </div>
-                                                <button type="submit" className="w-full py-3 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 transition-all">Guardar Cambios</button>
-                                            </form>
-                                        </div>
-
-                                        {/* Zona de Peligro */}
-                                        <div className="bg-red-50 p-4 rounded-xl border border-red-100">
-                                            <h3 className="font-bold text-red-900 mb-2 flex items-center gap-2">
-                                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="alert-triangle" class="w-4 h-4"></i>' }}></span> Zona de Peligro
-                                            </h3>
-                                            <p className="text-xs text-red-700/70 mb-4">Eliminar el equipo borrará permanentemente todos sus partidos y estadísticas.</p>
-                                            <button onClick={deleteTeam} className="w-full py-3 bg-white border border-red-200 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-all">Eliminar Equipo</button>
-                                        </div>
-                                    </div>
-                                </div>
-                                );
-        };
-
         const AuthView = () => {
             const [email, setEmail] = useState('');
-                                const [password, setPassword] = useState('');
-                                const [isLogin, setIsLogin] = useState(true);
-                                const [error, setError] = useState('');
-                                const {signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup} = window.firebaseMethods;
-                                const auth = window.auth;
+                        const [password, setPassword] = useState('');
+                        const [isLogin, setIsLogin] = useState(true);
+                        const [error, setError] = useState('');
+                        const {signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup} = window.firebaseMethods;
+                        const auth = window.auth;
 
             const handleSubmit = async (e) => {
-                                    e.preventDefault();
-                                setError('');
-                                try {
+                            e.preventDefault();
+                        setError('');
+                        try {
                     if (isLogin) {
-                                    await signInWithEmailAndPassword(auth, email, password);
+                            await signInWithEmailAndPassword(auth, email, password);
                     } else {
-                                    await createUserWithEmailAndPassword(auth, email, password);
+                            await createUserWithEmailAndPassword(auth, email, password);
                     }
                 } catch (err) {
-                                    let msg = err.message;
-                                if (err.code === 'auth/invalid-credential') msg = "Credenciales inválidas";
-                                if (err.code === 'auth/email-already-in-use') msg = "El email ya está en uso";
-                                if (err.code === 'auth/weak-password') msg = "La contraseña es muy débil";
-                                setError(msg);
+                            let msg = err.message;
+                        if (err.code === 'auth/invalid-credential') msg = "Credenciales inválidas";
+                        if (err.code === 'auth/email-already-in-use') msg = "El email ya está en uso";
+                        if (err.code === 'auth/weak-password') msg = "La contraseña es muy débil";
+                        setError(msg);
                 }
             };
 
@@ -3092,295 +3034,295 @@
             }, [isLogin]);
 
             const handleGoogleSignIn = async () => {
-                                    setError('');
-                                const provider = new GoogleAuthProvider();
-                                try {
-                                    await signInWithPopup(auth, provider);
+                            setError('');
+                        const provider = new GoogleAuthProvider();
+                        try {
+                            await signInWithPopup(auth, provider);
                 } catch (err) {
-                                    setError(err.message);
+                            setError(err.message);
                 }
             };
 
-                                return (
-                                <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
-                                    <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
-                                        <div className="p-8">
-                                            <div className="flex justify-center mb-6">
-                                                <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg transform -rotate-6">
-                                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trophy" class="w-8 h-8 text-white"></i>' }}></span>
-                                                </div>
-                                            </div>
-                                            <h1 className="text-3xl font-bold text-center text-slate-800 mb-2">Basket Manager</h1>
-                                            <p className="text-center text-slate-500 mb-8">{isLogin ? 'Inicia sesión para continuar' : 'Crea tu cuenta gratuita'}</p>
-
-                                            <form onSubmit={handleSubmit} className="space-y-4">
-                                                <div>
-                                                    <label className="block text-sm font-bold text-slate-700 mb-1 pl-1">Email</label>
-                                                    <input type="email" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" placeholder="tu@email.com" value={email} onChange={e => setEmail(e.target.value)} />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-bold text-slate-700 mb-1 pl-1">Contraseña</label>
-                                                    <input type="password" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
-                                                </div>
-
-                                                {error && <div className="p-3 bg-red-50 text-red-600 text-xs font-bold rounded-xl border border-red-100">{error}</div>}
-
-                                                <button type="submit" className="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-lg shadow-lg transition-transform active:scale-[0.98]">
-                                                    {isLogin ? 'Entrar' : 'Empezar ahora'}
-                                                </button>
-                                            </form>
-
-                                            <div className="mt-4">
-                                                <div className="relative flex py-4 items-center">
-                                                    <div className="flex-grow border-t border-slate-200"></div>
-                                                    <span className="flex-shrink mx-4 text-slate-400 text-xs font-bold uppercase tracking-widest">O</span>
-                                                    <div className="flex-grow border-t border-slate-200"></div>
-                                                </div>
-
-                                                <button
-                                                    onClick={handleGoogleSignIn}
-                                                    className="w-full py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-bold flex items-center justify-center gap-3 transition-all shadow-sm active:scale-[0.98]"
-                                                >
-                                                    <svg className="w-5 h-5" viewBox="0 0 24 24">
-                                                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                                                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                                                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
-                                                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                                                    </svg>
-                                                    Continuar con Google
-                                                </button>
-                                            </div>
-
-                                            <div className="mt-8 text-center pt-6 border-t border-slate-100 flex flex-col items-center gap-2">
-                                                <p className="text-sm text-slate-500">
-                                                    {isLogin ? '¿No tienes cuenta?' : '¿Ya eres usuario?'}
-                                                    <button onClick={() => setIsLogin(!isLogin)} className="ml-2 text-blue-600 font-bold hover:underline">
-                                                        {isLogin ? 'Regístrate aquí' : 'Inicia sesión'}
-                                                    </button>
-                                                </p>
-                                                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-2">v{APP_VERSION}</span>
-                                            </div>
+                        return (
+                        <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+                            <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+                                <div className="p-8">
+                                    <div className="flex justify-center mb-6">
+                                        <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg transform -rotate-6">
+                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trophy" class="w-8 h-8 text-white"></i>' }}></span>
                                         </div>
                                     </div>
+                                    <h1 className="text-3xl font-bold text-center text-slate-800 mb-2">Basket Manager</h1>
+                                    <p className="text-center text-slate-500 mb-8">{isLogin ? 'Inicia sesión para continuar' : 'Crea tu cuenta gratuita'}</p>
+
+                                    <form onSubmit={handleSubmit} className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1 pl-1">Email</label>
+                                            <input type="email" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" placeholder="tu@email.com" value={email} onChange={e => setEmail(e.target.value)} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1 pl-1">Contraseña</label>
+                                            <input type="password" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
+                                        </div>
+
+                                        {error && <div className="p-3 bg-red-50 text-red-600 text-xs font-bold rounded-xl border border-red-100">{error}</div>}
+
+                                        <button type="submit" className="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-lg shadow-lg transition-transform active:scale-[0.98]">
+                                            {isLogin ? 'Entrar' : 'Empezar ahora'}
+                                        </button>
+                                    </form>
+
+                                    <div className="mt-4">
+                                        <div className="relative flex py-4 items-center">
+                                            <div className="flex-grow border-t border-slate-200"></div>
+                                            <span className="flex-shrink mx-4 text-slate-400 text-xs font-bold uppercase tracking-widest">O</span>
+                                            <div className="flex-grow border-t border-slate-200"></div>
+                                        </div>
+
+                                        <button
+                                            onClick={handleGoogleSignIn}
+                                            className="w-full py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-bold flex items-center justify-center gap-3 transition-all shadow-sm active:scale-[0.98]"
+                                        >
+                                            <svg className="w-5 h-5" viewBox="0 0 24 24">
+                                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
+                                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                                            </svg>
+                                            Continuar con Google
+                                        </button>
+                                    </div>
+
+                                    <div className="mt-8 text-center pt-6 border-t border-slate-100 flex flex-col items-center gap-2">
+                                        <p className="text-sm text-slate-500">
+                                            {isLogin ? '¿No tienes cuenta?' : '¿Ya eres usuario?'}
+                                            <button onClick={() => setIsLogin(!isLogin)} className="ml-2 text-blue-600 font-bold hover:underline">
+                                                {isLogin ? 'Regístrate aquí' : 'Inicia sesión'}
+                                            </button>
+                                        </p>
+                                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-2">v{APP_VERSION}</span>
+                                    </div>
                                 </div>
-                                );
+                            </div>
+                        </div>
+                        );
         };
 
-        const TutorialOverlay = ({steps, currentStepIndex, onNext, onSkip}) => {
+                        const TutorialOverlay = ({steps, currentStepIndex, onNext, onSkip}) => {
             const [targetRect, setTargetRect] = useState(null);
-                                const step = steps[currentStepIndex];
+                        const step = steps[currentStepIndex];
 
             useEffect(() => {
                 if (window.lucide) window.lucide.createIcons();
                 const updatePosition = () => {
                     if (step.target) {
                         const element = document.querySelector(step.target);
-                                if (element) {
+                        if (element) {
                             const rect = element.getBoundingClientRect();
-                                setTargetRect({
-                                    top: rect.top,
-                                left: rect.left,
-                                width: rect.width,
-                                height: rect.height,
+                        setTargetRect({
+                            top: rect.top,
+                        left: rect.left,
+                        width: rect.width,
+                        height: rect.height,
                             });
-                                element.scrollIntoView({behavior: 'smooth', block: 'center' });
+                        element.scrollIntoView({behavior: 'smooth', block: 'center' });
                         } else {
-                                    setTargetRect(null); // Fallback if element not found
+                            setTargetRect(null); // Fallback if element not found
                         }
                     } else {
-                                    setTargetRect(null); // Center modal for no target
+                            setTargetRect(null); // Center modal for no target
                     }
                 };
 
-                                updatePosition();
-                                window.addEventListener('resize', updatePosition);
+                        updatePosition();
+                        window.addEventListener('resize', updatePosition);
                 return () => window.removeEventListener('resize', updatePosition);
             }, [currentStepIndex, step]);
 
-                                if (!step) return null;
+                        if (!step) return null;
 
-                                return (
-                                <div className="fixed inset-0 z-[9999] overflow-hidden">
-                                    {/* Dark Overlay with Cutout */}
-                                    <div className="absolute inset-0 bg-slate-900/80 mix-blend-hard-light duration-300"></div>
+                        return (
+                        <div className="fixed inset-0 z-[9999] overflow-hidden">
+                            {/* Dark Overlay with Cutout */}
+                            <div className="absolute inset-0 bg-slate-900/80 mix-blend-hard-light duration-300"></div>
 
-                                    {/* Target Highlight */}
-                                    {targetRect && (
-                                        <div
-                                            className="absolute transition-all duration-500 ease-in-out border-4 border-blue-500 rounded-xl shadow-[0_0_0_9999px_rgba(15,23,42,0.8)] pointer-events-none animate-pulse"
-                                            style={{
-                                                top: targetRect.top - 8,
-                                                left: targetRect.left - 8,
-                                                width: targetRect.width + 16,
-                                                height: targetRect.height + 16,
-                                            }}
-                                        ></div>
-                                    )}
+                            {/* Target Highlight */}
+                            {targetRect && (
+                                <div
+                                    className="absolute transition-all duration-500 ease-in-out border-4 border-blue-500 rounded-xl shadow-[0_0_0_9999px_rgba(15,23,42,0.8)] pointer-events-none animate-pulse"
+                                    style={{
+                                        top: targetRect.top - 8,
+                                        left: targetRect.left - 8,
+                                        width: targetRect.width + 16,
+                                        height: targetRect.height + 16,
+                                    }}
+                                ></div>
+                            )}
 
-                                    {/* Tooltip Card */}
-                                    <div
-                                        className={`absolute transition-all duration-500 ease-in-out max-w-sm w-full p-6 bg-white rounded-2xl shadow-2xl border border-slate-200 ${targetRect ? '' : 'top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'}`}
-                                        style={targetRect ? {
-                                            top: targetRect.top + targetRect.height + 24 > window.innerHeight - 200 ? targetRect.top - 200 : targetRect.top + targetRect.height + 24,
-                                            left: Math.max(16, Math.min(window.innerWidth - 340, targetRect.left)),
-                                        } : {}}
-                                    >
-                                        <div className="flex justify-between items-start mb-4">
-                                            <h3 className="text-xl font-extrabold text-slate-800">{step.title}</h3>
-                                            <button onClick={onSkip} className="text-slate-400 hover:text-slate-600">
-                                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="x" class="w-5 h-5"></i>' }}></span>
-                                            </button>
-                                        </div>
-                                        <p className="text-slate-600 mb-6 leading-relaxed">{step.content}</p>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                                                Paso {currentStepIndex + 1} de {steps.length}
-                                            </span>
-                                            <button
-                                                onClick={onNext}
-                                                className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-200"
-                                            >
-                                                {currentStepIndex === steps.length - 1 ? '¡Listo!' : 'Siguiente'}
-                                            </button>
-                                        </div>
-                                    </div>
+                            {/* Tooltip Card */}
+                            <div
+                                className={`absolute transition-all duration-500 ease-in-out max-w-sm w-full p-6 bg-white rounded-2xl shadow-2xl border border-slate-200 ${targetRect ? '' : 'top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'}`}
+                                style={targetRect ? {
+                                    top: targetRect.top + targetRect.height + 24 > window.innerHeight - 200 ? targetRect.top - 200 : targetRect.top + targetRect.height + 24,
+                                    left: Math.max(16, Math.min(window.innerWidth - 340, targetRect.left)),
+                                } : {}}
+                            >
+                                <div className="flex justify-between items-start mb-4">
+                                    <h3 className="text-xl font-extrabold text-slate-800">{step.title}</h3>
+                                    <button onClick={onSkip} className="text-slate-400 hover:text-slate-600">
+                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="x" class="w-5 h-5"></i>' }}></span>
+                                    </button>
                                 </div>
-                                );
+                                <p className="text-slate-600 mb-6 leading-relaxed">{step.content}</p>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                        Paso {currentStepIndex + 1} de {steps.length}
+                                    </span>
+                                    <button
+                                        onClick={onNext}
+                                        className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-200"
+                                    >
+                                        {currentStepIndex === steps.length - 1 ? '¡Listo!' : 'Siguiente'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        );
         };
 
         const App = () => {
             const [user, setUser] = useState(null);
-                                const [view, setView] = useState('teams-list');
-                                const [teams, setTeams] = useState([]);
-                                const [matches, setMatches] = useState([]);
-                                const [selectedTeamId, setSelectedTeamId] = useState(null);
-                                const [activeMatchId, setActiveMatchId] = useState(null);
-                                const [authLoading, setAuthLoading] = useState(true);
-                                const [subscription, setSubscription] = useState(undefined); // undefined = loading, null = free, 'active' = premium
-                                const [checkoutLoading, setCheckoutLoading] = useState(false);
-                                const [isOnline, setIsOnline] = useState(navigator.onLine);
+                        const [view, setView] = useState('teams-list');
+                        const [teams, setTeams] = useState([]);
+                        const [matches, setMatches] = useState([]);
+                        const [selectedTeamId, setSelectedTeamId] = useState(null);
+                        const [activeMatchId, setActiveMatchId] = useState(null);
+                        const [authLoading, setAuthLoading] = useState(true);
+                        const [subscription, setSubscription] = useState(undefined); // undefined = loading, null = free, 'active' = premium
+                        const [checkoutLoading, setCheckoutLoading] = useState(false);
+                        const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-                                // Tutorial State
-                                const [showTutorial, setShowTutorial] = useState(false);
-                                const [tutorialStep, setTutorialStep] = useState(0);
+                        // Tutorial State
+                        const [showTutorial, setShowTutorial] = useState(false);
+                        const [tutorialStep, setTutorialStep] = useState(0);
 
-                                const TUTORIAL_STEPS = [
-                                {target: null, title: "¡Bienviendo a Basket Manager!", content: "Gestiona tus equipos, partidos y jugadores de forma fácil y rápida. Te haremos un breve tour." },
-                                {target: '#add-team-btn', title: "Crear Equipo", content: "Empieza aquí para añadir tu primer equipo. Podrás configurar jugadores y roles." },
-                                {target: '#global-calendar-btn', title: "Calendario Global", content: "Consulta de un vistazo todos los partidos de todos tus equipos." },
-                                {target: '#help-btn', title: "Ayuda", content: "Si necesitas volver a ver este tutorial, pulsa aquí." },
-                                ];
+                        const TUTORIAL_STEPS = [
+                        {target: null, title: "¡Bienviendo a Basket Manager!", content: "Gestiona tus equipos, partidos y jugadores de forma fácil y rápida. Te haremos un breve tour." },
+                        {target: '#add-team-btn', title: "Crear Equipo", content: "Empieza aquí para añadir tu primer equipo. Podrás configurar jugadores y roles." },
+                        {target: '#global-calendar-btn', title: "Calendario Global", content: "Consulta de un vistazo todos los partidos de todos tus equipos." },
+                        {target: '#help-btn', title: "Ayuda", content: "Si necesitas volver a ver este tutorial, pulsa aquí." },
+                        ];
 
             useEffect(() => {
                 const tutorialCompleted = localStorage.getItem('tutorial_completed');
-                                if (!tutorialCompleted) {
-                                    setShowTutorial(true);
+                        if (!tutorialCompleted) {
+                            setShowTutorial(true);
                 }
             }, []);
 
             const handleNextTutorial = () => {
                 if (tutorialStep < TUTORIAL_STEPS.length - 1) {
-                                    setTutorialStep(prev => prev + 1);
+                            setTutorialStep(prev => prev + 1);
                 } else {
-                                    completeTutorial();
+                            completeTutorial();
                 }
             };
 
             const completeTutorial = () => {
-                                    setShowTutorial(false);
-                                setTutorialStep(0);
-                                localStorage.setItem('tutorial_completed', 'true');
+                            setShowTutorial(false);
+                        setTutorialStep(0);
+                        localStorage.setItem('tutorial_completed', 'true');
             };
 
             const startTutorial = () => {
-                                    setShowTutorial(true);
-                                setTutorialStep(0);
+                            setShowTutorial(true);
+                        setTutorialStep(0);
             };
 
             useEffect(() => {
                 const handleOnline = () => setIsOnline(true);
                 const handleOffline = () => setIsOnline(false);
-                                window.addEventListener('online', handleOnline);
-                                window.addEventListener('offline', handleOffline);
+                        window.addEventListener('online', handleOnline);
+                        window.addEventListener('offline', handleOffline);
                 return () => {
-                                    window.removeEventListener('online', handleOnline);
-                                window.removeEventListener('offline', handleOffline);
+                            window.removeEventListener('online', handleOnline);
+                        window.removeEventListener('offline', handleOffline);
                 };
             }, []);
 
             const navigate = (newView, teamId = null, matchId = null) => {
-                                    setView(newView);
-                                if (teamId) setSelectedTeamId(teamId);
-                                if (matchId) setActiveMatchId(matchId);
-                                window.scrollTo(0, 0);
+                            setView(newView);
+                        if (teamId) setSelectedTeamId(teamId);
+                        if (matchId) setActiveMatchId(matchId);
+                        window.scrollTo(0, 0);
             };
 
             useEffect(() => {
-                                    onAuthStateChanged(auth, (u) => {
-                                        setUser(u);
-                                        setAuthLoading(false);
-                                        if (!u) {
-                                            setTeams([]);
-                                            setMatches([]);
-                                        }
-                                    });
+                            onAuthStateChanged(auth, (u) => {
+                                setUser(u);
+                                setAuthLoading(false);
+                                if (!u) {
+                                    setTeams([]);
+                                    setMatches([]);
+                                }
+                            });
             }, []);
 
             useEffect(() => {
                 if (!user) return;
-                                const q = query(collection(db, 'teams'), where('ownerId', '==', user.uid));
+                        const q = query(collection(db, 'teams'), where('ownerId', '==', user.uid));
                 const unsubscribe = onSnapshot(q, (snapshot) => {
                     const teamsData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data() }));
-                                setTeams(teamsData);
+                        setTeams(teamsData);
                 });
                 return () => unsubscribe();
             }, [user]);
 
             useEffect(() => {
                 if (!user) return;
-                                const q = query(collection(db, 'matches'), where('ownerId', '==', user.uid));
+                        const q = query(collection(db, 'matches'), where('ownerId', '==', user.uid));
                 const unsubscribe = onSnapshot(q, (snapshot) => {
                     const matchesData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data() }));
-                                setMatches(matchesData);
+                        setMatches(matchesData);
                 });
                 return () => unsubscribe();
             }, [user]);
 
             useEffect(() => {
                 if (!user) return;
-                                const subRef = collection(db, 'customers', user.uid, 'subscriptions');
-                                const q = query(subRef, where('status', 'in', ['active', 'trialing']));
+                        const subRef = collection(db, 'customers', user.uid, 'subscriptions');
+                        const q = query(subRef, where('status', 'in', ['active', 'trialing']));
                 const unsubscribe = onSnapshot(q, (snapshot) => {
                     if (snapshot.empty) {
-                                    // Double check just in case sync is slow or user just subscribed
-                                    // Fallback to check metadata on user object if needed, but for now strict check
-                                    // Add a small delay/retry logic if needed for newly created subs
-                                    setTimeout(() => {
-                                        setSubscription(null);
-                                    }, 400);
+                            // Double check just in case sync is slow or user just subscribed
+                            // Fallback to check metadata on user object if needed, but for now strict check
+                            // Add a small delay/retry logic if needed for newly created subs
+                            setTimeout(() => {
+                                setSubscription(null);
+                            }, 400);
                     } else {
-                                    setSubscription(snapshot.docs[0].data().status);
+                            setSubscription(snapshot.docs[0].data().status);
                     }
                 });
                 return () => unsubscribe();
             }, [user]);
 
             const startCheckout = async () => {
-                                    setCheckoutLoading(true);
-                                try {
+                            setCheckoutLoading(true);
+                        try {
                     const checkoutRef = collection(db, 'customers', user.uid, 'checkout_sessions');
-                                const docRef = await addDoc(checkoutRef, {
-                                    price: 'price_1T0gwQKPQKkc3mVNhH05plnK', // ID real del producto del usuario
-                                success_url: window.location.href,
-                                cancel_url: window.location.href,
+                        const docRef = await addDoc(checkoutRef, {
+                            price: 'price_1T0gwQKPQKkc3mVNhH05plnK', // ID real del producto del usuario
+                        success_url: window.location.href,
+                        cancel_url: window.location.href,
                     });
 
                     onSnapshot(docRef, (snap) => {
                         const {url, error} = snap.data();
-                                if (url) window.location.assign(url);
-                                if (error) {
-                                    setCheckoutLoading(false);
-                                alert(`Error de Stripe: ${error.message}`);
+                        if (url) window.location.assign(url);
+                        if (error) {
+                            setCheckoutLoading(false);
+                        alert(`Error de Stripe: ${error.message}`);
                         }
                     });
                 } catch (err) {
@@ -3478,12 +3420,12 @@
         root.render(<App />);
     </script>
     <script>
-                                if ('serviceWorker' in navigator) {
-                                    window.addEventListener('load', () => {
-                                        navigator.serviceWorker.register('./sw.js')
-                                            .then(reg => console.log('SW registrado', reg))
-                                            .catch(err => console.log('Error SW', err));
-                                    });
+                        if ('serviceWorker' in navigator) {
+                            window.addEventListener('load', () => {
+                                navigator.serviceWorker.register('./sw.js')
+                                    .then(reg => console.log('SW registrado', reg))
+                                    .catch(err => console.log('Error SW', err));
+                            });
         }
     </script>
 </body>
