@@ -227,23 +227,23 @@
                 const result = {
                     success: true,
                     data: {
-                        clubName: teamData.entityName,
-                        teamName: teamData.name,
-                        category: teamData.categoriesRegisteredName,
-                        logo: teamData.entityLogo,
+                        clubName: teamData.entityName || null,
+                        teamName: teamData.name || null,
+                        category: teamData.categoriesRegisteredName || teamData.categoryName || null,
+                        logo: teamData.entityLogo || null,
                         field: {
-                            name: teamData.fieldName,
-                            address: teamData.fieldAddress,
-                            town: teamData.fieldTown
+                            name: teamData.fieldName || null,
+                            address: teamData.fieldAddress || null,
+                            town: teamData.fieldTown || null
                         },
                         standing: myStanding ? {
-                            position: parseInt(myStanding.position),
-                            points: parseInt(myStanding.standingScore),
-                            wins: parseInt(myStanding.matchWin),
-                            losses: parseInt(myStanding.matchLost),
-                            played: parseInt(myStanding.matchPlayed),
-                            scoreFavour: parseInt(myStanding.matchScoreFavour),
-                            scoreAgainst: parseInt(myStanding.matchScoreAgainst)
+                            position: parseInt(myStanding.position) || 0,
+                            points: parseInt(myStanding.standingScore) || 0,
+                            wins: parseInt(myStanding.matchWin) || 0,
+                            losses: parseInt(myStanding.matchLost) || 0,
+                            played: parseInt(myStanding.matchPlayed) || 0,
+                            scoreFavour: parseInt(myStanding.matchScoreFavour) || 0,
+                            scoreAgainst: parseInt(myStanding.matchScoreAgainst) || 0
                         } : null,
                         lastSync: new Date().toISOString()
                     }
