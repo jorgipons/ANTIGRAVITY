@@ -1864,7 +1864,7 @@
         };
 
 
-        const TeamsListView = ({ teams, navigate, addDoc, collection, db, deleteDoc, doc, subscription, startCheckout }) => {
+        const TeamsListView = ({ teams, matches, navigate, addDoc, collection, db, doc, subscription, startCheckout }) => {
             const [newTeamName, setNewTeamName] = useState('');
             const [newTeamRuleset, setNewTeamRuleset] = useState(DEFAULT_RULESET);
             const [newTeamFederationId, setNewTeamFederationId] = useState('');
@@ -1895,11 +1895,6 @@
                 setNewTeamFederationId('');
                 setNewTeamRuleset(DEFAULT_RULESET);
                 setShowForm(false);
-            };
-            const deleteTeam = async (id) => {
-                if (confirm('¿Eliminar equipo?')) {
-                    await deleteDoc(doc(db, 'teams', id));
-                }
             };
 
             useEffect(() => {
@@ -1992,21 +1987,63 @@
                                 <button onClick={() => setShowForm(true)} className="text-blue-600 font-bold mt-2 text-sm underline-offset-4 hover:underline">Crear el primero</button>
                             </div>
                         ) : (
-                            <div className="grid gap-3">
-                                {teams.map(team => (
-                                    <div key={team.id} className="group bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex justify-between items-center">
-                                        <button
+                            <div className="grid gap-4">
+                                {teams.map(team => {
+                                    const teamMatches = (matches || []).filter(m => m.teamId === team.id);
+                                    const nextMatch = teamMatches
+                                        .filter(m => m.state !== 'finished' && new Date(m.date + 'T' + (m.time || '00:00')) >= new Date())
+                                        .sort((a, b) => new Date(a.date + 'T' + (a.time || '00:00')) - new Date(b.date + 'T' + (b.time || '00:00')))[0];
+
+                                    return (
+                                        <div
+                                            key={team.id}
                                             onClick={() => navigate('team-detail', team.id)}
-                                            className="flex-1 text-left"
+                                            className="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all cursor-pointer overflow-hidden transform hover:-translate-y-1 relative"
                                         >
-                                            <p className="font-extrabold text-xl text-slate-800 group-hover:text-blue-600 transition-colors">{team.name}</p>
-                                            <p className="text-xs text-slate-400 mt-0.5">{team.players?.length || 0} Jugadores</p>
-                                        </button>
-                                        <button onClick={() => deleteTeam(team.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all md:opacity-0 group-hover:opacity-100">
-                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trash-2" class="w-5 h-5"></i>' }}></span>
-                                        </button>
-                                    </div>
-                                ))}
+                                            <div className="p-5">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div>
+                                                        <h3 className="text-xl font-extrabold text-slate-800 tracking-tight group-hover:text-blue-600 transition-colors">
+                                                            {team.name}
+                                                        </h3>
+                                                        <p className="text-xs text-slate-400 font-medium">
+                                                            {team.players?.length || 0} Jugadores
+                                                        </p>
+                                                    </div>
+                                                    <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-right" class="w-5 h-5"></i>' }}></span>
+                                                    </div>
+                                                </div>
+
+                                                {nextMatch ? (
+                                                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 group-hover:border-blue-100 transition-colors">
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                                                            Próximo Partido
+                                                        </p>
+                                                        <div className="flex justify-between items-center">
+                                                            <div>
+                                                                <p className="font-bold text-slate-800 text-sm mb-0.5">vs {nextMatch.opponent}</p>
+                                                                <p className="text-[11px] text-slate-500 capitalize">
+                                                                    {new Date(nextMatch.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                                                    {nextMatch.time ? ` • ${nextMatch.time}h` : ''}
+                                                                </p>
+                                                            </div>
+                                                            <span className={`text-[10px] px-2 py-1 rounded-md font-bold ${nextMatch.isHome ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                                {nextMatch.isHome ? 'CASA' : 'FUERA'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex items-center gap-3 opacity-60">
+                                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="calendar-x" class="w-5 h-5 text-slate-300"></i>' }}></span>
+                                                        <span className="text-xs font-medium text-slate-400">Sin partidos programados</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
@@ -2534,6 +2571,10 @@
             const [editFederationId, setEditFederationId] = useState(team.federationId || '');
             const [editRuleset, setEditRuleset] = useState(team.rulesetId || DEFAULT_RULESET);
 
+            useEffect(() => {
+                lucide.createIcons();
+            }, []);
+
             const saveSettings = async (e) => {
                 e.preventDefault();
                 if (!editTeamName.trim()) return;
@@ -2898,7 +2939,7 @@
                 <div className="min-h-screen flex flex-col">
                     <TopBar navigate={navigate} view={view} signOut={signOut} subscription={subscription} />
                     <div className="flex-grow">
-                        {view === 'teams-list' && <TeamsListView teams={teams} navigate={navigate} addDoc={addDoc} collection={collection} db={db} deleteDoc={deleteDoc} doc={doc} subscription={subscription} startCheckout={startCheckout} />}
+                        {view === 'teams-list' && <TeamsListView teams={teams} matches={matches} navigate={navigate} addDoc={addDoc} collection={collection} db={db} deleteDoc={deleteDoc} doc={doc} subscription={subscription} startCheckout={startCheckout} />}
                         {view === 'team-detail' && <TeamDetailView team={getSelectedTeam()} matches={matches} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} addDoc={addDoc} collection={collection} db={db} />}
                         {view === 'match-setup' && <MatchSetupView team={getSelectedTeam()} navigate={navigate} addDoc={addDoc} collection={collection} db={db} />}
                         {view === 'active-match' && <ActiveMatchView match={getActiveMatch()} teams={teams} updateMatchInDb={updateMatchInDb} navigate={navigate} getRoles={getRoles} />}
