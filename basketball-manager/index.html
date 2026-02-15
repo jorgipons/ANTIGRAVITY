@@ -74,7 +74,7 @@
         const { useState, useEffect, useMemo } = React;
 
         // --- Logic & Types ---
-        const APP_VERSION = '1.11.1';
+        const APP_VERSION = '1.11.2';
         const RULESETS = {
             'fbcv_8p': {
                 id: 'fbcv_8p',
@@ -278,110 +278,85 @@
                 }
 
                 const teamData = jsonData.messageData.team;
-                console.log('📦 Team Data keys:', Object.keys(teamData));
                 const groups = teamData.groups || [];
-                console.log('📅 Processing groups:', groups.length);
+                console.log('📅 Found groups for team:', groups.length);
 
                 const matchesToImport = [];
 
                 for (const group of groups) {
-                    console.log('🔍 Processing group keys:', Object.keys(group));
+                    const idGroup = group.idGroup;
+                    if (!idGroup) continue;
 
-                    // Escáner recursivo para encontrar donde están los partidos
-                    const findMatchesRecursively = (obj, depth = 0) => {
-                        if (depth > 3 || !obj || typeof obj !== 'object') return null;
+                    console.log(`🔗 Fetching results for group ${idGroup} (${group.nameGroup || '?'})...`);
+                    try {
+                        const resultsUrl = `https://esb.optimalwayconsulting.com/fbcv/1/btz38ZsZlAdaODiH2fGsnJC9mZgSNPeR/FCBQWeb/resultats/${idGroup}`;
+                        const resultsResponse = await fetch(resultsUrl);
+                        if (!resultsResponse.ok) continue;
 
-                        // Si es un array y tiene objetos que parecen partidos
-                        if (Array.isArray(obj)) {
-                            const firstItem = obj[0];
-                            if (firstItem && (firstItem.idMatch || firstItem.localTeam || firstItem.nameLocalTeam || firstItem.localScore !== undefined)) {
-                                return obj;
+                        const resultsBase64 = await resultsResponse.text();
+                        const resultsData = JSON.parse(atob(resultsBase64));
+
+                        if (resultsData.result !== 'OK') continue;
+
+                        // Los partidos suelen venir en resultsData.messageData.macthes o similar
+                        const matches = resultsData.messageData.macthes || resultsData.messageData.calendar || resultsData.messageData.journeyMatches || [];
+                        console.log(`🏀 Group ${idGroup}: Found ${matches.length} results`);
+
+                        for (const match of matches) {
+                            const localId = match.idLocalTeam || match.localTeam?.idTeam;
+                            const visitorId = match.idVisitorTeam || match.visitorTeam?.idTeam;
+
+                            // Verificar si nuestro equipo participa en este partido
+                            if (String(localId) !== String(federationId) && String(visitorId) !== String(federationId)) continue;
+
+                            const isHome = String(localId) === String(federationId);
+                            const opponent = isHome
+                                ? (match.visitorTeam?.name || match.nameVisitorTeam || match.visitorTeam)
+                                : (match.localTeam?.name || match.nameLocalTeam || match.localTeam);
+
+                            let matchDate = match.date || match.matchDate || '';
+                            if (matchDate.includes('/')) {
+                                const parts = matchDate.split('/');
+                                if (parts.length === 3) {
+                                    matchDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                                }
                             }
-                        }
 
-                        // Buscar en las propiedades
-                        for (const key in obj) {
-                            const result = findMatchesRecursively(obj[key], depth + 1);
-                            if (result) return result;
-                        }
-                        return null;
-                    };
+                            const matchDateTime = new Date(`${matchDate}T${match.time || '00:00'}:00`);
+                            const isPast = matchDateTime < new Date();
 
-                    let matches = group.matches || group.calendar || group.journeyMatches || group.macthesInBlock || [];
+                            let score = null;
+                            let result = null;
+                            const localScore = match.localScore !== undefined ? match.localScore : match.scoreLocal;
+                            const visitorScore = match.visitorScore !== undefined ? match.visitorScore : match.scoreVisitor;
 
-                    if (matches.length === 0) {
-                        console.log('🔎 Searching deeply in group for matches...');
-                        const deepMatches = findMatchesRecursively(group);
-                        if (deepMatches) {
-                            console.log(`✨ Found ${deepMatches.length} matches in deep search!`);
-                            matches = deepMatches;
-                        }
-                    }
-
-                    console.log(`🏀 Found ${matches.length} matches to process`);
-
-                    for (const match of matches) {
-                        // Determinar si somos local o visitante
-                        const localId = match.idLocalTeam || match.localTeam?.idTeam;
-                        const visitorId = match.idVisitorTeam || match.visitorTeam?.idTeam;
-
-                        const isHome = String(localId) === String(federationId);
-
-                        // Extraer nombre del rival
-                        const opponent = isHome
-                            ? (match.visitorTeam?.name || match.nameVisitorTeam || match.visitorTeam)
-                            : (match.localTeam?.name || match.nameLocalTeam || match.localTeam);
-
-                        // Parsear fecha
-                        let matchDate = match.date || match.matchDate || '';
-                        if (matchDate.includes('/')) {
-                            const parts = matchDate.split('/');
-                            if (parts.length === 3) {
-                                matchDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                            if (localScore !== undefined && visitorScore !== undefined && localScore !== null && visitorScore !== null) {
+                                const lScore = parseInt(localScore);
+                                const vScore = parseInt(visitorScore);
+                                score = { local: lScore, visitor: vScore };
+                                const ourScore = isHome ? lScore : vScore;
+                                const theirScore = isHome ? vScore : lScore;
+                                if (ourScore > theirScore) result = 'won';
+                                else if (ourScore < theirScore) result = 'lost';
+                                else result = 'draw';
                             }
+
+                            matchesToImport.push({
+                                opponent: opponent || 'Rival desconocido',
+                                date: matchDate,
+                                time: match.time || '',
+                                location: match.fieldName || match.field?.name || match.field || '',
+                                matchDay: match.matchDay || match.journeyName || match.journeyNumber || match.journey || '',
+                                isHome: isHome,
+                                state: (isPast && score) ? 'finished' : 'pending',
+                                score: score,
+                                result: result,
+                                federationMatchId: String(match.idMatch || `${localId}-${visitorId}-${matchDate}`),
+                                observations: match.observations || ''
+                            });
                         }
-
-                        // Determinar si el partido ya finalizó
-                        const matchDateTime = new Date(`${matchDate}T${match.time || '00:00'}:00`);
-                        const isPast = matchDateTime < new Date();
-
-                        // Extraer marcador
-                        let score = null;
-                        let result = null;
-
-                        const localScore = match.localScore !== undefined ? match.localScore : match.scoreLocal;
-                        const visitorScore = match.visitorScore !== undefined ? match.visitorScore : match.scoreVisitor;
-
-                        if (localScore !== undefined && visitorScore !== undefined && localScore !== null && visitorScore !== null) {
-                            const lScore = parseInt(localScore);
-                            const vScore = parseInt(visitorScore);
-
-                            score = {
-                                local: lScore,
-                                visitor: vScore
-                            };
-
-                            const ourScore = isHome ? lScore : vScore;
-                            const theirScore = isHome ? vScore : lScore;
-
-                            if (ourScore > theirScore) result = 'won';
-                            else if (ourScore < theirScore) result = 'lost';
-                            else result = 'draw';
-                        }
-
-                        matchesToImport.push({
-                            opponent: opponent || 'Rival desconocido',
-                            date: matchDate,
-                            time: match.time || '',
-                            location: match.fieldName || match.field?.name || match.field || '',
-                            matchDay: match.matchDay || match.journeyName || match.journeyNumber || '',
-                            isHome: isHome,
-                            state: (isPast && score) ? 'finished' : 'pending',
-                            score: score,
-                            result: result,
-                            federationMatchId: String(match.idMatch || `${localId}-${visitorId}-${matchDate}`),
-                            observations: match.observations || ''
-                        });
+                    } catch (err) {
+                        console.warn(`⚠️ Error fetching results for group ${idGroup}:`, err);
                     }
                 }
 
