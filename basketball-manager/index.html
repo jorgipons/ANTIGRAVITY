@@ -74,7 +74,7 @@
         const { useState, useEffect, useMemo } = React;
 
         // --- Logic & Types ---
-        const APP_VERSION = '1.10.0';
+        const APP_VERSION = '1.10.1';
         const RULESETS = {
             'fbcv_8p': {
                 id: 'fbcv_8p',
@@ -548,6 +548,7 @@
             const [isEditingName, setIsEditingName] = useState(false);
             const [tempName, setTempName] = useState(team?.name || '');
             const [syncing, setSyncing] = useState(false);
+            const [showSettings, setShowSettings] = useState(false);
 
             const handleSyncFederation = async () => {
                 if (!team.federationId) return;
@@ -560,6 +561,30 @@
                     alert(`❌ Error: ${result.error}`);
                 }
                 setSyncing(false);
+            };
+
+            const [editTeamName, setEditTeamName] = useState('');
+            const [editFederationId, setEditFederationId] = useState('');
+            const [editRuleset, setEditRuleset] = useState('');
+
+            useEffect(() => {
+                if (team) {
+                    setEditTeamName(team.name || '');
+                    setEditFederationId(team.federationId || '');
+                    setEditRuleset(team.rulesetId || DEFAULT_RULESET);
+                }
+            }, [team]);
+
+            const saveTeamSettings = async (e) => {
+                e.preventDefault();
+                if (!editTeamName.trim()) return;
+                await updateTeamInDb(team.id, {
+                    name: editTeamName.trim(),
+                    federationId: editFederationId.trim() || null,
+                    rulesetId: editRuleset
+                });
+                setShowSettings(false);
+                alert('✅ Configuración guardada');
             };
 
             useEffect(() => {
@@ -678,26 +703,93 @@
                         </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-3 mb-8">
+                    <div className="grid grid-cols-3 gap-3 mb-8">
                         <button
                             onClick={() => navigate('manage-players', team.id)}
-                            className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md hover:border-blue-200 transition-all group"
+                            className="flex flex-col items-center gap-2 p-3 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md hover:border-blue-200 transition-all group"
                         >
                             <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0">
                                 <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="users" class="w-4 h-4"></i>' }}></span>
                             </div>
-                            <span className="font-bold text-slate-700 text-sm">Jugadores</span>
+                            <span className="font-bold text-slate-700 text-xs">Jugadores</span>
                         </button>
                         <button
                             onClick={() => navigate('manage-roles', team.id)}
-                            className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md hover:border-amber-200 transition-all group"
+                            className="flex flex-col items-center gap-2 p-3 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md hover:border-amber-200 transition-all group"
                         >
                             <div className="w-8 h-8 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0">
                                 <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="settings" class="w-4 h-4"></i>' }}></span>
                             </div>
-                            <span className="font-bold text-slate-700 text-sm">Posiciones</span>
+                            <span className="font-bold text-slate-700 text-xs">Posiciones</span>
+                        </button>
+                        <button
+                            onClick={() => setShowSettings(!showSettings)}
+                            className={`flex flex-col items-center gap-2 p-3 border rounded-xl shadow-sm transition-all group ${showSettings ? 'bg-slate-100 border-slate-300' : 'bg-white border-slate-200 hover:shadow-md hover:border-slate-300'}`}
+                        >
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0 ${showSettings ? 'bg-slate-200 text-slate-700' : 'bg-slate-50 text-slate-600'}`}>
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="sliders" class="w-4 h-4"></i>' }}></span>
+                            </div>
+                            <span className="font-bold text-slate-700 text-xs">Ajustes</span>
                         </button>
                     </div>
+
+                    {showSettings && (
+                        <div className="mb-8 p-4 bg-white border border-slate-200 rounded-xl shadow-sm animate-in slide-in-from-top-2 duration-200">
+                            <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="sliders" class="w-4 h-4"></i>' }}></span>
+                                Configuración del Equipo
+                            </h3>
+                            <form onSubmit={saveTeamSettings} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nombre del Equipo</label>
+                                    <input
+                                        className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all bg-slate-50"
+                                        placeholder="Ej: Alevín Masculino..."
+                                        value={editTeamName}
+                                        onChange={e => setEditTeamName(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">ID Federación (Opcional)</label>
+                                    <input
+                                        className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all bg-slate-50"
+                                        placeholder="Ej: 4793"
+                                        value={editFederationId}
+                                        onChange={e => setEditFederationId(e.target.value)}
+                                    />
+                                    <p className="text-[10px] text-slate-400 mt-1 ml-1">Encuentra el ID en la web de FBCV para sincronizar partidos</p>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Reglamento de Pasarela</label>
+                                    <select
+                                        className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all bg-slate-50 text-slate-700 font-medium"
+                                        value={editRuleset}
+                                        onChange={e => setEditRuleset(e.target.value)}
+                                    >
+                                        {Object.values(RULESETS).map(r => (
+                                            <option key={r.id} value={r.id}>{r.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="flex gap-2 pt-2">
+                                    <button
+                                        type="submit"
+                                        className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all"
+                                    >
+                                        Guardar Cambios
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowSettings(false)}
+                                        className="px-4 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 active:scale-95 transition-all"
+                                    >
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    )}
 
                     <div className="space-y-8">
                         <section>
