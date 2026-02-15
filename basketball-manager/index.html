@@ -2877,7 +2877,31 @@
                 }
             };
 
+            const duplicateTeam = async () => {
+                const newName = `${team.name} (Copia)`;
+                if (!confirm(`¿Duplicar equipo como "${newName}"?`)) return;
 
+                try {
+                    const { addDoc, collection } = window.firebaseMethods;
+                    // Create a clean copy without ID
+                    const { id, ...teamData } = team;
+                    const newTeam = {
+                        ...teamData,
+                        name: newName,
+                        createdAt: new Date().toISOString(),
+                        federationId: null, // Reset sync
+                        archived: false,
+                        season: new Date().getFullYear().toString()
+                    };
+
+                    const docRef = await addDoc(collection(db, 'teams'), newTeam);
+                    alert('Equipo duplicado correctamente');
+                    navigate('teams-list');
+                } catch (e) {
+                    console.error("Error duplicando equipo", e);
+                    alert('Error al duplicar: ' + e.message);
+                }
+            };
 
             const deleteTeam = async () => {
                 if (!confirm('⚠️ ¿ESTÁS SEGURO? Se eliminará el equipo y todos sus partidos. Esta acción no se puede deshacer.')) return;
@@ -3380,10 +3404,7 @@
                         {view === 'calendar' && <CalendarView team={getSelectedTeam()} matches={matches} navigate={navigate} />}
                         {view === 'edit-match' && (
                             <div className="p-4 max-w-md mx-auto">
-                                <header className="mb-6 flex items-center gap-2">
-                                    <button onClick={() => navigate('team-detail', selectedTeamId)} className="p-2 -ml-2 text-slate-400 hover:text-slate-800 transition-colors"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
-                                    <h1 className="text-2xl font-bold text-slate-800">Editar Partido</h1>
-                                </header>
+
                                 <EditMatchView
                                     match={getActiveMatch()}
                                     team={getSelectedTeam()}
