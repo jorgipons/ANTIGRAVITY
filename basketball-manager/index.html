@@ -2437,7 +2437,7 @@
             );
         };
 
-        const EditMatchView = ({ match, updateMatchInDb, navigate, team, deleteDoc, doc, db, onSave, onBack }) => {
+        const EditMatchView = ({ match, updateMatchInDb, navigate, team, deleteDoc, doc, db, onSave, onBack, onDelete }) => {
             useEffect(() => {
                 if (!match || !team) navigate('teams-list');
                 if (window.lucide) window.lucide.createIcons();
@@ -2476,9 +2476,13 @@
             };
 
             const handleDelete = async () => {
-                if (!confirm('¿Eliminar partido?')) return;
-                await deleteDoc(doc(db, 'matches', match.id));
-                navigate('team-detail', team.id);
+                if (onDelete) {
+                    await onDelete();
+                } else {
+                    if (!confirm('¿Eliminar partido?')) return;
+                    await deleteDoc(doc(db, 'matches', match.id));
+                    navigate('team-detail', team.id);
+                }
             };
 
             const handleBack = () => {
@@ -2557,7 +2561,32 @@
                         )}
 
                         <textarea className="w-full p-3 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" placeholder="Observaciones" rows="2" value={observations} onChange={e => setObservations(e.target.value)}></textarea>
+                    </div>
 
+                    <div className="mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Copiar Convocatoria</h3>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => {
+                                    const text = `🏀 *PARTIDO* 🏀\n🆚 ${match.opponent}\n📅 ${new Date(matchDate).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}\n⏰ ${matchTime}h\n📍 ${location || (isHome ? 'Local' : 'Visitante')}\n${!isHome && departureTime ? `🚌 Salida: ${departureTime}h desde ${departureLocation || 'Pabellón'}` : ''}\n${callTime ? `🔔 Convocatoria: ${callTime}h` : ''}\n\n👥 *JUGADORES:*\n${(match.players || []).map(p => `- ${p.name} (#${p.number})`).join('\n')}\n\n${observations ? `📝 ${observations}` : ''}`;
+                                    navigator.clipboard.writeText(text).then(() => alert('Convocatoria copiada al portapapeles'));
+                                }}
+                                className="flex-1 py-2 bg-emerald-100 text-emerald-700 rounded-lg font-bold text-xs hover:bg-emerald-200 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="copy"></i>' }}></span> WhastApp
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const text = `🏀 PARTIDO\n🆚 ${match.opponent}\n📅 ${matchDate}\n⏰ ${matchTime}\n📍 ${location}\n👥 ${(match.players || []).length} Jugadores`;
+                                    navigator.clipboard.writeText(text).then(() => alert('Resumen copiado'));
+                                }}
+                                className="flex-1 py-2 bg-blue-100 text-blue-700 rounded-lg font-bold text-xs hover:bg-blue-200 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="file-text"></i>' }}></span> Resumen
+                            </button>
+                        </div>
+                    </div>
+                    <div className="space-y-3">
                         <button onClick={handleUpdate} className="w-full bg-slate-900 text-white p-4 rounded-xl font-extrabold shadow-xl active:scale-[0.98] transition-all">Guardar Cambios</button>
                         <button onClick={handleDelete} className="w-full bg-white border border-red-200 text-red-600 p-4 rounded-xl font-bold shadow-sm active:scale-[0.98] transition-all">Eliminar Partido</button>
                     </div>
