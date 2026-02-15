@@ -3000,32 +3000,34 @@
                                 </div>
                             </div>
                         </div>
-                        );
+                    </div>
+                </div>
+            );
         };
 
         const AuthView = () => {
             const [email, setEmail] = useState('');
-                        const [password, setPassword] = useState('');
-                        const [isLogin, setIsLogin] = useState(true);
-                        const [error, setError] = useState('');
-                        const {signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup} = window.firebaseMethods;
-                        const auth = window.auth;
+            const [password, setPassword] = useState('');
+            const [isLogin, setIsLogin] = useState(true);
+            const [error, setError] = useState('');
+            const { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } = window.firebaseMethods;
+            const auth = window.auth;
 
             const handleSubmit = async (e) => {
-                            e.preventDefault();
-                        setError('');
-                        try {
+                e.preventDefault();
+                setError('');
+                try {
                     if (isLogin) {
-                            await signInWithEmailAndPassword(auth, email, password);
+                        await signInWithEmailAndPassword(auth, email, password);
                     } else {
-                            await createUserWithEmailAndPassword(auth, email, password);
+                        await createUserWithEmailAndPassword(auth, email, password);
                     }
                 } catch (err) {
-                            let msg = err.message;
-                        if (err.code === 'auth/invalid-credential') msg = "Credenciales inválidas";
-                        if (err.code === 'auth/email-already-in-use') msg = "El email ya está en uso";
-                        if (err.code === 'auth/weak-password') msg = "La contraseña es muy débil";
-                        setError(msg);
+                    let msg = err.message;
+                    if (err.code === 'auth/invalid-credential') msg = "Credenciales inválidas";
+                    if (err.code === 'auth/email-already-in-use') msg = "El email ya está en uso";
+                    if (err.code === 'auth/weak-password') msg = "La contraseña es muy débil";
+                    setError(msg);
                 }
             };
 
@@ -3034,83 +3036,83 @@
             }, [isLogin]);
 
             const handleGoogleSignIn = async () => {
-                            setError('');
-                        const provider = new GoogleAuthProvider();
-                        try {
-                            await signInWithPopup(auth, provider);
+                setError('');
+                const provider = new GoogleAuthProvider();
+                try {
+                    await signInWithPopup(auth, provider);
                 } catch (err) {
-                            setError(err.message);
+                    setError(err.message);
                 }
             };
 
-                        return (
-                        <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
-                            <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
-                                <div className="p-8">
-                                    <div className="flex justify-center mb-6">
-                                        <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg transform -rotate-6">
-                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trophy" class="w-8 h-8 text-white"></i>' }}></span>
-                                        </div>
-                                    </div>
-                                    <h1 className="text-3xl font-bold text-center text-slate-800 mb-2">Basket Manager</h1>
-                                    <p className="text-center text-slate-500 mb-8">{isLogin ? 'Inicia sesión para continuar' : 'Crea tu cuenta gratuita'}</p>
-
-                                    <form onSubmit={handleSubmit} className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-1 pl-1">Email</label>
-                                            <input type="email" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" placeholder="tu@email.com" value={email} onChange={e => setEmail(e.target.value)} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-1 pl-1">Contraseña</label>
-                                            <input type="password" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
-                                        </div>
-
-                                        {error && <div className="p-3 bg-red-50 text-red-600 text-xs font-bold rounded-xl border border-red-100">{error}</div>}
-
-                                        <button type="submit" className="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-lg shadow-lg transition-transform active:scale-[0.98]">
-                                            {isLogin ? 'Entrar' : 'Empezar ahora'}
-                                        </button>
-                                    </form>
-
-                                    <div className="mt-4">
-                                        <div className="relative flex py-4 items-center">
-                                            <div className="flex-grow border-t border-slate-200"></div>
-                                            <span className="flex-shrink mx-4 text-slate-400 text-xs font-bold uppercase tracking-widest">O</span>
-                                            <div className="flex-grow border-t border-slate-200"></div>
-                                        </div>
-
-                                        <button
-                                            onClick={handleGoogleSignIn}
-                                            className="w-full py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-bold flex items-center justify-center gap-3 transition-all shadow-sm active:scale-[0.98]"
-                                        >
-                                            <svg className="w-5 h-5" viewBox="0 0 24 24">
-                                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
-                                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                                            </svg>
-                                            Continuar con Google
-                                        </button>
-                                    </div>
-
-                                    <div className="mt-8 text-center pt-6 border-t border-slate-100 flex flex-col items-center gap-2">
-                                        <p className="text-sm text-slate-500">
-                                            {isLogin ? '¿No tienes cuenta?' : '¿Ya eres usuario?'}
-                                            <button onClick={() => setIsLogin(!isLogin)} className="ml-2 text-blue-600 font-bold hover:underline">
-                                                {isLogin ? 'Regístrate aquí' : 'Inicia sesión'}
-                                            </button>
-                                        </p>
-                                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-2">v{APP_VERSION}</span>
-                                    </div>
+            return (
+                <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+                    <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+                        <div className="p-8">
+                            <div className="flex justify-center mb-6">
+                                <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg transform -rotate-6">
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trophy" class="w-8 h-8 text-white"></i>' }}></span>
                                 </div>
                             </div>
+                            <h1 className="text-3xl font-bold text-center text-slate-800 mb-2">Basket Manager</h1>
+                            <p className="text-center text-slate-500 mb-8">{isLogin ? 'Inicia sesión para continuar' : 'Crea tu cuenta gratuita'}</p>
+
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1 pl-1">Email</label>
+                                    <input type="email" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" placeholder="tu@email.com" value={email} onChange={e => setEmail(e.target.value)} />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1 pl-1">Contraseña</label>
+                                    <input type="password" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
+                                </div>
+
+                                {error && <div className="p-3 bg-red-50 text-red-600 text-xs font-bold rounded-xl border border-red-100">{error}</div>}
+
+                                <button type="submit" className="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-lg shadow-lg transition-transform active:scale-[0.98]">
+                                    {isLogin ? 'Entrar' : 'Empezar ahora'}
+                                </button>
+                            </form>
+
+                            <div className="mt-4">
+                                <div className="relative flex py-4 items-center">
+                                    <div className="flex-grow border-t border-slate-200"></div>
+                                    <span className="flex-shrink mx-4 text-slate-400 text-xs font-bold uppercase tracking-widest">O</span>
+                                    <div className="flex-grow border-t border-slate-200"></div>
+                                </div>
+
+                                <button
+                                    onClick={handleGoogleSignIn}
+                                    className="w-full py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-bold flex items-center justify-center gap-3 transition-all shadow-sm active:scale-[0.98]"
+                                >
+                                    <svg className="w-5 h-5" viewBox="0 0 24 24">
+                                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
+                                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                                    </svg>
+                                    Continuar con Google
+                                </button>
+                            </div>
+
+                            <div className="mt-8 text-center pt-6 border-t border-slate-100 flex flex-col items-center gap-2">
+                                <p className="text-sm text-slate-500">
+                                    {isLogin ? '¿No tienes cuenta?' : '¿Ya eres usuario?'}
+                                    <button onClick={() => setIsLogin(!isLogin)} className="ml-2 text-blue-600 font-bold hover:underline">
+                                        {isLogin ? 'Regístrate aquí' : 'Inicia sesión'}
+                                    </button>
+                                </p>
+                                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-2">v{APP_VERSION}</span>
+                            </div>
                         </div>
-                        );
+                    </div>
+                </div>
+            );
         };
 
-                        const TutorialOverlay = ({steps, currentStepIndex, onNext, onSkip}) => {
+        const TutorialOverlay = ({ steps, currentStepIndex, onNext, onSkip }) => {
             const [targetRect, setTargetRect] = useState(null);
-                        const step = steps[currentStepIndex];
+            const step = steps[currentStepIndex];
 
             useEffect(() => {
                 if (window.lucide) window.lucide.createIcons();
@@ -3119,210 +3121,210 @@
                         const element = document.querySelector(step.target);
                         if (element) {
                             const rect = element.getBoundingClientRect();
-                        setTargetRect({
-                            top: rect.top,
-                        left: rect.left,
-                        width: rect.width,
-                        height: rect.height,
+                            setTargetRect({
+                                top: rect.top,
+                                left: rect.left,
+                                width: rect.width,
+                                height: rect.height,
                             });
-                        element.scrollIntoView({behavior: 'smooth', block: 'center' });
+                            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         } else {
                             setTargetRect(null); // Fallback if element not found
                         }
                     } else {
-                            setTargetRect(null); // Center modal for no target
+                        setTargetRect(null); // Center modal for no target
                     }
                 };
 
-                        updatePosition();
-                        window.addEventListener('resize', updatePosition);
+                updatePosition();
+                window.addEventListener('resize', updatePosition);
                 return () => window.removeEventListener('resize', updatePosition);
             }, [currentStepIndex, step]);
 
-                        if (!step) return null;
+            if (!step) return null;
 
-                        return (
-                        <div className="fixed inset-0 z-[9999] overflow-hidden">
-                            {/* Dark Overlay with Cutout */}
-                            <div className="absolute inset-0 bg-slate-900/80 mix-blend-hard-light duration-300"></div>
+            return (
+                <div className="fixed inset-0 z-[9999] overflow-hidden">
+                    {/* Dark Overlay with Cutout */}
+                    <div className="absolute inset-0 bg-slate-900/80 mix-blend-hard-light duration-300"></div>
 
-                            {/* Target Highlight */}
-                            {targetRect && (
-                                <div
-                                    className="absolute transition-all duration-500 ease-in-out border-4 border-blue-500 rounded-xl shadow-[0_0_0_9999px_rgba(15,23,42,0.8)] pointer-events-none animate-pulse"
-                                    style={{
-                                        top: targetRect.top - 8,
-                                        left: targetRect.left - 8,
-                                        width: targetRect.width + 16,
-                                        height: targetRect.height + 16,
-                                    }}
-                                ></div>
-                            )}
+                    {/* Target Highlight */}
+                    {targetRect && (
+                        <div
+                            className="absolute transition-all duration-500 ease-in-out border-4 border-blue-500 rounded-xl shadow-[0_0_0_9999px_rgba(15,23,42,0.8)] pointer-events-none animate-pulse"
+                            style={{
+                                top: targetRect.top - 8,
+                                left: targetRect.left - 8,
+                                width: targetRect.width + 16,
+                                height: targetRect.height + 16,
+                            }}
+                        ></div>
+                    )}
 
-                            {/* Tooltip Card */}
-                            <div
-                                className={`absolute transition-all duration-500 ease-in-out max-w-sm w-full p-6 bg-white rounded-2xl shadow-2xl border border-slate-200 ${targetRect ? '' : 'top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'}`}
-                                style={targetRect ? {
-                                    top: targetRect.top + targetRect.height + 24 > window.innerHeight - 200 ? targetRect.top - 200 : targetRect.top + targetRect.height + 24,
-                                    left: Math.max(16, Math.min(window.innerWidth - 340, targetRect.left)),
-                                } : {}}
-                            >
-                                <div className="flex justify-between items-start mb-4">
-                                    <h3 className="text-xl font-extrabold text-slate-800">{step.title}</h3>
-                                    <button onClick={onSkip} className="text-slate-400 hover:text-slate-600">
-                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="x" class="w-5 h-5"></i>' }}></span>
-                                    </button>
-                                </div>
-                                <p className="text-slate-600 mb-6 leading-relaxed">{step.content}</p>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                                        Paso {currentStepIndex + 1} de {steps.length}
-                                    </span>
-                                    <button
-                                        onClick={onNext}
-                                        className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-200"
-                                    >
-                                        {currentStepIndex === steps.length - 1 ? '¡Listo!' : 'Siguiente'}
-                                    </button>
-                                </div>
-                            </div>
+                    {/* Tooltip Card */}
+                    <div
+                        className={`absolute transition-all duration-500 ease-in-out max-w-sm w-full p-6 bg-white rounded-2xl shadow-2xl border border-slate-200 ${targetRect ? '' : 'top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'}`}
+                        style={targetRect ? {
+                            top: targetRect.top + targetRect.height + 24 > window.innerHeight - 200 ? targetRect.top - 200 : targetRect.top + targetRect.height + 24,
+                            left: Math.max(16, Math.min(window.innerWidth - 340, targetRect.left)),
+                        } : {}}
+                    >
+                        <div className="flex justify-between items-start mb-4">
+                            <h3 className="text-xl font-extrabold text-slate-800">{step.title}</h3>
+                            <button onClick={onSkip} className="text-slate-400 hover:text-slate-600">
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="x" class="w-5 h-5"></i>' }}></span>
+                            </button>
                         </div>
-                        );
+                        <p className="text-slate-600 mb-6 leading-relaxed">{step.content}</p>
+                        <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                Paso {currentStepIndex + 1} de {steps.length}
+                            </span>
+                            <button
+                                onClick={onNext}
+                                className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-200"
+                            >
+                                {currentStepIndex === steps.length - 1 ? '¡Listo!' : 'Siguiente'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
         };
 
         const App = () => {
             const [user, setUser] = useState(null);
-                        const [view, setView] = useState('teams-list');
-                        const [teams, setTeams] = useState([]);
-                        const [matches, setMatches] = useState([]);
-                        const [selectedTeamId, setSelectedTeamId] = useState(null);
-                        const [activeMatchId, setActiveMatchId] = useState(null);
-                        const [authLoading, setAuthLoading] = useState(true);
-                        const [subscription, setSubscription] = useState(undefined); // undefined = loading, null = free, 'active' = premium
-                        const [checkoutLoading, setCheckoutLoading] = useState(false);
-                        const [isOnline, setIsOnline] = useState(navigator.onLine);
+            const [view, setView] = useState('teams-list');
+            const [teams, setTeams] = useState([]);
+            const [matches, setMatches] = useState([]);
+            const [selectedTeamId, setSelectedTeamId] = useState(null);
+            const [activeMatchId, setActiveMatchId] = useState(null);
+            const [authLoading, setAuthLoading] = useState(true);
+            const [subscription, setSubscription] = useState(undefined); // undefined = loading, null = free, 'active' = premium
+            const [checkoutLoading, setCheckoutLoading] = useState(false);
+            const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-                        // Tutorial State
-                        const [showTutorial, setShowTutorial] = useState(false);
-                        const [tutorialStep, setTutorialStep] = useState(0);
+            // Tutorial State
+            const [showTutorial, setShowTutorial] = useState(false);
+            const [tutorialStep, setTutorialStep] = useState(0);
 
-                        const TUTORIAL_STEPS = [
-                        {target: null, title: "¡Bienviendo a Basket Manager!", content: "Gestiona tus equipos, partidos y jugadores de forma fácil y rápida. Te haremos un breve tour." },
-                        {target: '#add-team-btn', title: "Crear Equipo", content: "Empieza aquí para añadir tu primer equipo. Podrás configurar jugadores y roles." },
-                        {target: '#global-calendar-btn', title: "Calendario Global", content: "Consulta de un vistazo todos los partidos de todos tus equipos." },
-                        {target: '#help-btn', title: "Ayuda", content: "Si necesitas volver a ver este tutorial, pulsa aquí." },
-                        ];
+            const TUTORIAL_STEPS = [
+                { target: null, title: "¡Bienviendo a Basket Manager!", content: "Gestiona tus equipos, partidos y jugadores de forma fácil y rápida. Te haremos un breve tour." },
+                { target: '#add-team-btn', title: "Crear Equipo", content: "Empieza aquí para añadir tu primer equipo. Podrás configurar jugadores y roles." },
+                { target: '#global-calendar-btn', title: "Calendario Global", content: "Consulta de un vistazo todos los partidos de todos tus equipos." },
+                { target: '#help-btn', title: "Ayuda", content: "Si necesitas volver a ver este tutorial, pulsa aquí." },
+            ];
 
             useEffect(() => {
                 const tutorialCompleted = localStorage.getItem('tutorial_completed');
-                        if (!tutorialCompleted) {
-                            setShowTutorial(true);
+                if (!tutorialCompleted) {
+                    setShowTutorial(true);
                 }
             }, []);
 
             const handleNextTutorial = () => {
                 if (tutorialStep < TUTORIAL_STEPS.length - 1) {
-                            setTutorialStep(prev => prev + 1);
+                    setTutorialStep(prev => prev + 1);
                 } else {
-                            completeTutorial();
+                    completeTutorial();
                 }
             };
 
             const completeTutorial = () => {
-                            setShowTutorial(false);
-                        setTutorialStep(0);
-                        localStorage.setItem('tutorial_completed', 'true');
+                setShowTutorial(false);
+                setTutorialStep(0);
+                localStorage.setItem('tutorial_completed', 'true');
             };
 
             const startTutorial = () => {
-                            setShowTutorial(true);
-                        setTutorialStep(0);
+                setShowTutorial(true);
+                setTutorialStep(0);
             };
 
             useEffect(() => {
                 const handleOnline = () => setIsOnline(true);
                 const handleOffline = () => setIsOnline(false);
-                        window.addEventListener('online', handleOnline);
-                        window.addEventListener('offline', handleOffline);
+                window.addEventListener('online', handleOnline);
+                window.addEventListener('offline', handleOffline);
                 return () => {
-                            window.removeEventListener('online', handleOnline);
-                        window.removeEventListener('offline', handleOffline);
+                    window.removeEventListener('online', handleOnline);
+                    window.removeEventListener('offline', handleOffline);
                 };
             }, []);
 
             const navigate = (newView, teamId = null, matchId = null) => {
-                            setView(newView);
-                        if (teamId) setSelectedTeamId(teamId);
-                        if (matchId) setActiveMatchId(matchId);
-                        window.scrollTo(0, 0);
+                setView(newView);
+                if (teamId) setSelectedTeamId(teamId);
+                if (matchId) setActiveMatchId(matchId);
+                window.scrollTo(0, 0);
             };
 
             useEffect(() => {
-                            onAuthStateChanged(auth, (u) => {
-                                setUser(u);
-                                setAuthLoading(false);
-                                if (!u) {
-                                    setTeams([]);
-                                    setMatches([]);
-                                }
-                            });
+                onAuthStateChanged(auth, (u) => {
+                    setUser(u);
+                    setAuthLoading(false);
+                    if (!u) {
+                        setTeams([]);
+                        setMatches([]);
+                    }
+                });
             }, []);
 
             useEffect(() => {
                 if (!user) return;
-                        const q = query(collection(db, 'teams'), where('ownerId', '==', user.uid));
+                const q = query(collection(db, 'teams'), where('ownerId', '==', user.uid));
                 const unsubscribe = onSnapshot(q, (snapshot) => {
-                    const teamsData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data() }));
-                        setTeams(teamsData);
+                    const teamsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setTeams(teamsData);
                 });
                 return () => unsubscribe();
             }, [user]);
 
             useEffect(() => {
                 if (!user) return;
-                        const q = query(collection(db, 'matches'), where('ownerId', '==', user.uid));
+                const q = query(collection(db, 'matches'), where('ownerId', '==', user.uid));
                 const unsubscribe = onSnapshot(q, (snapshot) => {
-                    const matchesData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data() }));
-                        setMatches(matchesData);
+                    const matchesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setMatches(matchesData);
                 });
                 return () => unsubscribe();
             }, [user]);
 
             useEffect(() => {
                 if (!user) return;
-                        const subRef = collection(db, 'customers', user.uid, 'subscriptions');
-                        const q = query(subRef, where('status', 'in', ['active', 'trialing']));
+                const subRef = collection(db, 'customers', user.uid, 'subscriptions');
+                const q = query(subRef, where('status', 'in', ['active', 'trialing']));
                 const unsubscribe = onSnapshot(q, (snapshot) => {
                     if (snapshot.empty) {
-                            // Double check just in case sync is slow or user just subscribed
-                            // Fallback to check metadata on user object if needed, but for now strict check
-                            // Add a small delay/retry logic if needed for newly created subs
-                            setTimeout(() => {
-                                setSubscription(null);
-                            }, 400);
+                        // Double check just in case sync is slow or user just subscribed
+                        // Fallback to check metadata on user object if needed, but for now strict check
+                        // Add a small delay/retry logic if needed for newly created subs
+                        setTimeout(() => {
+                            setSubscription(null);
+                        }, 400);
                     } else {
-                            setSubscription(snapshot.docs[0].data().status);
+                        setSubscription(snapshot.docs[0].data().status);
                     }
                 });
                 return () => unsubscribe();
             }, [user]);
 
             const startCheckout = async () => {
-                            setCheckoutLoading(true);
-                        try {
+                setCheckoutLoading(true);
+                try {
                     const checkoutRef = collection(db, 'customers', user.uid, 'checkout_sessions');
-                        const docRef = await addDoc(checkoutRef, {
-                            price: 'price_1T0gwQKPQKkc3mVNhH05plnK', // ID real del producto del usuario
+                    const docRef = await addDoc(checkoutRef, {
+                        price: 'price_1T0gwQKPQKkc3mVNhH05plnK', // ID real del producto del usuario
                         success_url: window.location.href,
                         cancel_url: window.location.href,
                     });
 
                     onSnapshot(docRef, (snap) => {
-                        const {url, error} = snap.data();
+                        const { url, error } = snap.data();
                         if (url) window.location.assign(url);
                         if (error) {
                             setCheckoutLoading(false);
-                        alert(`Error de Stripe: ${error.message}`);
+                            alert(`Error de Stripe: ${error.message}`);
                         }
                     });
                 } catch (err) {
@@ -3358,13 +3360,13 @@
             return (
                 <div className="min-h-screen flex flex-col">
                     <TopBar navigate={navigate} view={view} signOut={signOut} subscription={subscription} isOnline={isOnline} startTutorial={startTutorial} />
-                    
+
                     {showTutorial && (
-                        <TutorialOverlay 
-                            steps={TUTORIAL_STEPS} 
-                            currentStepIndex={tutorialStep} 
-                            onNext={handleNextTutorial} 
-                            onSkip={completeTutorial} 
+                        <TutorialOverlay
+                            steps={TUTORIAL_STEPS}
+                            currentStepIndex={tutorialStep}
+                            onNext={handleNextTutorial}
+                            onSkip={completeTutorial}
                         />
                     )}
 
@@ -3420,12 +3422,12 @@
         root.render(<App />);
     </script>
     <script>
-                        if ('serviceWorker' in navigator) {
-                            window.addEventListener('load', () => {
-                                navigator.serviceWorker.register('./sw.js')
-                                    .then(reg => console.log('SW registrado', reg))
-                                    .catch(err => console.log('Error SW', err));
-                            });
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW registrado', reg))
+                    .catch(err => console.log('Error SW', err));
+            });
         }
     </script>
 </body>
