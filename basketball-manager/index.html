@@ -182,6 +182,21 @@
             });
         };
 
+        // Helper to properly decode Base64 as UTF-8
+        const decodeBase64UTF8 = (str) => {
+            try {
+                const binaryString = atob(str);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                return new TextDecoder('utf-8').decode(bytes);
+            } catch (e) {
+                console.error("Base64 decode error:", e);
+                return atob(str); // Fallback
+            }
+        };
+
         const syncWithFederation = async (federationId) => {
             try {
                 console.log('🔄 Syncing with federation ID:', federationId);
@@ -195,7 +210,7 @@
                 const base64Data = await response.text();
                 console.log('📦 Received base64 data, length:', base64Data.length);
 
-                const jsonData = JSON.parse(atob(base64Data));
+                const jsonData = JSON.parse(decodeBase64UTF8(base64Data));
                 console.log('📊 Parsed JSON:', jsonData);
 
                 if (jsonData.result !== 'OK') {
@@ -271,7 +286,7 @@
                 }
 
                 const base64Data = await response.text();
-                const jsonData = JSON.parse(atob(base64Data));
+                const jsonData = JSON.parse(decodeBase64UTF8(base64Data));
 
                 if (jsonData.result !== 'OK') {
                     throw new Error(jsonData.message || 'Error en la respuesta de la federación');
@@ -296,7 +311,7 @@
                         if (!resultsResponse.ok) continue;
 
                         const resultsBase64 = await resultsResponse.text();
-                        const resultsData = JSON.parse(atob(resultsBase64));
+                        const resultsData = JSON.parse(decodeBase64UTF8(resultsBase64));
 
                         if (resultsData.result !== 'OK') continue;
 
@@ -323,7 +338,7 @@
                                 if (!roundResponse.ok) continue;
 
                                 const roundBase64 = await roundResponse.text();
-                                const roundData = JSON.parse(atob(roundBase64));
+                                const roundData = JSON.parse(decodeBase64UTF8(roundBase64));
 
                                 if (roundData.result !== 'OK') continue;
 
