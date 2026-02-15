@@ -74,7 +74,7 @@
         const { useState, useEffect, useMemo } = React;
 
         // --- Logic & Types ---
-        const APP_VERSION = '1.11.3';
+        const APP_VERSION = '1.11.4';
         const RULESETS = {
             'fbcv_8p': {
                 id: 'fbcv_8p',
@@ -260,9 +260,9 @@
             }
         };
 
-        const importFederationMatches = async (federationId) => {
+        const importFederationMatches = async (federationId, mode = 'smart') => {
             try {
-                console.log('📥 Importing matches for federation ID:', federationId);
+                console.log(`📥 Importing matches (${mode}) for federation ID:`, federationId);
                 const url = `https://esb.optimalwayconsulting.com/fbcv/1/btz38ZsZlAdaODiH2fGsnJC9mZgSNPeR/FCBQWeb/getTeamCard/${federationId}`;
                 const response = await fetch(url);
 
@@ -287,10 +287,12 @@
                     const idGroup = group.idGroup;
                     if (!idGroup) continue;
 
-                    console.log(`🔗 Fetching results for group ${idGroup} (${group.nameGroup || '?'})...`);
+                    console.log(`🔗 Checking group ${idGroup} (${group.nameGroup || '?'})...`);
+
                     try {
-                        const resultsUrl = `https://esb.optimalwayconsulting.com/fbcv/1/btz38ZsZlAdaODiH2fGsnJC9mZgSNPeR/FCBQWeb/resultats/${idGroup}`;
-                        const resultsResponse = await fetch(resultsUrl);
+                        // Primero obtenemos info básica del grupo para saber jornadas
+                        const resultsBaseUrl = `https://esb.optimalwayconsulting.com/fbcv/1/btz38ZsZlAdaODiH2fGsnJC9mZgSNPeR/FCBQWeb/resultats/${idGroup}`;
+                        const resultsResponse = await fetch(resultsBaseUrl);
                         if (!resultsResponse.ok) continue;
 
                         const resultsBase64 = await resultsResponse.text();
@@ -298,72 +300,99 @@
 
                         if (resultsData.result !== 'OK') continue;
 
-                        const rounds = resultsData.messageData.rounds || {};
-                        console.log(`🏀 Group ${idGroup}: Processing ${Object.keys(rounds).length} rounds`);
+                        const totalRounds = parseInt(resultsData.messageData.totalRounds || 0);
+                        const lastRound = parseInt(resultsData.messageData.lastRound || 0);
 
-                        for (const roundNumber in rounds) {
-                            const round = rounds[roundNumber];
-                            const matches = round.matches || {};
+                        let roundsToFetch = [];
+                        if (mode === 'total') {
+                            for (let i = 1; i <= totalRounds; i++) roundsToFetch.push(i);
+                        } else if (mode === 'next') {
+                            if (lastRound < totalRounds) roundsToFetch.push(lastRound + 1);
+                            else roundsToFetch.push(lastRound); // Si ya terminó, la última
+                        } else { // smart: actual + próxima
+                            roundsToFetch.push(lastRound);
+                            if (lastRound < totalRounds) roundsToFetch.push(lastRound + 1);
+                        }
 
-                            for (const matchId in matches) {
-                                const match = matches[matchId];
-                                const localId = match.idLocalTeam;
-                                const visitorId = match.idVisitorTeam;
+                        console.log(`🏀 Group ${idGroup}: Fetching rounds: ${roundsToFetch.join(', ')}`);
 
-                                // Verificar si nuestro equipo participa en este partido
-                                if (String(localId) !== String(federationId) && String(visitorId) !== String(federationId)) continue;
+                        for (const roundNum of roundsToFetch) {
+                            try {
+                                const roundUrl = `${resultsBaseUrl}/${roundNum}`;
+                                const roundResponse = await fetch(roundUrl);
+                                if (!roundResponse.ok) continue;
 
-                                const isHome = String(localId) === String(federationId);
-                                const opponent = isHome
-                                    ? (match.nameVisitorTeam || match.visitorTeam?.name || 'Rival')
-                                    : (match.nameLocalTeam || match.localTeam?.name || 'Rival');
+                                const roundBase64 = await roundResponse.text();
+                                const roundData = JSON.parse(atob(roundBase64));
 
-                                // matchDay suele ser "YYYY-MM-DD HH:mm:ss"
-                                let matchDate = '';
-                                let matchTime = '';
-                                if (match.matchDay) {
-                                    const parts = match.matchDay.split(' ');
-                                    matchDate = parts[0];
-                                    if (parts[1]) {
-                                        matchTime = parts[1].substring(0, 5); // HH:mm
+                                if (roundData.result !== 'OK') continue;
+
+                                const rounds = roundData.messageData.rounds || {};
+                                const roundInfo = rounds[roundNum] || {};
+                                const matches = roundInfo.matches || {};
+
+                                for (const matchId in matches) {
+                                    const match = matches[matchId];
+                                    const localId = match.idLocalTeam;
+                                    const visitorId = match.idVisitorTeam;
+
+                                    // Verificar si nuestro equipo participa en este partido
+                                    if (String(localId) !== String(federationId) && String(visitorId) !== String(federationId)) continue;
+
+                                    const isHome = String(localId) === String(federationId);
+                                    const opponent = isHome
+                                        ? (match.nameVisitorTeam || match.visitorTeam?.name || 'Rival')
+                                        : (match.nameLocalTeam || match.localTeam?.name || 'Rival');
+
+                                    let matchDate = '';
+                                    let matchTime = '';
+                                    if (match.matchDay) {
+                                        const parts = match.matchDay.split(' ');
+                                        matchDate = parts[0];
+                                        if (parts[1]) {
+                                            matchTime = parts[1].substring(0, 5); // HH:mm
+                                        }
                                     }
+
+                                    const matchDateTime = new Date(match.matchDay?.replace(' ', 'T') || `${matchDate}T${matchTime || '00:00'}:00`);
+                                    const isPast = matchDateTime < new Date();
+
+                                    let score = null;
+                                    let result = null;
+
+                                    if (match.localScore !== null && match.visitorScore !== null &&
+                                        match.localScore !== undefined && match.visitorScore !== undefined &&
+                                        match.localScore !== '' && match.visitorScore !== '') {
+                                        const lScore = parseInt(match.localScore);
+                                        const vScore = parseInt(match.visitorScore);
+                                        score = { local: lScore, visitor: vScore };
+                                        const ourScore = isHome ? lScore : vScore;
+                                        const theirScore = isHome ? vScore : lScore;
+                                        if (ourScore > theirScore) result = 'won';
+                                        else if (ourScore < theirScore) result = 'lost';
+                                        else result = 'draw';
+                                    }
+
+                                    matchesToImport.push({
+                                        opponent: opponent,
+                                        date: matchDate,
+                                        time: matchTime,
+                                        location: match.nameField || match.fieldName || '',
+                                        matchDay: match.numMatchDay || roundNum || '',
+                                        isHome: isHome,
+                                        state: (isPast && score) ? 'finished' : 'pending',
+                                        score: score,
+                                        result: result,
+                                        federationMatchId: String(match.idMatch || matchId),
+                                        observations: match.observations || ''
+                                    });
                                 }
-
-                                const matchDateTime = new Date(match.matchDay?.replace(' ', 'T') || `${matchDate}T${matchTime || '00:00'}:00`);
-                                const isPast = matchDateTime < new Date();
-
-                                let score = null;
-                                let result = null;
-
-                                if (match.localScore !== null && match.visitorScore !== null &&
-                                    match.localScore !== undefined && match.visitorScore !== undefined) {
-                                    const lScore = parseInt(match.localScore);
-                                    const vScore = parseInt(match.visitorScore);
-                                    score = { local: lScore, visitor: vScore };
-                                    const ourScore = isHome ? lScore : vScore;
-                                    const theirScore = isHome ? vScore : lScore;
-                                    if (ourScore > theirScore) result = 'won';
-                                    else if (ourScore < theirScore) result = 'lost';
-                                    else result = 'draw';
-                                }
-
-                                matchesToImport.push({
-                                    opponent: opponent,
-                                    date: matchDate,
-                                    time: matchTime,
-                                    location: match.nameField || match.fieldName || '',
-                                    matchDay: match.numMatchDay || roundNumber || '',
-                                    isHome: isHome,
-                                    state: (isPast && score) ? 'finished' : 'pending',
-                                    score: score,
-                                    result: result,
-                                    federationMatchId: String(match.idMatch || matchId),
-                                    observations: match.observations || ''
-                                });
+                            } catch (e) {
+                                console.warn(`⚠️ Error fetching round ${roundNum}:`, e);
                             }
                         }
                     } catch (err) {
-                        console.warn(`⚠️ Error fetching results for group ${idGroup}:`, err);
+                        console.warn(`⚠️ Error processing group ${idGroup}:`, err);
                     }
                 }
 
@@ -685,6 +714,7 @@
             const [tempName, setTempName] = useState(team?.name || '');
             const [syncing, setSyncing] = useState(false);
             const [showSettings, setShowSettings] = useState(false);
+            const [showSyncMenu, setShowSyncMenu] = useState(false);
 
             const handleSyncFederation = async () => {
                 if (!team.federationId) return;
@@ -707,14 +737,20 @@
 
             const [importing, setImporting] = useState(false);
 
-            const handleImportMatches = async () => {
+            const handleImportMatches = async (mode = 'smart') => {
                 if (!team.federationId) return;
 
-                if (!confirm('¿Importar partidos desde la federación? Se crearán los partidos nuevos y se actualizarán los marcadores de los ya jugados.')) return;
+                const modeLabels = {
+                    'smart': 'Actual + Próxima',
+                    'total': 'Temporada completa',
+                    'next': 'Solo siguiente'
+                };
+
+                if (!confirm(`¿Sincronizar partidos (${modeLabels[mode] || mode})? Se crearán partidos nuevos y se actualizarán marcadores.`)) return;
 
                 setImporting(true);
                 try {
-                    const result = await importFederationMatches(team.federationId);
+                    const result = await importFederationMatches(team.federationId, mode);
                     if (result.success) {
                         const matchesToImport = result.matches;
 
@@ -732,18 +768,17 @@
                                 await addDoc(collection(db, 'matches'), {
                                     ...federatedMatch,
                                     teamId: team.id,
-                                    userId: window.auth.currentUser.uid,
+                                    ownerId: window.auth.currentUser.uid,
                                     createdAt: new Date().toISOString()
                                 });
                                 imported++;
                             } else if (federatedMatch.state === 'finished' && federatedMatch.score) {
                                 // Existe. ¿Actualizamos el marcador si ha terminado?
-                                // Solo actualizamos si el estado anterior era pending o si el marcador ha cambiado
                                 const hasScoreChanged = !existing.score ||
                                     existing.score.local !== federatedMatch.score.local ||
                                     existing.score.visitor !== federatedMatch.score.visitor;
 
-                                if (hasScoreChanged) {
+                                if (hasScoreChanged || existing.state === 'pending') {
                                     const matchRef = doc(db, 'matches', existing.id);
                                     await updateDoc(matchRef, {
                                         score: federatedMatch.score,
@@ -764,6 +799,7 @@
                     alert(`❌ Error inesperado: ${error.message} `);
                 } finally {
                     setImporting(false);
+                    setShowSyncMenu(false);
                 }
             };
 
@@ -875,24 +911,53 @@
                                     <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="link" class="w-4 h-4 text-blue-600"></i>' }}></span>
                                     <h3 className="font-bold text-blue-900 text-sm">Federación FBCV</h3>
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 relative">
                                     <button
                                         onClick={handleSyncFederation}
                                         disabled={syncing}
-                                        className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${syncing ? 'bg-slate-200 text-slate-400' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
+                                        className={`text-[10px] px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1 ${syncing ? 'bg-slate-200 text-slate-400' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
                                     >
                                         <span dangerouslySetInnerHTML={{ __html: `<i data-lucide="${syncing ? 'loader' : 'refresh-cw'}" class="w-3 h-3 ${syncing ? 'animate-spin' : ''}"></i>` }}></span>
-                                        {syncing ? 'Sincronizando...' : 'Sincronizar'}
+                                        {syncing ? 'Sync...' : 'Sync'}
                                     </button>
-                                    <button
-                                        onClick={handleImportMatches}
-                                        disabled={importing}
-                                        className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${importing ? 'bg-slate-200 text-slate-400' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
-                                        title="Importar calendario y resultados"
-                                    >
-                                        <span dangerouslySetInnerHTML={{ __html: `<i data-lucide="${importing ? 'loader' : 'download-cloud'}" class="w-3 h-3 ${importing ? 'animate-spin' : ''}"></i>` }}></span>
-                                        {importing ? 'Importando...' : 'Importar Partidos'}
-                                    </button>
+
+                                    <div className="flex bg-emerald-600 rounded-lg overflow-hidden shadow-sm">
+                                        <button
+                                            onClick={() => handleImportMatches('smart')}
+                                            disabled={importing}
+                                            className={`text-[10px] pl-2.5 pr-1.5 py-1.5 text-white font-bold transition-all flex items-center gap-1.5 border-r border-emerald-500/30 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400`}
+                                            title="Sincro Actual + Próxima"
+                                        >
+                                            <span dangerouslySetInnerHTML={{ __html: `<i data-lucide="${importing ? 'loader' : 'zap'}" class="w-3.5 h-3.5 ${importing ? 'animate-spin' : ''}"></i>` }}></span>
+                                            {importing ? 'Importando...' : 'Sincro Smart'}
+                                        </button>
+                                        <button
+                                            onClick={() => { setShowSyncMenu(!showSyncMenu); setTimeout(() => lucide.createIcons(), 0); }}
+                                            disabled={importing}
+                                            className="px-2 py-1.5 text-white hover:bg-emerald-700 transition-all disabled:bg-slate-200 disabled:text-slate-400"
+                                        >
+                                            <span dangerouslySetInnerHTML={{ __html: `<i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>` }}></span>
+                                        </button>
+                                    </div>
+
+                                    {showSyncMenu && (
+                                        <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-[60] animate-in slide-in-from-top-2 duration-150">
+                                            <button
+                                                onClick={() => handleImportMatches('total')}
+                                                className="w-full px-4 py-2.5 text-left text-[11px] font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-slate-50"
+                                            >
+                                                <span dangerouslySetInnerHTML={{ __html: `<i data-lucide="calendar" class="w-3.5 h-3.5 text-emerald-600"></i>` }}></span>
+                                                Temporada Completa
+                                            </button>
+                                            <button
+                                                onClick={() => handleImportMatches('next')}
+                                                className="w-full px-4 py-2.5 text-left text-[11px] font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                            >
+                                                <span dangerouslySetInnerHTML={{ __html: `<i data-lucide="skip-forward" class="w-3.5 h-3.5 text-emerald-600"></i>` }}></span>
+                                                Solo Próxima Jornada
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             {team.federationData ? (
