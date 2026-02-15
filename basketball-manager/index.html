@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 
 <head>
@@ -460,7 +460,7 @@
             }
         };
 
-        const TopBar = ({ navigate, view, signOut, subscription, isOnline }) => {
+        const TopBar = ({ navigate, view, signOut, subscription, isOnline, startTutorial }) => {
             const handleLogout = async () => {
                 if (confirm('¿Cerrar sesión?')) {
                     await signOut(window.auth);
@@ -497,6 +497,16 @@
                             title="Inicio"
                         >
                             <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="home" class="w-5 h-5"></i>' }}></span>
+                        </button>
+
+                        {/* Right - Help button */}
+                        <button
+                            id="help-btn"
+                            onClick={startTutorial}
+                            className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all mr-1"
+                            title="Ayuda / Tutorial"
+                        >
+                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="circle-help" class="w-5 h-5"></i>' }}></span>
                         </button>
 
                         {/* Right - Logout button */}
@@ -2213,6 +2223,7 @@
                             </div>
                             <div className="flex gap-2">
                                 <button
+                                    id="global-calendar-btn"
                                     onClick={() => navigate('all-matches-calendar')}
                                     className="p-3 rounded-2xl bg-white text-slate-600 shadow-sm border border-slate-200 hover:bg-slate-50 transition-all hover:scale-105 active:scale-95"
                                     title="Calendario Global"
@@ -2220,6 +2231,7 @@
                                     <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="calendar" class="w-7 h-7"></i>' }}></span>
                                 </button>
                                 <button
+                                    id="add-team-btn"
                                     onClick={() => setShowForm(!showForm)}
                                     className={`p-3 rounded-2xl transition-all shadow-lg ${showForm ? 'bg-slate-200 text-slate-600 rotate-45' : 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-105 active:scale-95'}`}
                                     title="Añadir Equipo"
@@ -3154,112 +3166,169 @@
                                 );
         };
 
-        const App = () => {
-            const {collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, orderBy, where, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut} = window.firebaseMethods || { };
-                                const db = window.db;
+        const TutorialOverlay = ({steps, currentStepIndex, onNext, onSkip}) => {
+            const [targetRect, setTargetRect] = useState(null);
+                                const step = steps[currentStepIndex];
 
-                                const [user, setUser] = useState(null);
-                                const [authLoading, setAuthLoading] = useState(true);
-                                const [subscription, setSubscription] = useState(undefined); // undefined: loading, null: none, 'active'/'trialing': active
-                                const [checkoutLoading, setCheckoutLoading] = useState(false);
+            useEffect(() => {
+                if (window.lucide) window.lucide.createIcons();
+                const updatePosition = () => {
+                    if (step.target) {
+                        const element = document.querySelector(step.target);
+                                if (element) {
+                            const rect = element.getBoundingClientRect();
+                                setTargetRect({
+                                    top: rect.top,
+                                left: rect.left,
+                                width: rect.width,
+                                height: rect.height,
+                            });
+                                element.scrollIntoView({behavior: 'smooth', block: 'center' });
+                        } else {
+                                    setTargetRect(null); // Fallback if element not found
+                        }
+                    } else {
+                                    setTargetRect(null); // Center modal for no target
+                    }
+                };
+
+                                updatePosition();
+                                window.addEventListener('resize', updatePosition);
+                return () => window.removeEventListener('resize', updatePosition);
+            }, [currentStepIndex, step]);
+
+                                if (!step) return null;
+
+                                return (
+                                <div className="fixed inset-0 z-[9999] overflow-hidden">
+                                    {/* Dark Overlay with Cutout */}
+                                    <div className="absolute inset-0 bg-slate-900/80 mix-blend-hard-light duration-300"></div>
+
+                                    {/* Target Highlight */}
+                                    {targetRect && (
+                                        <div
+                                            className="absolute transition-all duration-500 ease-in-out border-4 border-blue-500 rounded-xl shadow-[0_0_0_9999px_rgba(15,23,42,0.8)] pointer-events-none animate-pulse"
+                                            style={{
+                                                top: targetRect.top - 8,
+                                                left: targetRect.left - 8,
+                                                width: targetRect.width + 16,
+                                                height: targetRect.height + 16,
+                                            }}
+                                        ></div>
+                                    )}
+
+                                    {/* Tooltip Card */}
+                                    <div
+                                        className={`absolute transition-all duration-500 ease-in-out max-w-sm w-full p-6 bg-white rounded-2xl shadow-2xl border border-slate-200 ${targetRect ? '' : 'top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'}`}
+                                        style={targetRect ? {
+                                            top: targetRect.top + targetRect.height + 24 > window.innerHeight - 200 ? targetRect.top - 200 : targetRect.top + targetRect.height + 24,
+                                            left: Math.max(16, Math.min(window.innerWidth - 340, targetRect.left)),
+                                        } : {}}
+                                    >
+                                        <div className="flex justify-between items-start mb-4">
+                                            <h3 className="text-xl font-extrabold text-slate-800">{step.title}</h3>
+                                            <button onClick={onSkip} className="text-slate-400 hover:text-slate-600">
+                                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="x" class="w-5 h-5"></i>' }}></span>
+                                            </button>
+                                        </div>
+                                        <p className="text-slate-600 mb-6 leading-relaxed">{step.content}</p>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                                Paso {currentStepIndex + 1} de {steps.length}
+                                            </span>
+                                            <button
+                                                onClick={onNext}
+                                                className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-200"
+                                            >
+                                                {currentStepIndex === steps.length - 1 ? '¡Listo!' : 'Siguiente'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                );
+        };
+
+        const App = () => {
+            const [user, setUser] = useState(null);
+                                const [view, setView] = useState('teams-list');
                                 const [teams, setTeams] = useState([]);
                                 const [matches, setMatches] = useState([]);
-                                const [view, setView] = useState('teams-list');
                                 const [selectedTeamId, setSelectedTeamId] = useState(null);
                                 const [activeMatchId, setActiveMatchId] = useState(null);
-                                const [error, setError] = useState(null);
-
+                                const [authLoading, setAuthLoading] = useState(true);
+                                const [subscription, setSubscription] = useState(undefined); // undefined = loading, null = free, 'active' = premium
+                                const [checkoutLoading, setCheckoutLoading] = useState(false);
                                 const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-            const navigate = (newView, teamId = null, matchId = null) => {
-                // If we are already there, don't push
-                if (view === newView && selectedTeamId === teamId && activeMatchId === matchId) return;
+                                // Tutorial State
+                                const [showTutorial, setShowTutorial] = useState(false);
+                                const [tutorialStep, setTutorialStep] = useState(0);
 
-                                window.history.pushState({view: newView, selectedTeamId: teamId, activeMatchId: matchId }, '');
-                                setView(newView);
-                                setSelectedTeamId(teamId);
-                                setActiveMatchId(matchId);
+                                const TUTORIAL_STEPS = [
+                                {target: null, title: "¡Bienviendo a Basket Manager!", content: "Gestiona tus equipos, partidos y jugadores de forma fácil y rápida. Te haremos un breve tour." },
+                                {target: '#add-team-btn', title: "Crear Equipo", content: "Empieza aquí para añadir tu primer equipo. Podrás configurar jugadores y roles." },
+                                {target: '#global-calendar-btn', title: "Calendario Global", content: "Consulta de un vistazo todos los partidos de todos tus equipos." },
+                                {target: '#help-btn', title: "Ayuda", content: "Si necesitas volver a ver este tutorial, pulsa aquí." },
+                                ];
+
+            useEffect(() => {
+                const tutorialCompleted = localStorage.getItem('tutorial_completed');
+                                if (!tutorialCompleted) {
+                                    setShowTutorial(true);
+                }
+            }, []);
+
+            const handleNextTutorial = () => {
+                if (tutorialStep < TUTORIAL_STEPS.length - 1) {
+                                    setTutorialStep(prev => prev + 1);
+                } else {
+                                    completeTutorial();
+                }
+            };
+
+            const completeTutorial = () => {
+                                    setShowTutorial(false);
+                                setTutorialStep(0);
+                                localStorage.setItem('tutorial_completed', 'true');
+            };
+
+            const startTutorial = () => {
+                                    setShowTutorial(true);
+                                setTutorialStep(0);
             };
 
             useEffect(() => {
-                const checkStatus = () => setIsOnline(navigator.onLine);
-
-                                window.addEventListener('online', checkStatus);
-                                window.addEventListener('offline', checkStatus);
-                                window.addEventListener('focus', checkStatus); // Re-check when user comes back to tab
-
-                                // Backup check every 5 seconds
-                                const interval = setInterval(checkStatus, 5000);
-
+                const handleOnline = () => setIsOnline(true);
+                const handleOffline = () => setIsOnline(false);
+                                window.addEventListener('online', handleOnline);
+                                window.addEventListener('offline', handleOffline);
                 return () => {
-                                    window.removeEventListener('online', checkStatus);
-                                window.removeEventListener('offline', checkStatus);
-                                window.removeEventListener('focus', checkStatus);
-                                clearInterval(interval);
+                                    window.removeEventListener('online', handleOnline);
+                                window.removeEventListener('offline', handleOffline);
                 };
             }, []);
 
+            const navigate = (newView, teamId = null, matchId = null) => {
+                                    setView(newView);
+                                if (teamId) setSelectedTeamId(teamId);
+                                if (matchId) setActiveMatchId(matchId);
+                                window.scrollTo(0, 0);
+            };
+
             useEffect(() => {
-                if (!window.auth) return;
-                return onAuthStateChanged(window.auth, (u) => {
-                                    setUser(u);
-                                setAuthLoading(false);
-                                if (!u) navigate('teams-list');
-                });
+                                    onAuthStateChanged(auth, (u) => {
+                                        setUser(u);
+                                        setAuthLoading(false);
+                                        if (!u) {
+                                            setTeams([]);
+                                            setMatches([]);
+                                        }
+                                    });
             }, []);
 
-            // --- History Navigation Sync ---
             useEffect(() => {
-                const handlePopState = (event) => {
-                    const state = event.state;
-                                if (state) {
-                                    setView(state.view || 'teams-list');
-                                setSelectedTeamId(state.selectedTeamId || null);
-                                setActiveMatchId(state.activeMatchId || null);
-                    } else {
-                                    setView('teams-list');
-                                setSelectedTeamId(null);
-                                setActiveMatchId(null);
-                    }
-                };
-                                window.addEventListener('popstate', handlePopState);
-
-                                // Initialize first state
-                                if (!window.history.state) {
-                                    window.history.replaceState({ view: 'teams-list', selectedTeamId: null, activeMatchId: null }, '');
-                }
-
-                return () => window.removeEventListener('popstate', handlePopState);
-            }, [view, selectedTeamId, activeMatchId]);
-
-                                if (!window.firebaseMethods) return <div className="p-8 text-center text-slate-500 flex flex-col items-center gap-4"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600"></div><p>Iniciando Firebase...</p></div>;
-
-            useEffect(() => {
-                const handleError = (e) => {
-                                    console.error("React Error:", e);
-                                setError(e.message || "Error desconocido");
-                };
-                                window.addEventListener('error', handleError);
-                return () => window.removeEventListener('error', handleError);
-            }, []);
-
-                                if (error) {
-                return (
-                                <div className="p-8 text-center">
-                                    <h1 className="text-xl font-bold text-red-600 mb-4">Algo ha salido mal</h1>
-                                    <pre className="p-4 bg-slate-100 rounded-lg text-xs overflow-auto mb-4">{error}</pre>
-                                    <button onClick={() => window.location.reload()} className="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold">Recargar aplicación</button>
-                                </div>
-                                );
-            }
-
-            useEffect(() => {
-                if (!user) {
-                                    setTeams([]);
-                                return;
-                }
-                                const teamsRef = collection(db, 'teams');
-                                const q = query(teamsRef, where("ownerId", "==", user.uid));
+                if (!user) return;
+                                const q = query(collection(db, 'teams'), where('ownerId', '==', user.uid));
                 const unsubscribe = onSnapshot(q, (snapshot) => {
                     const teamsData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data() }));
                                 setTeams(teamsData);
@@ -3268,12 +3337,8 @@
             }, [user]);
 
             useEffect(() => {
-                if (!user) {
-                                    setMatches([]);
-                                return;
-                }
-                                const matchesRef = collection(db, 'matches');
-                                const q = query(matchesRef, where("ownerId", "==", user.uid));
+                if (!user) return;
+                                const q = query(collection(db, 'matches'), where('ownerId', '==', user.uid));
                 const unsubscribe = onSnapshot(q, (snapshot) => {
                     const matchesData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data() }));
                                 setMatches(matchesData);
@@ -3282,21 +3347,16 @@
             }, [user]);
 
             useEffect(() => {
-                if (!user) {
-                                    setSubscription(null);
-                                return;
-                }
-                                setSubscription(undefined); // Reset state to loading when user changes to avoid flicker
+                if (!user) return;
                                 const subRef = collection(db, 'customers', user.uid, 'subscriptions');
-                                const q = query(subRef, where("status", "in", ["active", "trialing"]));
+                                const q = query(subRef, where('status', 'in', ['active', 'trialing']));
                 const unsubscribe = onSnapshot(q, (snapshot) => {
                     if (snapshot.empty) {
-                                    // Delay verifying as "null" to swallow initial empty snapshots during sync
+                                    // Double check just in case sync is slow or user just subscribed
+                                    // Fallback to check metadata on user object if needed, but for now strict check
+                                    // Add a small delay/retry logic if needed for newly created subs
                                     setTimeout(() => {
-                                        setSubscription(curr => {
-                                            // If after 400ms we still have no data, set to null
-                                            return curr === undefined ? null : curr;
-                                        });
+                                        setSubscription(null);
                                     }, 400);
                     } else {
                                     setSubscription(snapshot.docs[0].data().status);
@@ -3355,7 +3415,17 @@
 
             return (
                 <div className="min-h-screen flex flex-col">
-                    <TopBar navigate={navigate} view={view} signOut={signOut} subscription={subscription} isOnline={isOnline} />
+                    <TopBar navigate={navigate} view={view} signOut={signOut} subscription={subscription} isOnline={isOnline} startTutorial={startTutorial} />
+                    
+                    {showTutorial && (
+                        <TutorialOverlay 
+                            steps={TUTORIAL_STEPS} 
+                            currentStepIndex={tutorialStep} 
+                            onNext={handleNextTutorial} 
+                            onSkip={completeTutorial} 
+                        />
+                    )}
+
                     <div className="flex-grow">
                         {view === 'teams-list' && <TeamsListView teams={teams} matches={matches} navigate={navigate} addDoc={addDoc} collection={collection} db={db} deleteDoc={deleteDoc} doc={doc} subscription={subscription} startCheckout={startCheckout} />}
                         {view === 'all-matches-calendar' && <AllMatchesCalendarView teams={teams} matches={matches} navigate={navigate} />}
