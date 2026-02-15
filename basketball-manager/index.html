@@ -2971,58 +2971,49 @@
                             </div>
                         </div>
 
-                        <div className="bg-red-50 p-5 rounded-2xl border border-red-100">
-                            <h2 className="font-bold text-red-900 mb-2 flex items-center gap-2">
-                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="alert-triangle" class="w-5 h-5"></i>' }}></span>
-                                Zona de Peligro
-                            </h2>
+                        {/* Accesos Directos */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <button onClick={() => navigate('manage-players', team.id)} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all flex flex-col items-center gap-2">
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="users" class="w-6 h-6 text-blue-600"></i>' }}></span>
+                                <span className="font-bold text-sm text-slate-700">Jugadores</span>
+                            </button>
+                            <button onClick={() => navigate('manage-roles', team.id)} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all flex flex-col items-center gap-2">
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="shield" class="w-6 h-6 text-amber-600"></i>' }}></span>
+                                <span className="font-bold text-sm text-slate-700">Roles / Posiciones</span>
+                            </button>
+                        </div>
 
-                            <div className="space-y-6">
-                                {/* Accesos Directos */}
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button onClick={() => navigate('manage-players', team.id)} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all flex flex-col items-center gap-2">
-                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="users" class="w-6 h-6 text-blue-600"></i>' }}></span>
-                                        <span className="font-bold text-sm text-slate-700">Jugadores</span>
-                                    </button>
-                                    <button onClick={() => navigate('manage-roles', team.id)} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all flex flex-col items-center gap-2">
-                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="shield" class="w-6 h-6 text-amber-600"></i>' }}></span>
-                                        <span className="font-bold text-sm text-slate-700">Roles / Posiciones</span>
-                                    </button>
+                        {/* Formulario Configuración */}
+                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                            <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="sliders" class="w-4 h-4"></i>' }}></span> General
+                            </h3>
+                            <form onSubmit={saveSettings} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nombre</label>
+                                    <input className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all bg-slate-50" value={editTeamName} onChange={e => setEditTeamName(e.target.value)} required />
                                 </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">ID Federación</label>
+                                    <input id="tutorial-fed-id" className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all bg-slate-50" value={editFederationId} onChange={e => setEditFederationId(e.target.value)} placeholder="Opcional" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Reglamento</label>
+                                    <select className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all bg-slate-50" value={editRuleset} onChange={e => setEditRuleset(e.target.value)}>
+                                        {Object.values(RULESETS).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                    </select>
+                                </div>
+                                <button type="submit" className="w-full py-3 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 transition-all">Guardar Cambios</button>
+                            </form>
+                        </div>
 
-                                {/* Formulario Configuración */}
-                                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                    <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="sliders" class="w-4 h-4"></i>' }}></span> General
-                                    </h3>
-                                    <form onSubmit={saveSettings} className="space-y-4">
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nombre</label>
-                                            <input className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all bg-slate-50" value={editTeamName} onChange={e => setEditTeamName(e.target.value)} required />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">ID Federación</label>
-                                            <input id="tutorial-fed-id" className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all bg-slate-50" value={editFederationId} onChange={e => setEditFederationId(e.target.value)} placeholder="Opcional" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Reglamento</label>
-                                            <select className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all bg-slate-50" value={editRuleset} onChange={e => setEditRuleset(e.target.value)}>
-                                                {Object.values(RULESETS).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                                            </select>
-                                        </div>
-                                        <button type="submit" className="w-full py-3 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 transition-all">Guardar Cambios</button>
-                                    </form>
-                                </div>
-
-                                {/* Zona de Peligro */}
-                                <div className="bg-red-50 p-4 rounded-xl border border-red-100">
-                                    <h3 className="font-bold text-red-900 mb-2 flex items-center gap-2">
-                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="alert-triangle" class="w-4 h-4"></i>' }}></span> Zona de Peligro
-                                    </h3>
-                                    <p className="text-xs text-red-700/70 mb-4">Eliminar el equipo borrará permanentemente todos sus partidos y estadísticas.</p>
-                                    <button onClick={deleteTeam} className="w-full py-3 bg-white border border-red-200 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-all">Eliminar Equipo</button>
-                                </div>
-                            </div>
+                        {/* Zona de Peligro */}
+                        <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+                            <h3 className="font-bold text-red-900 mb-2 flex items-center gap-2">
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="alert-triangle" class="w-4 h-4"></i>' }}></span> Zona de Peligro
+                            </h3>
+                            <p className="text-xs text-red-700/70 mb-4">Eliminar el equipo borrará permanentemente todos sus partidos y estadísticas.</p>
+                            <button onClick={deleteTeam} className="w-full py-3 bg-white border border-red-200 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-all">Eliminar Equipo</button>
                         </div>
                     </div>
                 </div>
@@ -3299,6 +3290,8 @@
                 if (teamId) setSelectedTeamId(teamId);
                 if (matchId) setActiveMatchId(matchId);
                 window.scrollTo(0, 0);
+                setShowTutorial(false);
+                setTutorialStep(0);
             };
 
             useEffect(() => {
