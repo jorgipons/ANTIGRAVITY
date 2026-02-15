@@ -2568,21 +2568,23 @@
                         <div className="flex gap-2">
                             <button
                                 onClick={() => {
-                                    const text = `🏀 *PARTIDO* 🏀\n🆚 ${match.opponent}\n📅 ${new Date(matchDate).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}\n⏰ ${matchTime}h\n📍 ${location || (isHome ? 'Local' : 'Visitante')}\n${!isHome && departureTime ? `🚌 Salida: ${departureTime}h desde ${departureLocation || 'Pabellón'}` : ''}\n${callTime ? `🔔 Convocatoria: ${callTime}h` : ''}\n\n👥 *JUGADORES:*\n${(match.players || []).map(p => `- ${p.name} (#${p.number})`).join('\n')}\n\n${observations ? `📝 ${observations}` : ''}`;
-                                    navigator.clipboard.writeText(text).then(() => alert('Convocatoria copiada al portapapeles'));
+                                    const dateStr = new Date(matchDate).toLocaleDateString('ca-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+                                    const text = `🏀 *PARTIT* 🏀\n🆚 ${match.opponent}\n📅 ${dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}\n⏰ ${matchTime}h\n📍 ${location || (isHome ? 'Local' : 'Visitant')}\n${!isHome && departureTime ? `🚌 Eixida: ${departureTime}h des de ${departureLocation || 'Pavelló'}` : ''}\n${callTime ? `🔔 Convocatòria: ${callTime}h` : ''}\n\n👥 *JUGADORS:*\n${(match.players || []).map(p => `- ${p.name} (#${p.number})`).join('\n')}\n\n${observations ? `📝 ${observations}` : ''}`;
+                                    navigator.clipboard.writeText(text).then(() => alert('Convocatòria (Val) copiada!'));
                                 }}
-                                className="flex-1 py-2 bg-emerald-100 text-emerald-700 rounded-lg font-bold text-xs hover:bg-emerald-200 transition-colors flex items-center justify-center gap-2"
+                                className="flex-1 py-2 bg-orange-100 text-orange-700 rounded-lg font-bold text-xs hover:bg-orange-200 transition-colors flex items-center justify-center gap-2"
                             >
-                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="copy"></i>' }}></span> WhastApp
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="copy"></i>' }}></span> Valencià
                             </button>
                             <button
                                 onClick={() => {
-                                    const text = `🏀 PARTIDO\n🆚 ${match.opponent}\n📅 ${matchDate}\n⏰ ${matchTime}\n📍 ${location}\n👥 ${(match.players || []).length} Jugadores`;
-                                    navigator.clipboard.writeText(text).then(() => alert('Resumen copiado'));
+                                    const dateStr = new Date(matchDate).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+                                    const text = `🏀 *PARTIDO* 🏀\n🆚 ${match.opponent}\n📅 ${dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}\n⏰ ${matchTime}h\n📍 ${location || (isHome ? 'Local' : 'Visitante')}\n${!isHome && departureTime ? `🚌 Salida: ${departureTime}h desde ${departureLocation || 'Pabellón'}` : ''}\n${callTime ? `🔔 Convocatoria: ${callTime}h` : ''}\n\n👥 *JUGADORES:*\n${(match.players || []).map(p => `- ${p.name} (#${p.number})`).join('\n')}\n\n${observations ? `📝 ${observations}` : ''}`;
+                                    navigator.clipboard.writeText(text).then(() => alert('Convocatoria (Cas) copiada!'));
                                 }}
-                                className="flex-1 py-2 bg-blue-100 text-blue-700 rounded-lg font-bold text-xs hover:bg-blue-200 transition-colors flex items-center justify-center gap-2"
+                                className="flex-1 py-2 bg-emerald-100 text-emerald-700 rounded-lg font-bold text-xs hover:bg-emerald-200 transition-colors flex items-center justify-center gap-2"
                             >
-                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="file-text"></i>' }}></span> Resumen
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="copy"></i>' }}></span> Castellano
                             </button>
                         </div>
                     </div>
