@@ -184,6 +184,7 @@
 
         const syncWithFederation = async (federationId) => {
             try {
+                console.log('🔄 Syncing with federation ID:', federationId);
                 const url = `https://esb.optimalwayconsulting.com/fbcv/1/btz38ZsZlAdaODiH2fGsnJC9mZgSNPeR/FCBQWeb/getTeamCard/${federationId}`;
                 const response = await fetch(url);
 
@@ -192,7 +193,10 @@
                 }
 
                 const base64Data = await response.text();
+                console.log('📦 Received base64 data, length:', base64Data.length);
+
                 const jsonData = JSON.parse(atob(base64Data));
+                console.log('📊 Parsed JSON:', jsonData);
 
                 if (jsonData.result !== 'OK') {
                     throw new Error(jsonData.message || 'Error en la respuesta de la federación');
@@ -200,19 +204,27 @@
 
                 const teamData = jsonData.messageData.team;
                 const groups = teamData.groups || [];
+                console.log('👥 Groups found:', groups.length);
 
                 // Buscar la clasificación del equipo en sus grupos
                 let myStanding = null;
                 for (const group of groups) {
                     const standings = group.standing || [];
-                    const found = standings.find(s => s.idTeam === federationId);
+                    console.log('🔍 Searching in group, standings:', standings.length);
+                    // Convertir ambos a string para comparación segura
+                    const found = standings.find(s => String(s.idTeam) === String(federationId));
                     if (found) {
                         myStanding = found;
+                        console.log('✅ Found standing:', myStanding);
                         break;
                     }
                 }
 
-                return {
+                if (!myStanding) {
+                    console.warn('⚠️ Standing not found for team ID:', federationId);
+                }
+
+                const result = {
                     success: true,
                     data: {
                         clubName: teamData.entityName,
@@ -236,8 +248,11 @@
                         lastSync: new Date().toISOString()
                     }
                 };
+
+                console.log('✅ Sync result:', result);
+                return result;
             } catch (error) {
-                console.error('Error syncing with federation:', error);
+                console.error('❌ Error syncing with federation:', error);
                 return {
                     success: false,
                     error: error.message
@@ -553,14 +568,20 @@
             const handleSyncFederation = async () => {
                 if (!team.federationId) return;
                 setSyncing(true);
-                const result = await syncWithFederation(team.federationId);
-                if (result.success) {
-                    await updateTeamInDb(team.id, { federationData: result.data });
-                    alert('✅ Sincronización completada');
-                } else {
-                    alert(`❌ Error: ${result.error}`);
+                try {
+                    const result = await syncWithFederation(team.federationId);
+                    if (result.success) {
+                        await updateTeamInDb(team.id, { federationData: result.data });
+                        alert('✅ Sincronización completada');
+                    } else {
+                        alert(`❌ Error: ${result.error}`);
+                    }
+                } catch (error) {
+                    console.error('❌ Unexpected error in handleSyncFederation:', error);
+                    alert(`❌ Error inesperado: ${error.message}`);
+                } finally {
+                    setSyncing(false);
                 }
-                setSyncing(false);
             };
 
             const [editTeamName, setEditTeamName] = useState('');
