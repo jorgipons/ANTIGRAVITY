@@ -3193,6 +3193,7 @@
         };
 
         const App = () => {
+            const { onAuthStateChanged, collection, query, where, onSnapshot, addDoc, updateDoc, doc, deleteDoc, signOut, orderBy } = window.firebaseMethods;
             const [user, setUser] = useState(null);
             const [view, setView] = useState('teams-list');
             const [teams, setTeams] = useState([]);
