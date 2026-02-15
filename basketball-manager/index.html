@@ -1557,11 +1557,14 @@
             if (mode === 'edit-match') {
                 return (
                     <div className="p-4 max-w-md mx-auto">
-                        <header className="mb-6 flex items-center gap-2">
-                            <button onClick={() => setMode('matrix')} className="p-2 -ml-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
-                            <h1 className="text-2xl font-bold">Editar Partido</h1>
-                        </header>
-                        <EditMatchView match={match} team={team} onDelete={deleteMatch} onSave={async (updates) => { await updateMatchInDb(match.id, updates); setMode('matrix'); }} />
+                        <EditMatchView
+                            match={match}
+                            team={team}
+                            onDelete={deleteMatch}
+                            onSave={async (updates) => { await updateMatchInDb(match.id, updates); setMode('matrix'); }}
+                            onBack={() => setMode('matrix')}
+                            navigate={navigate}
+                        />
                     </div>
                 );
             }
@@ -2434,7 +2437,7 @@
             );
         };
 
-        const EditMatchView = ({ match, updateMatchInDb, navigate, team, deleteDoc, doc, db }) => {
+        const EditMatchView = ({ match, updateMatchInDb, navigate, team, deleteDoc, doc, db, onSave, onBack }) => {
             useEffect(() => {
                 if (!match || !team) navigate('teams-list');
                 if (window.lucide) window.lucide.createIcons();
@@ -2457,13 +2460,19 @@
 
             const handleUpdate = async () => {
                 if (!opponent.trim()) return alert('Rival es obligatorio');
-                await updateMatchInDb(match.id, {
+                const updates = {
                     opponent, date: matchDate, time: matchTime, location, isHome,
                     departureTime, departureLocation, transportType, arrivalTime,
                     callTime, matchDay, observations
-                });
-                alert('Partido actualizado');
-                navigate('active-match', team.id, match.id);
+                };
+
+                if (onSave) {
+                    await onSave(updates);
+                } else {
+                    await updateMatchInDb(match.id, updates);
+                    alert('Partido actualizado');
+                    navigate('active-match', team.id, match.id);
+                }
             };
 
             const handleDelete = async () => {
@@ -2472,10 +2481,15 @@
                 navigate('team-detail', team.id);
             };
 
+            const handleBack = () => {
+                if (onBack) onBack();
+                else navigate('active-match', team.id, match.id);
+            };
+
             return (
                 <div className="p-4 max-w-md mx-auto">
                     <header className="flex items-center gap-2 mb-6">
-                        <button onClick={() => navigate('active-match', team.id, match.id)} className="p-2 -ml-2 text-slate-400 hover:text-slate-800 transition-colors"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
+                        <button onClick={handleBack} className="p-2 -ml-2 text-slate-400 hover:text-slate-800 transition-colors"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
                         <h1 className="text-2xl font-bold text-slate-800">Editar Partido</h1>
                     </header>
                     <div className="space-y-4 mb-6">
