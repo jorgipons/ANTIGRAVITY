@@ -74,7 +74,7 @@
         const { useState, useEffect, useMemo } = React;
 
         // --- Logic & Types ---
-        const APP_VERSION = '1.11.2';
+        const APP_VERSION = '1.11.3';
         const RULESETS = {
             'fbcv_8p': {
                 id: 'fbcv_8p',
@@ -298,62 +298,69 @@
 
                         if (resultsData.result !== 'OK') continue;
 
-                        // Los partidos suelen venir en resultsData.messageData.macthes o similar
-                        const matches = resultsData.messageData.macthes || resultsData.messageData.calendar || resultsData.messageData.journeyMatches || [];
-                        console.log(`🏀 Group ${idGroup}: Found ${matches.length} results`);
+                        const rounds = resultsData.messageData.rounds || {};
+                        console.log(`🏀 Group ${idGroup}: Processing ${Object.keys(rounds).length} rounds`);
 
-                        for (const match of matches) {
-                            const localId = match.idLocalTeam || match.localTeam?.idTeam;
-                            const visitorId = match.idVisitorTeam || match.visitorTeam?.idTeam;
+                        for (const roundNumber in rounds) {
+                            const round = rounds[roundNumber];
+                            const matches = round.matches || {};
 
-                            // Verificar si nuestro equipo participa en este partido
-                            if (String(localId) !== String(federationId) && String(visitorId) !== String(federationId)) continue;
+                            for (const matchId in matches) {
+                                const match = matches[matchId];
+                                const localId = match.idLocalTeam;
+                                const visitorId = match.idVisitorTeam;
 
-                            const isHome = String(localId) === String(federationId);
-                            const opponent = isHome
-                                ? (match.visitorTeam?.name || match.nameVisitorTeam || match.visitorTeam)
-                                : (match.localTeam?.name || match.nameLocalTeam || match.localTeam);
+                                // Verificar si nuestro equipo participa en este partido
+                                if (String(localId) !== String(federationId) && String(visitorId) !== String(federationId)) continue;
 
-                            let matchDate = match.date || match.matchDate || '';
-                            if (matchDate.includes('/')) {
-                                const parts = matchDate.split('/');
-                                if (parts.length === 3) {
-                                    matchDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                                const isHome = String(localId) === String(federationId);
+                                const opponent = isHome
+                                    ? (match.nameVisitorTeam || match.visitorTeam?.name || 'Rival')
+                                    : (match.nameLocalTeam || match.localTeam?.name || 'Rival');
+
+                                // matchDay suele ser "YYYY-MM-DD HH:mm:ss"
+                                let matchDate = '';
+                                let matchTime = '';
+                                if (match.matchDay) {
+                                    const parts = match.matchDay.split(' ');
+                                    matchDate = parts[0];
+                                    if (parts[1]) {
+                                        matchTime = parts[1].substring(0, 5); // HH:mm
+                                    }
                                 }
+
+                                const matchDateTime = new Date(match.matchDay?.replace(' ', 'T') || `${matchDate}T${matchTime || '00:00'}:00`);
+                                const isPast = matchDateTime < new Date();
+
+                                let score = null;
+                                let result = null;
+
+                                if (match.localScore !== null && match.visitorScore !== null &&
+                                    match.localScore !== undefined && match.visitorScore !== undefined) {
+                                    const lScore = parseInt(match.localScore);
+                                    const vScore = parseInt(match.visitorScore);
+                                    score = { local: lScore, visitor: vScore };
+                                    const ourScore = isHome ? lScore : vScore;
+                                    const theirScore = isHome ? vScore : lScore;
+                                    if (ourScore > theirScore) result = 'won';
+                                    else if (ourScore < theirScore) result = 'lost';
+                                    else result = 'draw';
+                                }
+
+                                matchesToImport.push({
+                                    opponent: opponent,
+                                    date: matchDate,
+                                    time: matchTime,
+                                    location: match.nameField || match.fieldName || '',
+                                    matchDay: match.numMatchDay || roundNumber || '',
+                                    isHome: isHome,
+                                    state: (isPast && score) ? 'finished' : 'pending',
+                                    score: score,
+                                    result: result,
+                                    federationMatchId: String(match.idMatch || matchId),
+                                    observations: match.observations || ''
+                                });
                             }
-
-                            const matchDateTime = new Date(`${matchDate}T${match.time || '00:00'}:00`);
-                            const isPast = matchDateTime < new Date();
-
-                            let score = null;
-                            let result = null;
-                            const localScore = match.localScore !== undefined ? match.localScore : match.scoreLocal;
-                            const visitorScore = match.visitorScore !== undefined ? match.visitorScore : match.scoreVisitor;
-
-                            if (localScore !== undefined && visitorScore !== undefined && localScore !== null && visitorScore !== null) {
-                                const lScore = parseInt(localScore);
-                                const vScore = parseInt(visitorScore);
-                                score = { local: lScore, visitor: vScore };
-                                const ourScore = isHome ? lScore : vScore;
-                                const theirScore = isHome ? vScore : lScore;
-                                if (ourScore > theirScore) result = 'won';
-                                else if (ourScore < theirScore) result = 'lost';
-                                else result = 'draw';
-                            }
-
-                            matchesToImport.push({
-                                opponent: opponent || 'Rival desconocido',
-                                date: matchDate,
-                                time: match.time || '',
-                                location: match.fieldName || match.field?.name || match.field || '',
-                                matchDay: match.matchDay || match.journeyName || match.journeyNumber || match.journey || '',
-                                isHome: isHome,
-                                state: (isPast && score) ? 'finished' : 'pending',
-                                score: score,
-                                result: result,
-                                federationMatchId: String(match.idMatch || `${localId}-${visitorId}-${matchDate}`),
-                                observations: match.observations || ''
-                            });
                         }
                     } catch (err) {
                         console.warn(`⚠️ Error fetching results for group ${idGroup}:`, err);
