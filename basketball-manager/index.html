@@ -3178,10 +3178,10 @@
 
                     {/* Tooltip Card */}
                     <div
-                        className={`absolute transition-all duration-500 ease-in-out max-w-sm w-full p-6 bg-white rounded-2xl shadow-2xl border border-slate-200 ${targetRect ? '' : 'top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'}`}
+                        className={`absolute transition-all duration-500 ease-in-out w-[calc(100vw-2rem)] max-w-sm p-6 bg-white rounded-2xl shadow-2xl border border-slate-200 ${targetRect ? '' : 'top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'}`}
                         style={targetRect ? {
                             top: targetRect.top + targetRect.height + 24 > window.innerHeight - 200 ? targetRect.top - 200 : targetRect.top + targetRect.height + 24,
-                            left: Math.max(16, Math.min(window.innerWidth - 340, targetRect.left)),
+                            left: Math.max(16, Math.min(window.innerWidth - (Math.min(window.innerWidth - 32, 384) + 16), targetRect.left)),
                         } : {}}
                     >
                         <div className="flex justify-between items-start mb-4">
