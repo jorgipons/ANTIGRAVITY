@@ -3131,6 +3131,7 @@
 
             useEffect(() => {
                 if (window.lucide) window.lucide.createIcons();
+
                 const updatePosition = () => {
                     if (step.target) {
                         const element = document.querySelector(step.target);
@@ -3142,18 +3143,36 @@
                                 width: rect.width,
                                 height: rect.height,
                             });
-                            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         } else {
-                            setTargetRect(null); // Fallback if element not found
+                            setTargetRect(null);
                         }
                     } else {
-                        setTargetRect(null); // Center modal for no target
+                        setTargetRect(null);
                     }
                 };
 
+                // Trigger scroll
+                if (step.target) {
+                    const el = document.querySelector(step.target);
+                    // Use 'auto' on mobile to prevent async issues, or just rely on the interval
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+
                 updatePosition();
+
+                // Track position during scroll animation
+                const interval = setInterval(updatePosition, 50);
+                const timeout = setTimeout(() => clearInterval(interval), 1000); // Stop polling after 1s
+
                 window.addEventListener('resize', updatePosition);
-                return () => window.removeEventListener('resize', updatePosition);
+                window.addEventListener('scroll', updatePosition, { capture: true });
+
+                return () => {
+                    window.removeEventListener('resize', updatePosition);
+                    window.removeEventListener('scroll', updatePosition, { capture: true });
+                    clearInterval(interval);
+                    clearTimeout(timeout);
+                };
             }, [currentStepIndex, step]);
 
             if (!step) return null;
