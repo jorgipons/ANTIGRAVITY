@@ -74,7 +74,7 @@
         const { useState, useEffect, useMemo } = React;
 
         // --- Logic & Types ---
-        const APP_VERSION = '1.11.0';
+        const APP_VERSION = '1.11.1';
         const RULESETS = {
             'fbcv_8p': {
                 id: 'fbcv_8p',
@@ -287,22 +287,38 @@
                 for (const group of groups) {
                     console.log('🔍 Processing group keys:', Object.keys(group));
 
-                    // Log potential interesting fields for debugging
-                    if (group.macthesInBlock) console.log('📦 Found macthesInBlock:', Array.isArray(group.macthesInBlock) ? group.macthesInBlock.length : 'not an array');
-                    if (group.team && typeof group.team === 'object') console.log('📦 Group team keys:', Object.keys(group.team));
+                    // Escáner recursivo para encontrar donde están los partidos
+                    const findMatchesRecursively = (obj, depth = 0) => {
+                        if (depth > 3 || !obj || typeof obj !== 'object') return null;
 
-                    // Intentar encontrar los partidos en diferentes posibles propiedades
-                    const matches = group.matches || group.calendar || group.journeyMatches || group.macthesInBlock || [];
-                    console.log(`🏀 Found ${matches.length} items in matches/calendar/journeyMatches/macthesInBlock`);
+                        // Si es un array y tiene objetos que parecen partidos
+                        if (Array.isArray(obj)) {
+                            const firstItem = obj[0];
+                            if (firstItem && (firstItem.idMatch || firstItem.localTeam || firstItem.nameLocalTeam || firstItem.localScore !== undefined)) {
+                                return obj;
+                            }
+                        }
 
-                    if (matches.length === 0 && group.journeys) {
-                        console.log('🛣️ Found journeys array, exploring...');
-                        for (const journey of group.journeys) {
-                            const journeyMatches = journey.matches || [];
-                            console.log(`  - Journey ${journey.name || '?'}: ${journeyMatches.length} matches`);
-                            matches.push(...journeyMatches);
+                        // Buscar en las propiedades
+                        for (const key in obj) {
+                            const result = findMatchesRecursively(obj[key], depth + 1);
+                            if (result) return result;
+                        }
+                        return null;
+                    };
+
+                    let matches = group.matches || group.calendar || group.journeyMatches || group.macthesInBlock || [];
+
+                    if (matches.length === 0) {
+                        console.log('🔎 Searching deeply in group for matches...');
+                        const deepMatches = findMatchesRecursively(group);
+                        if (deepMatches) {
+                            console.log(`✨ Found ${deepMatches.length} matches in deep search!`);
+                            matches = deepMatches;
                         }
                     }
+
+                    console.log(`🏀 Found ${matches.length} matches to process`);
 
                     for (const match of matches) {
                         // Determinar si somos local o visitante
@@ -881,37 +897,40 @@
                                     <button
                                         onClick={handleSyncFederation}
                                         disabled={syncing}
-                                        className={`text - xs px - 3 py - 1.5 rounded - lg font - bold transition - all flex items - center gap - 1.5 ${syncing ? 'bg-slate-200 text-slate-400' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'} `}
+                                        className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${syncing ? 'bg-slate-200 text-slate-400' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
                                     >
-                                        <span dangerouslySetInnerHTML={{ __html: `< i data - lucide="${syncing ? 'loader' : 'refresh-cw'}" class="w-3 h-3 ${syncing ? 'animate-spin' : ''}" ></i > ` }}></span>
+                                        <span dangerouslySetInnerHTML={{ __html: `<i data-lucide="${syncing ? 'loader' : 'refresh-cw'}" class="w-3 h-3 ${syncing ? 'animate-spin' : ''}"></i>` }}></span>
                                         {syncing ? 'Sincronizando...' : 'Sincronizar'}
                                     </button>
                                     <button
                                         onClick={handleImportMatches}
                                         disabled={importing}
-                                        className={`text - xs px - 3 py - 1.5 rounded - lg font - bold transition - all flex items - center gap - 1.5 ${importing ? 'bg-slate-200 text-slate-400' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'} `}
+                                        className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${importing ? 'bg-slate-200 text-slate-400' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
                                         title="Importar calendario y resultados"
                                     >
-                                        <span dangerouslySetInnerHTML={{ __html: `< i data - lucide="${importing ? 'loader' : 'download-cloud'}" class="w-3 h-3 ${importing ? 'animate-spin' : ''}" ></i > ` }}></span>
+                                        <span dangerouslySetInnerHTML={{ __html: `<i data-lucide="${importing ? 'loader' : 'download-cloud'}" class="w-3 h-3 ${importing ? 'animate-spin' : ''}"></i>` }}></span>
                                         {importing ? 'Importando...' : 'Importar Partidos'}
                                     </button>
                                 </div>
                             </div>
                             {team.federationData ? (
-                                <div className="space-y-2">
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div className="bg-white/60 p-2 rounded-lg">
-                                            <p className="text-[10px] text-blue-600 font-bold uppercase">Posición</p>
-                                            <p className="text-lg font-bold text-blue-900">{team.federationData.standing?.position}ª</p>
+                                <div className="space-y-1.5">
+                                    <div className="flex items-center justify-between bg-white/60 p-2 rounded-lg text-[11px]">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-blue-600 font-bold uppercase tracking-tighter">Posición:</span>
+                                            <span className="font-bold text-blue-900 text-sm">{team.federationData.standing?.position}ª</span>
                                         </div>
-                                        <div className="bg-white/60 p-2 rounded-lg">
-                                            <p className="text-[10px] text-blue-600 font-bold uppercase">Puntos</p>
-                                            <p className="text-lg font-bold text-blue-900">{team.federationData.standing?.points}</p>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-blue-600 font-bold uppercase tracking-tighter">Puntos:</span>
+                                            <span className="font-bold text-blue-900 text-sm">{team.federationData.standing?.points}</span>
                                         </div>
                                     </div>
-                                    <div className="text-[10px] text-blue-700 bg-white/40 p-2 rounded-lg">
-                                        <p><strong>V:</strong> {team.federationData.standing?.wins} | <strong>D:</strong> {team.federationData.standing?.losses} | <strong>PF:</strong> {team.federationData.standing?.scoreFavour} | <strong>PC:</strong> {team.federationData.standing?.scoreAgainst}</p>
-                                        <p className="text-blue-500 mt-1">Última sync: {new Date(team.federationData.lastSync).toLocaleString('es-ES')}</p>
+                                    <div className="text-[10px] text-blue-700 bg-white/40 p-2 rounded-lg flex flex-wrap justify-between gap-x-2">
+                                        <div className="flex gap-2">
+                                            <span><strong>V/D:</strong> {team.federationData.standing?.wins}/{team.federationData.standing?.losses}</span>
+                                            <span><strong>PF/PC:</strong> {team.federationData.standing?.scoreFavour}/{team.federationData.standing?.scoreAgainst}</span>
+                                        </div>
+                                        <span className="text-blue-400">Sync: {new Date(team.federationData.lastSync).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span>
                                     </div>
                                 </div>
                             ) : (
