@@ -278,24 +278,44 @@
                 }
 
                 const teamData = jsonData.messageData.team;
+                console.log('📦 Team Data keys:', Object.keys(teamData));
                 const groups = teamData.groups || [];
                 console.log('📅 Processing groups:', groups.length);
 
                 const matchesToImport = [];
 
                 for (const group of groups) {
-                    const matches = group.matches || [];
-                    console.log(`🏀 Found ${matches.length} matches in group`);
+                    console.log('🔍 Processing group keys:', Object.keys(group));
+
+                    // Intentar encontrar los partidos en diferentes posibles propiedades
+                    const matches = group.matches || group.calendar || group.journeyMatches || [];
+                    console.log(`🏀 Found ${matches.length} items in matches/calendar/journeyMatches`);
+
+                    if (matches.length === 0 && group.journeys) {
+                        console.log('🛣️ Found journeys array, exploring...');
+                        for (const journey of group.journeys) {
+                            const journeyMatches = journey.matches || [];
+                            console.log(`  - Journey ${journey.name || '?'}: ${journeyMatches.length} matches`);
+                            matches.push(...journeyMatches);
+                        }
+                    }
 
                     for (const match of matches) {
                         // Determinar si somos local o visitante
-                        const isHome = String(match.idLocalTeam) === String(federationId);
-                        const opponent = isHome ? (match.visitorTeam || match.nameVisitorTeam) : (match.localTeam || match.nameLocalTeam);
+                        // A veces el ID viene en idLocalTeam, otras en localTeam.idTeam
+                        const localId = match.idLocalTeam || match.localTeam?.idTeam;
+                        const visitorId = match.idVisitorTeam || match.visitorTeam?.idTeam;
 
-                        // Parsear fecha (puede venir en formato DD/MM/YYYY o YYYY-MM-DD)
+                        const isHome = String(localId) === String(federationId);
+
+                        // Extraer nombre del rival
+                        const opponent = isHome
+                            ? (match.visitorTeam?.name || match.nameVisitorTeam || match.visitorTeam)
+                            : (match.localTeam?.name || match.nameLocalTeam || match.localTeam);
+
+                        // Parsear fecha
                         let matchDate = match.date || match.matchDate || '';
                         if (matchDate.includes('/')) {
-                            // Convertir DD/MM/YYYY a YYYY-MM-DD
                             const parts = matchDate.split('/');
                             if (parts.length === 3) {
                                 matchDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
@@ -306,21 +326,24 @@
                         const matchDateTime = new Date(`${matchDate}T${match.time || '00:00'}:00`);
                         const isPast = matchDateTime < new Date();
 
-                        // Extraer marcador si está disponible
+                        // Extraer marcador
                         let score = null;
                         let result = null;
-                        if (match.localScore !== undefined && match.visitorScore !== undefined) {
-                            const localScore = parseInt(match.localScore) || 0;
-                            const visitorScore = parseInt(match.visitorScore) || 0;
+
+                        const localScore = match.localScore !== undefined ? match.localScore : match.scoreLocal;
+                        const visitorScore = match.visitorScore !== undefined ? match.visitorScore : match.scoreVisitor;
+
+                        if (localScore !== undefined && visitorScore !== undefined && localScore !== null && visitorScore !== null) {
+                            const lScore = parseInt(localScore);
+                            const vScore = parseInt(visitorScore);
 
                             score = {
-                                local: localScore,
-                                visitor: visitorScore
+                                local: lScore,
+                                visitor: vScore
                             };
 
-                            // Calcular resultado desde nuestra perspectiva
-                            const ourScore = isHome ? localScore : visitorScore;
-                            const theirScore = isHome ? visitorScore : localScore;
+                            const ourScore = isHome ? lScore : vScore;
+                            const theirScore = isHome ? vScore : lScore;
 
                             if (ourScore > theirScore) result = 'won';
                             else if (ourScore < theirScore) result = 'lost';
@@ -331,13 +354,13 @@
                             opponent: opponent || 'Rival desconocido',
                             date: matchDate,
                             time: match.time || '',
-                            location: match.fieldName || match.field?.name || '',
-                            matchDay: match.matchDay || match.journeyName || '',
+                            location: match.fieldName || match.field?.name || match.field || '',
+                            matchDay: match.matchDay || match.journeyName || match.journeyNumber || '',
                             isHome: isHome,
                             state: (isPast && score) ? 'finished' : 'pending',
                             score: score,
                             result: result,
-                            federationMatchId: match.idMatch || `${match.idLocalTeam}-${match.idVisitorTeam}-${matchDate}`,
+                            federationMatchId: String(match.idMatch || `${localId}-${visitorId}-${matchDate}`),
                             observations: match.observations || ''
                         });
                     }
