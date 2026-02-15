@@ -74,7 +74,7 @@
         const { useState, useEffect, useMemo } = React;
 
         // --- Logic & Types ---
-        const APP_VERSION = '1.9.1';
+        const APP_VERSION = '1.10.0';
         const RULESETS = {
             'fbcv_8p': {
                 id: 'fbcv_8p',
@@ -180,6 +180,69 @@
                 console.error('Error al copiar:', err);
                 alert('Error al copiar al portapapeles');
             });
+        };
+
+        const syncWithFederation = async (federationId) => {
+            try {
+                const url = `https://esb.optimalwayconsulting.com/fbcv/1/btz38ZsZlAdaODiH2fGsnJC9mZgSNPeR/FCBQWeb/getTeamCard/${federationId}`;
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error('Error al conectar con la federación');
+                }
+
+                const base64Data = await response.text();
+                const jsonData = JSON.parse(atob(base64Data));
+
+                if (jsonData.result !== 'OK') {
+                    throw new Error(jsonData.message || 'Error en la respuesta de la federación');
+                }
+
+                const teamData = jsonData.messageData.team;
+                const groups = teamData.groups || [];
+
+                // Buscar la clasificación del equipo en sus grupos
+                let myStanding = null;
+                for (const group of groups) {
+                    const standings = group.standing || [];
+                    const found = standings.find(s => s.idTeam === federationId);
+                    if (found) {
+                        myStanding = found;
+                        break;
+                    }
+                }
+
+                return {
+                    success: true,
+                    data: {
+                        clubName: teamData.entityName,
+                        teamName: teamData.name,
+                        category: teamData.categoriesRegisteredName,
+                        logo: teamData.entityLogo,
+                        field: {
+                            name: teamData.fieldName,
+                            address: teamData.fieldAddress,
+                            town: teamData.fieldTown
+                        },
+                        standing: myStanding ? {
+                            position: parseInt(myStanding.position),
+                            points: parseInt(myStanding.standingScore),
+                            wins: parseInt(myStanding.matchWin),
+                            losses: parseInt(myStanding.matchLost),
+                            played: parseInt(myStanding.matchPlayed),
+                            scoreFavour: parseInt(myStanding.matchScoreFavour),
+                            scoreAgainst: parseInt(myStanding.matchScoreAgainst)
+                        } : null,
+                        lastSync: new Date().toISOString()
+                    }
+                };
+            } catch (error) {
+                console.error('Error syncing with federation:', error);
+                return {
+                    success: false,
+                    error: error.message
+                };
+            }
         };
 
         const TopBar = ({ navigate, view, signOut, subscription }) => {
@@ -484,6 +547,20 @@
             const [newRoleColor, setNewRoleColor] = useState('blue');
             const [isEditingName, setIsEditingName] = useState(false);
             const [tempName, setTempName] = useState(team?.name || '');
+            const [syncing, setSyncing] = useState(false);
+
+            const handleSyncFederation = async () => {
+                if (!team.federationId) return;
+                setSyncing(true);
+                const result = await syncWithFederation(team.federationId);
+                if (result.success) {
+                    await updateTeamInDb(team.id, { federationData: result.data });
+                    alert('✅ Sincronización completada');
+                } else {
+                    alert(`❌ Error: ${result.error}`);
+                }
+                setSyncing(false);
+            };
 
             useEffect(() => {
                 setTempName(team?.name || '');
@@ -561,6 +638,46 @@
                             )}
                         </div>
                     </header>
+
+                    {team.federationId && (
+                        <div className="mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-100 shadow-sm">
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="link" class="w-4 h-4 text-blue-600"></i>' }}></span>
+                                    <h3 className="font-bold text-blue-900 text-sm">Federación FBCV</h3>
+                                </div>
+                                <button
+                                    onClick={handleSyncFederation}
+                                    disabled={syncing}
+                                    className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${syncing ? 'bg-slate-200 text-slate-400' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
+                                >
+                                    <span dangerouslySetInnerHTML={{ __html: `<i data-lucide="${syncing ? 'loader' : 'refresh-cw'}" class="w-3 h-3 ${syncing ? 'animate-spin' : ''}"></i>` }}></span>
+                                    {syncing ? 'Sincronizando...' : 'Sincronizar'}
+                                </button>
+                            </div>
+                            {team.federationData ? (
+                                <div className="space-y-2">
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="bg-white/60 p-2 rounded-lg">
+                                            <p className="text-[10px] text-blue-600 font-bold uppercase">Posición</p>
+                                            <p className="text-lg font-bold text-blue-900">{team.federationData.standing?.position}ª</p>
+                                        </div>
+                                        <div className="bg-white/60 p-2 rounded-lg">
+                                            <p className="text-[10px] text-blue-600 font-bold uppercase">Puntos</p>
+                                            <p className="text-lg font-bold text-blue-900">{team.federationData.standing?.points}</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-[10px] text-blue-700 bg-white/40 p-2 rounded-lg">
+                                        <p><strong>V:</strong> {team.federationData.standing?.wins} | <strong>D:</strong> {team.federationData.standing?.losses} | <strong>PF:</strong> {team.federationData.standing?.scoreFavour} | <strong>PC:</strong> {team.federationData.standing?.scoreAgainst}</p>
+                                        <p className="text-blue-500 mt-1">Última sync: {new Date(team.federationData.lastSync).toLocaleString('es-ES')}</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-xs text-blue-600">Pulsa "Sincronizar" para obtener datos de la federación</p>
+                            )}
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-3 mb-8">
                         <button
                             onClick={() => navigate('manage-players', team.id)}
@@ -1390,6 +1507,7 @@
         const TeamsListView = ({ teams, navigate, addDoc, collection, db, deleteDoc, doc, subscription, startCheckout }) => {
             const [newTeamName, setNewTeamName] = useState('');
             const [newTeamRuleset, setNewTeamRuleset] = useState(DEFAULT_RULESET);
+            const [newTeamFederationId, setNewTeamFederationId] = useState('');
             const [showForm, setShowForm] = useState(false);
 
             const createTeam = async (e) => {
@@ -1405,12 +1523,16 @@
                 await addDoc(collection(db, 'teams'), {
                     name: newTeamName,
                     rulesetId: newTeamRuleset,
+                    federationId: newTeamFederationId.trim() || null,
+                    federationData: null,
                     players: [],
                     roles: DEFAULT_ROLES,
                     ownerId: window.auth.currentUser.uid,
+                    userId: window.auth.currentUser.uid,
                     createdAt: new Date().toISOString()
                 });
                 setNewTeamName('');
+                setNewTeamFederationId('');
                 setNewTeamRuleset(DEFAULT_RULESET);
                 setShowForm(false);
             };
@@ -1481,6 +1603,16 @@
                                                     <option key={r.id} value={r.id}>{r.name}</option>
                                                 ))}
                                             </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">ID Federación (Opcional)</label>
+                                            <input
+                                                className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all bg-slate-50"
+                                                placeholder="Ej: 4793"
+                                                value={newTeamFederationId}
+                                                onChange={e => setNewTeamFederationId(e.target.value)}
+                                            />
+                                            <p className="text-[10px] text-slate-400 mt-1 ml-1">Encuentra el ID en la web de FBCV para sincronizar partidos</p>
                                         </div>
                                         <button
                                             type="submit"
