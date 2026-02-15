@@ -18,7 +18,7 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, orderBy, where } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, orderBy, where, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-auth.js";
 
         // Your web app's Firebase configuration
@@ -35,6 +35,16 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
+
+        // Enable Offline Persistence
+        enableIndexedDbPersistence(db)
+            .catch((err) => {
+                if (err.code == 'failed-precondition') {
+                    console.warn('Persistence failed: Multiple tabs open');
+                } else if (err.code == 'unimplemented') {
+                    console.warn('Persistence not supported by browser');
+                }
+            });
 
         // Expose DB and Auth to window for React component to use
         window.db = db;
@@ -198,6 +208,9 @@
         };
 
         const syncWithFederation = async (federationId) => {
+            if (!navigator.onLine) {
+                return { success: false, error: 'No tienes conexión a internet. Inténtalo más tarde.' };
+            }
             try {
                 console.log('🔄 Syncing with federation ID:', federationId);
                 const url = `https://esb.optimalwayconsulting.com/fbcv/1/btz38ZsZlAdaODiH2fGsnJC9mZgSNPeR/FCBQWeb/getTeamCard/${federationId}`;
@@ -276,6 +289,10 @@
         };
 
         const importFederationMatches = async (federationId, mode = 'smart') => {
+            if (!navigator.onLine) {
+                alert('No tienes conexión a internet. No se pueden importar partidos.');
+                return;
+            }
             try {
                 console.log(`📥 Importing matches (${mode}) for federation ID:`, federationId);
                 const url = `https://esb.optimalwayconsulting.com/fbcv/1/btz38ZsZlAdaODiH2fGsnJC9mZgSNPeR/FCBQWeb/getTeamCard/${federationId}`;
@@ -443,7 +460,7 @@
             }
         };
 
-        const TopBar = ({ navigate, view, signOut, subscription }) => {
+        const TopBar = ({ navigate, view, signOut, subscription, isOnline }) => {
             const handleLogout = async () => {
                 if (confirm('¿Cerrar sesión?')) {
                     await signOut(window.auth);
@@ -453,10 +470,16 @@
 
             useEffect(() => {
                 lucide.createIcons();
-            }, []);
+            }, [isOnline]); // Re-render icons when online status changes
 
             return (
                 <div className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+                    {!isOnline && (
+                        <div className="bg-slate-800 text-white text-[10px] font-bold text-center py-1 flex items-center justify-center gap-1.5 animate-in slide-in-from-top">
+                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="wifi-off" class="w-3 h-3"></i>' }}></span>
+                            MODO SIN CONEXIÓN
+                        </div>
+                    )}
                     <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
                         {/* Left - Premium badge */}
                         <div className="w-10">
@@ -2771,6 +2794,8 @@
             const [activeMatchId, setActiveMatchId] = useState(null);
             const [error, setError] = useState(null);
 
+            const [isOnline, setIsOnline] = useState(navigator.onLine);
+
             const navigate = (newView, teamId = null, matchId = null) => {
                 // If we are already there, don't push
                 if (view === newView && selectedTeamId === teamId && activeMatchId === matchId) return;
@@ -2780,6 +2805,17 @@
                 setSelectedTeamId(teamId);
                 setActiveMatchId(matchId);
             };
+
+            useEffect(() => {
+                const handleOnline = () => setIsOnline(true);
+                const handleOffline = () => setIsOnline(false);
+                window.addEventListener('online', handleOnline);
+                window.addEventListener('offline', handleOffline);
+                return () => {
+                    window.removeEventListener('online', handleOnline);
+                    window.removeEventListener('offline', handleOffline);
+                };
+            }, []);
 
             useEffect(() => {
                 if (!window.auth) return;
@@ -2937,7 +2973,7 @@
 
             return (
                 <div className="min-h-screen flex flex-col">
-                    <TopBar navigate={navigate} view={view} signOut={signOut} subscription={subscription} />
+                    <TopBar navigate={navigate} view={view} signOut={signOut} subscription={subscription} isOnline={isOnline} />
                     <div className="flex-grow">
                         {view === 'teams-list' && <TeamsListView teams={teams} matches={matches} navigate={navigate} addDoc={addDoc} collection={collection} db={db} deleteDoc={deleteDoc} doc={doc} subscription={subscription} startCheckout={startCheckout} />}
                         {view === 'team-detail' && <TeamDetailView team={getSelectedTeam()} matches={matches} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} addDoc={addDoc} collection={collection} db={db} />}
