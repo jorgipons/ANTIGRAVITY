@@ -1524,27 +1524,46 @@
 
             const clearPeriod = async (period) => {
                 if (!confirm(`¿Estás seguro de que quieres borrar el periodo ${period}?`)) return;
+
+                // Clear History
                 const newHistory = { ...localHistory };
                 delete newHistory[period];
                 setLocalHistory(newHistory);
-                await updateMatchInDb(match.id, { history: newHistory });
+
+                // Clear Injuries for this period
+                const newInjuries = matchInjuries.filter(inj => inj.period !== period);
+                setMatchInjuries(newInjuries);
+
+                await updateMatchInDb(match.id, { history: newHistory, injuries: newInjuries });
             };
 
             const clearFuturePeriods = async () => {
                 if (!confirm(`¿Borrar TODOS los datos desde el periodo ${currentP} en adelante?`)) return;
+
+                // Clear History
                 const newHistory = { ...localHistory };
                 for (let p = currentP; p <= ruleset.totalPeriods; p++) {
                     delete newHistory[p];
                 }
                 setLocalHistory(newHistory);
-                await updateMatchInDb(match.id, { history: newHistory });
+
+                // Clear Injuries
+                const newInjuries = matchInjuries.filter(inj => inj.period < currentP);
+                setMatchInjuries(newInjuries);
+
+                await updateMatchInDb(match.id, { history: newHistory, injuries: newInjuries });
             };
 
             const clearAll = async () => {
                 if (!confirm('¡ATENCIÓN! ¿Borrar ABSOLUTAMENTE TODOS los datos del partido?')) return;
+
                 const newHistory = {};
                 setLocalHistory(newHistory);
-                await updateMatchInDb(match.id, { history: newHistory });
+
+                const newInjuries = [];
+                setMatchInjuries(newInjuries);
+
+                await updateMatchInDb(match.id, { history: newHistory, injuries: newInjuries });
             };
 
             if (mode === 'add-player') {
