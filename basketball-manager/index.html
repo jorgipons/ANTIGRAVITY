@@ -1494,6 +1494,31 @@
                 setMode('matrix');
             };
 
+            const clearPeriod = async (period) => {
+                if (!confirm(`¿Estás seguro de que quieres borrar el periodo ${period}?`)) return;
+                const newHistory = { ...localHistory };
+                delete newHistory[period];
+                setLocalHistory(newHistory);
+                await updateMatchInDb(match.id, { history: newHistory });
+            };
+
+            const clearFuturePeriods = async () => {
+                if (!confirm(`¿Borrar TODOS los datos desde el periodo ${currentP} en adelante?`)) return;
+                const newHistory = { ...localHistory };
+                for (let p = currentP; p <= ruleset.totalPeriods; p++) {
+                    delete newHistory[p];
+                }
+                setLocalHistory(newHistory);
+                await updateMatchInDb(match.id, { history: newHistory });
+            };
+
+            const clearAll = async () => {
+                if (!confirm('¡ATENCIÓN! ¿Borrar ABSOLUTAMENTE TODOS los datos del partido?')) return;
+                const newHistory = {};
+                setLocalHistory(newHistory);
+                await updateMatchInDb(match.id, { history: newHistory });
+            };
+
             if (mode === 'add-player') {
                 const currentIds = (match.players || []).map(p => p.id);
                 const availablePlayers = (team.players || []).filter(p => !currentIds.includes(p.id));
@@ -1667,6 +1692,39 @@
                                     );
                                 })}
                             </tbody>
+                            <tfoot className="border-t-2 border-slate-200">
+                                <tr className="bg-slate-50 text-slate-500">
+                                    <td className="p-2 border-r sticky left-0 bg-slate-50 z-10">
+                                        <div className="flex gap-1">
+                                            <button onClick={clearFuturePeriods} disabled={isLocked} className={`p-1 flex-1 flex items-center justify-center gap-1 rounded bg-white border border-slate-200 shadow-sm text-[10px] font-bold ${isLocked ? 'opacity-50' : 'hover:bg-red-50 hover:text-red-600 hover:border-red-200'}`} title={`Borrar desde P${currentP}`}>
+                                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="eraser" class="w-3 h-3"></i>' }}></span> Futuro
+                                            </button>
+                                            {editAllMode && (
+                                                <button onClick={clearAll} disabled={isLocked} className="p-1 px-2 flex items-center justify-center rounded bg-red-100 border border-red-200 text-red-700 text-[10px] font-bold hover:bg-red-200 hover:border-red-300" title="Borrar TODO">
+                                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trash-2" class="w-3 h-3"></i>' }}></span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </td>
+                                    {periodsArray.map(p => {
+                                        const status = getPeriodStatus(p);
+                                        const isEditable = editAllMode || status !== 'past';
+                                        return (
+                                            <td key={p} className="p-1 text-center border-r last:border-r-0">
+                                                <button
+                                                    onClick={() => clearPeriod(p)}
+                                                    disabled={isLocked || !isEditable}
+                                                    className={`p-1 rounded transition-colors ${!isLocked && isEditable ? 'text-slate-300 hover:text-red-500 hover:bg-slate-200' : 'text-slate-100 cursor-default'}`}
+                                                    title={`Limpiar P${p}`}
+                                                >
+                                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trash" class="w-3 h-3"></i>' }}></span>
+                                                </button>
+                                            </td>
+                                        );
+                                    })}
+                                    <td className="bg-slate-50"></td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
 
