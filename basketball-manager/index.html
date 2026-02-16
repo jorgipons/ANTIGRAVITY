@@ -1272,6 +1272,18 @@
                 const isEditable = editAllMode || period === currentP;
                 if (!isEditable) return;
 
+                // FIX: Check if there's an injury for this player in this period and remove it
+                // This allows the user to manually override the "Injury" status (arrow) with a normal role assignment
+                const injuryIndex = matchInjuries.findIndex(inj => inj.period === period && (inj.playerOut === playerId || inj.playerIn === playerId));
+                if (injuryIndex !== -1) {
+                    const newInjuries = [...matchInjuries];
+                    newInjuries.splice(injuryIndex, 1);
+                    setMatchInjuries(newInjuries);
+                    // We need to await this update to ensure state is consistent, but since handleToggle also updates DB,
+                    // we could technically batch it. For safety and simplicity, we update here.
+                    await updateMatchInDb(match.id, { injuries: newInjuries });
+                }
+
                 const pData = localHistory[period];
                 let currentRole = null;
                 if (Array.isArray(pData)) {
@@ -1339,17 +1351,33 @@
                 const isEditable = editAllMode || status === 'active';
                 if (!isEditable || (match.players.find(p => p.id === playerId)?.disabled)) return;
 
+                // FIX: Check if there's an injury for this player in this period and remove it
+                const injuryIndex = matchInjuries.findIndex(inj => inj.period === period && (inj.playerOut === playerId || inj.playerIn === playerId));
+                let newInjuries = null;
+                if (injuryIndex !== -1) {
+                    newInjuries = [...matchInjuries];
+                    newInjuries.splice(injuryIndex, 1);
+                    setMatchInjuries(newInjuries);
+                }
+
                 const newPeriodState = { ...(localHistory[period] && !Array.isArray(localHistory[period]) ? localHistory[period] : {}) };
                 if (Array.isArray(localHistory[period])) {
                     localHistory[period].forEach(pid => newPeriodState[pid] = (match.players.find(p => p.id === pid)?.role) || 'receptor');
                 }
 
-                if (!newPeriodState[playerId]) return;
+                if (!newPeriodState[playerId] && !newInjuries) return; // Nothing to clear
 
-                delete newPeriodState[playerId];
+                if (newPeriodState[playerId]) {
+                    delete newPeriodState[playerId];
+                }
+
                 const newHistory = { ...localHistory, [period]: newPeriodState };
                 setLocalHistory(newHistory);
-                await updateMatchInDb(match.id, { history: newHistory });
+
+                const updates = { history: newHistory };
+                if (newInjuries) updates.injuries = newInjuries;
+
+                await updateMatchInDb(match.id, updates);
             };
 
             const getPeriodStatus = (period) => {
