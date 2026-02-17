@@ -3626,8 +3626,13 @@
                             // Actually I can just use onSnapshot on the user doc, which is robust.
 
                             const unsubUser = onSnapshot(userRef, (snapshot) => {
+                                console.log("👤 User Snapshot Update:", snapshot.id, snapshot.exists(), snapshot.data());
                                 if (snapshot.exists()) {
-                                    setIsAdmin(!!snapshot.data().isAdmin);
+                                    const adminStatus = !!snapshot.data().isAdmin;
+                                    console.log("🛡️ Admin Status:", adminStatus);
+                                    setIsAdmin(adminStatus);
+                                } else {
+                                    console.log("⚠️ User document does not exist in 'users' collection");
                                 }
                             });
 
