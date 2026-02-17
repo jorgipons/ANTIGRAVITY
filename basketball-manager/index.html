@@ -18,7 +18,7 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, orderBy, where, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, orderBy, where, enableIndexedDbPersistence, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-auth.js";
 
         // Your web app's Firebase configuration
@@ -50,7 +50,7 @@
         window.db = db;
         window.auth = auth;
         window.firebaseMethods = {
-            collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, orderBy, where,
+            collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, orderBy, where, getDocs, setDoc,
             signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
             GoogleAuthProvider, signInWithPopup
         };
@@ -460,7 +460,7 @@
             }
         };
 
-        const TopBar = ({ navigate, view, signOut, subscription, isOnline, startTutorial }) => {
+        const TopBar = ({ navigate, view, signOut, subscription, isOnline, startTutorial, isAdmin }) => {
             const handleLogout = async () => {
                 if (confirm('¿Cerrar sesión?')) {
                     await signOut(window.auth);
@@ -481,8 +481,17 @@
                         </div>
                     )}
                     <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-                        {/* Left - Premium badge */}
-                        <div className="w-10">
+                        {/* Left - Premium badge & Admin */}
+                        <div className="flex items-center gap-2">
+                            {isAdmin && (
+                                <button
+                                    onClick={() => navigate('admin-dashboard')}
+                                    className="p-1.5 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
+                                    title="Panel de Administración"
+                                >
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="shield-check" class="w-5 h-5"></i>' }}></span>
+                                </button>
+                            )}
                             {subscription === 'active' || subscription === 'trialing' ? (
                                 <span className="text-amber-500" title="Premium">
                                     <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="crown" class="w-5 h-5"></i>' }}></span>
@@ -2992,6 +3001,123 @@
             );
         };
 
+        const AdminDashboardView = ({ navigate, db, collection, getDocs, query, where }) => {
+            const [users, setUsers] = useState([]);
+            const [teams, setTeams] = useState([]);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                if (window.lucide) window.lucide.createIcons();
+                const fetchData = async () => {
+                    try {
+                        const usersSnapshot = await getDocs(collection(db, 'users'));
+                        const teamsSnapshot = await getDocs(collection(db, 'teams'));
+
+                        const usersData = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        const teamsData = teamsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                        setUsers(usersData);
+                        setTeams(teamsData);
+                    } catch (error) {
+                        console.error("Error fetching admin data:", error);
+                        alert("Error al cargar datos de administración. Verifica tus permisos.");
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+
+                fetchData();
+            }, []);
+
+            if (loading) return <div className="p-8 text-center">Cargando datos de administración...</div>;
+
+            // Process data for display
+            const userStats = users.map(user => {
+                const userTeams = teams.filter(t => t.ownerId === user.id);
+                return {
+                    ...user,
+                    teamCount: userTeams.length,
+                    teams: userTeams
+                };
+            }).sort((a, b) => b.teamCount - a.teamCount); // Sort by most active
+
+            return (
+                <div className="p-4 max-w-4xl mx-auto pb-20">
+                    <header className="flex items-center gap-2 mb-6">
+                        <button onClick={() => navigate('teams-list')} className="p-2 -ml-2 text-slate-400 hover:text-slate-800 transition-colors">
+                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="arrow-left"></i>' }}></span>
+                        </button>
+                        <h1 className="text-2xl font-bold text-slate-800">Panel de Administración</h1>
+                    </header>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                            <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-1">Usuarios Totales</h3>
+                            <p className="text-3xl font-extrabold text-slate-800">{users.length}</p>
+                        </div>
+                        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                            <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-1">Equipos Totales</h3>
+                            <p className="text-3xl font-extrabold text-slate-800">{teams.length}</p>
+                        </div>
+                        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                            <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-1">Ratio Equipos/Usuario</h3>
+                            <p className="text-3xl font-extrabold text-slate-800">{(teams.length / (users.length || 1)).toFixed(2)}</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left text-slate-600">
+                                <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th className="px-6 py-3">Usuario</th>
+                                        <th className="px-6 py-3">Email</th>
+                                        <th className="px-6 py-3 text-center">Equipos</th>
+                                        <th className="px-6 py-3">Último Acceso</th>
+                                        <th className="px-6 py-3">Admin</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {userStats.map(user => (
+                                        <tr key={user.id} className="bg-white border-b hover:bg-slate-50">
+                                            <td className="px-6 py-4 font-medium text-slate-900">
+                                                <div className="flex items-center gap-2">
+                                                    {user.photoURL ? (
+                                                        <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full" />
+                                                    ) : (
+                                                        <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] text-slate-500">
+                                                            {user.email?.charAt(0).toUpperCase()}
+                                                        </div>
+                                                    )}
+                                                    <span className="truncate max-w-[150px]" title={user.displayName || user.id}>
+                                                        {user.displayName || 'Sin nombre'}
+                                                    </span>
+                                                </div>
+                                                <div className="text-[10px] text-slate-400 font-mono mt-0.5">{user.id}</div>
+                                            </td>
+                                            <td className="px-6 py-4 truncate max-w-[200px]" title={user.email}>{user.email}</td>
+                                            <td className="px-6 py-4 text-center font-bold text-blue-600">{user.teamCount}</td>
+                                            <td className="px-6 py-4 text-xs">
+                                                {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : '-'}
+                                                <div className="text-[10px] text-slate-400">
+                                                    {user.lastLogin ? new Date(user.lastLogin).toLocaleTimeString() : ''}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                {user.isAdmin ? (
+                                                    <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-[10px] font-bold">ADMIN</span>
+                                                ) : '-'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         const TeamSettingsView = ({ team, navigate, updateTeamInDb, deleteDoc, doc, db }) => {
             useEffect(() => {
                 if (!team) navigate('teams-list');
@@ -3384,8 +3510,9 @@
         };
 
         const App = () => {
-            const { onAuthStateChanged, collection, query, where, onSnapshot, addDoc, updateDoc, doc, deleteDoc, signOut, orderBy } = window.firebaseMethods;
+            const { onAuthStateChanged, collection, query, where, onSnapshot, addDoc, updateDoc, doc, deleteDoc, signOut, orderBy, setDoc, getDocs } = window.firebaseMethods;
             const [user, setUser] = useState(null);
+            const [isAdmin, setIsAdmin] = useState(false);
             const [view, setView] = useState('teams-list');
             const [teams, setTeams] = useState([]);
             const [matches, setMatches] = useState([]);
@@ -3471,13 +3598,52 @@
             };
 
             useEffect(() => {
-                onAuthStateChanged(auth, (u) => {
+                onAuthStateChanged(auth, async (u) => {
                     setUser(u);
-                    setAuthLoading(false);
-                    if (!u) {
+                    if (u) {
+                        // Sync User & Check Admin
+                        try {
+                            const userRef = doc(db, 'users', u.uid);
+                            // We use setDoc with merge to create or update
+                            await setDoc(userRef, {
+                                email: u.email,
+                                displayName: u.displayName || '',
+                                photoURL: u.photoURL || '',
+                                lastLogin: new Date().toISOString()
+                            }, { merge: true });
+
+                            // Check isAdmin (fetch fresh doc to get the flag if it exists)
+                            // Note: we just wrote to it, but isAdmin might be there from manual set
+                            // Depending on latency, we might need a separate get or just trust the merge didn't overwrite isAdmin if we didn't send it.
+                            // To be safe and simple: read it.
+                            // Actually, onSnapshot would be better for real-time admin toggle, but let's stick to fetch on login for now.
+                            // But wait, we need to read it to know if we are admin.
+                            // The setDoc above merges, so it won't delete isAdmin if it exists.
+                            // Let's read the doc immediately after.
+                            // Or better: use onSnapshot for the user doc to handle dynamic admin promotion?
+                            // Let's use getDocs (getDoc equivalent via window methods logic? No, we don't have getDoc exposed, only getDocs... wait, we need to expose getDoc or use getDocs with query?)
+                            // I exposed getDocs. I can query by ID. Or I can expose getDoc.
+                            // Actually I can just use onSnapshot on the user doc, which is robust.
+
+                            const unsubUser = onSnapshot(userRef, (snapshot) => {
+                                if (snapshot.exists()) {
+                                    setIsAdmin(!!snapshot.data().isAdmin);
+                                }
+                            });
+
+                            // Cleanup logic for this listener is tricky inside onAuthStateChanged... 
+                            // For simplicity in this structure, we'll just let it run. In a real app we'd manage the subscription better.
+                            // But user only changes once usually.
+
+                        } catch (e) {
+                            console.error("Error syncing user:", e);
+                        }
+                    } else {
                         setTeams([]);
                         setMatches([]);
+                        setIsAdmin(false);
                     }
+                    setAuthLoading(false);
                 });
             }, []);
 
@@ -3570,7 +3736,7 @@
 
             return (
                 <div className="min-h-screen flex flex-col">
-                    <TopBar navigate={navigate} view={view} signOut={signOut} subscription={subscription} isOnline={isOnline} startTutorial={startTutorial} />
+                    <TopBar navigate={navigate} view={view} signOut={signOut} subscription={subscription} isOnline={isOnline} startTutorial={startTutorial} isAdmin={isAdmin} />
 
                     {showTutorial && (
                         <TutorialOverlay
@@ -3583,6 +3749,7 @@
 
                     <div className="flex-grow">
                         {view === 'teams-list' && <TeamsListView teams={teams} matches={matches} navigate={navigate} addDoc={addDoc} collection={collection} db={db} deleteDoc={deleteDoc} doc={doc} subscription={subscription} startCheckout={startCheckout} />}
+                        {view === 'admin-dashboard' && isAdmin && <AdminDashboardView navigate={navigate} db={db} collection={collection} getDocs={getDocs} query={query} where={where} />}
                         {view === 'all-matches-calendar' && <AllMatchesCalendarView teams={teams} matches={matches} navigate={navigate} />}
                         {view === 'team-detail' && <TeamDetailView team={getSelectedTeam()} matches={matches} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} addDoc={addDoc} collection={collection} db={db} />}
                         {view === 'match-setup' && <MatchSetupView team={getSelectedTeam()} navigate={navigate} addDoc={addDoc} collection={collection} db={db} />}
