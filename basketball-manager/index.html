@@ -3395,7 +3395,7 @@
                                         {isLogin ? 'Regístrate aquí' : 'Inicia sesión'}
                                     </button>
                                 </p>
-                                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-2">v{APP_VERSION}</span>
+                                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-2">v1.7.1</span>
                             </div>
                         </div>
                     </div>
@@ -3770,7 +3770,15 @@
                         {view === 'team-settings' && <TeamSettingsView team={getSelectedTeam()} navigate={navigate} updateTeamInDb={updateTeamInDb} deleteDoc={deleteDoc} doc={doc} db={db} />}
                     </div>
                     <footer className="p-4 text-center mt-auto border-t border-slate-100">
-                        <div className="flex items-center justify-center gap-3">
+                        <div className="flex items-center justify-center gap-4">
+                            {isAdmin && (
+                                <button
+                                    onClick={() => navigate('admin-dashboard')}
+                                    className="text-[10px] font-bold text-purple-600 uppercase tracking-widest flex items-center gap-1.5 bg-purple-50 px-2 py-1 rounded-full border border-purple-100 hover:bg-purple-100 transition-colors"
+                                >
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="shield-check" class="w-3 h-3"></i>' }}></span> Admin
+                                </button>
+                            )}
                             {subscription === 'active' || subscription === 'trialing' ? (
                                 <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest flex items-center gap-1.5 bg-amber-50 px-2 py-1 rounded-full border border-amber-100">
                                     <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="crown" class="w-3 h-3"></i>' }}></span> Premium
