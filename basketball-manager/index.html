@@ -3036,101 +3036,97 @@
             // Process data for display
             const userStats = users.map(user => {
                 const userTeams = teams.filter(t => t.ownerId === user.id);
+                const activeTeams = userTeams.filter(t => !t.archived);
+                const archivedTeams = userTeams.filter(t => t.archived);
+
                 return {
                     ...user,
-                    teamCount: userTeams.length,
-                    teams: userTeams
-                };
-                totalTeams: userTeams.length,
+                    totalTeams: userTeams.length,
                     activeTeamsCount: activeTeams.length,
-                        archivedTeamsCount: archivedTeams.length,
-                            lastLoginDate: user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'N/A'
-            };
-        });
+                    archivedTeamsCount: archivedTeams.length,
+                    lastLoginDate: user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'N/A'
+                };
+            });
 
-        return (
-            <div className="p-6 max-w-6xl mx-auto">
-                <div className="flex items-center justify-between mb-8">
-                    <div>
-                        <h1 className="text-3xl font-bold text-slate-900">Panel de Administración</h1>
-                        <p className="text-slate-500">Gestión de usuarios y estadísticas</p>
+            return (
+                <div className="p-6 max-w-6xl mx-auto">
+                    <div className="flex items-center justify-between mb-8">
+                        <div>
+                            <h1 className="text-3xl font-bold text-slate-900">Panel de Administración</h1>
+                            <p className="text-slate-500">Gestión de usuarios y estadísticas</p>
+                        </div>
+                        <button onClick={() => navigate('teams-list')} className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500">
+                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="x" class="w-6 h-6"></i>' }}></span>
+                        </button>
                     </div>
-                    <button onClick={() => navigate('teams-list')} className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500">
-                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="x" class="w-6 h-6"></i>' }}></span>
-                    </button>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Total Usuarios</p>
-                        <p className="text-3xl font-extrabold text-slate-900">{users.length}</p>
-                    </div>
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Total Equipos</p>
-                        <div className="flex items-baseline gap-2">
-                            <p className="text-3xl font-extrabold text-slate-900">{teams.length}</p>
-                            <span className="text-xs text-slate-500 font-medium">({teams.filter(t => !t.archived).length} activos)</span>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Total Usuarios</p>
+                            <p className="text-3xl font-extrabold text-slate-900">{users.length}</p>
+                        </div>
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Total Equipos</p>
+                            <div className="flex items-baseline gap-2">
+                                <p className="text-3xl font-extrabold text-slate-900">{teams.length}</p>
+                                <span className="text-xs text-slate-500 font-medium">({teams.filter(t => !t.archived).length} activos)</span>
+                            </div>
+                        </div>
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Ratio (Eq/Usu)</p>
+                            <p className="text-3xl font-extrabold text-blue-600">
+                                {users.length ? (teams.filter(t => !t.archived).length / users.length).toFixed(1) : 0}
+                            </p>
                         </div>
                     </div>
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Ratio (Eq/Usu)</p>
-                        <p className="text-3xl font-extrabold text-blue-600">
-                            {users.length ? (teams.filter(t => !t.archived).length / users.length).toFixed(1) : 0}
-                        </p>
-                    </div>
-                </div>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-slate-50 border-b border-slate-200">
-                                    <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Usuario</th>
-                                    <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Email</th>
-                                    <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Admin</th>
-                                    <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Equipos (Act/Arch)</th>
-                                    <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Último Acceso</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {userStats.map(u => (
-                                    <tr key={u.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="p-4 font-medium text-slate-900 flex items-center gap-3">
-                                            {u.photoURL ? (
-                                                <img src={u.photoURL} className="w-8 h-8 rounded-full bg-slate-200" alt="" />
-                                            ) : (
-                                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
-                                                    {u.email?.[0]?.toUpperCase() || '?'}
-                                                </div>
-                                            )}
-                                            {u.displayName || 'Sin nombre'}
-                                        </td>
-                                        <td className="p-4 text-slate-600 text-sm">{u.email}</td>
-                                        <td className="p-4 text-center">
-                                            {u.isAdmin ? (
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden text-sm">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-200">
+                                        <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Usuario</th>
+                                        <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Email</th>
+                                        <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Admin</th>
+                                        <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Equipos (Act/Arch)</th>
+                                        <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Último Acceso</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {userStats.map(u => (
+                                        <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="p-4 font-medium text-slate-900 flex items-center gap-3">
+                                                {u.photoURL ? (
+                                                    <img src={u.photoURL} className="w-8 h-8 rounded-full bg-slate-200" alt="" />
+                                                ) : (
+                                                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
+                                                        {u.email?.[0]?.toUpperCase() || '?'}
+                                                    </div>
+                                                )}
+                                                {u.displayName || 'Sin nombre'}
+                                            </td>
+                                            <td className="p-4 text-slate-600 text-sm">{u.email}</td>
+                                            <td className="p-4 text-center">
+                                                {u.isAdmin ? (
                                                     <span className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700">
                                                         ADMIN
                                                     </span>
-                                            <td className="px-6 py-4 text-center font-bold text-blue-600">{user.teamCount}</td>
-                                            <td className="px-6 py-4 text-xs">
-                                                {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : '-'}
-                                                <div className="text-[10px] text-slate-400">
-                                                    {user.lastLogin ? new Date(user.lastLogin).toLocaleTimeString() : ''}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                {user.isAdmin ? (
-                                                    <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-[10px] font-bold">ADMIN</span>
                                                 ) : '-'}
                                             </td>
+                                            <td className="p-4 text-center font-mono text-sm">
+                                                <span className="font-bold text-slate-900">{u.activeTeamsCount}</span>
+                                                <span className="text-slate-400 mx-1">/</span>
+                                                <span className="text-slate-400">{u.archivedTeamsCount}</span>
+                                            </td>
+                                            <td className="p-4 text-right text-slate-500 text-sm font-mono">{u.lastLoginDate}</td>
                                         </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
-            </div>
-        );
+            );
         };
 
         const TeamSettingsView = ({ team, navigate, updateTeamInDb, deleteDoc, doc, db }) => {
