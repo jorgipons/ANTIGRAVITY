@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basketball Trainer Pro</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="logo">
+                <i class="fa-solid fa-basketball"></i>
+                <span>Trainer Pro</span>
+            </div>
+            <ul class="nav-links">
+                <li class="active" data-section="exercises">
+                    <i class="fa-solid fa-dumbbell"></i>
+                    <span>Ejercicios</span>
+                </li>
+                <li data-section="trainings">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    <span>Entrenamientos</span>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="content-area">
+
+            <!-- Exercises Section -->
+            <section id="exercises-section" class="active-section">
+                <header class="section-header">
+                    <h1>Biblioteca de Ejercicios</h1>
+                    <button id="btn-add-exercise" class="btn-primary">
+                        <i class="fa-solid fa-plus"></i> Nuevo Ejercicio
+                    </button>
+                </header>
+
+                <div class="exercises-grid" id="exercises-list">
+                    <!-- Exercise cards will be injected here -->
+                </div>
+            </section>
+
+            <!-- Trainings Section -->
+            <section id="trainings-section">
+                <header class="section-header">
+                    <h1>Mis Entrenamientos</h1>
+                    <button id="btn-create-training" class="btn-primary">
+                        <i class="fa-solid fa-plus"></i> Crear Entrenamiento
+                    </button>
+                </header>
+
+                <div class="trainings-list" id="trainings-list">
+                    <!-- Training items will be injected here -->
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Modal for Adding Exercise -->
+    <div id="modal-exercise" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2>Nuevo Ejercicio</h2>
+            <form id="form-exercise">
+                <div class="form-group">
+                    <label for="ex-title">Título</label>
+                    <input type="text" id="ex-title" required placeholder="Ej: Contraataque 3c2">
+                </div>
+
+                <div class="form-group">
+                    <label for="ex-description">Descripción</label>
+                    <textarea id="ex-description" rows="4" placeholder="Describe el ejercicio..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="ex-image">Imagen (URL)</label>
+                    <input type="url" id="ex-image" placeholder="https://ejemplo.com/imagen.jpg">
+                </div>
+
+                <div class="form-group">
+                    <label>Pizarra Táctica (Dibujo)</label>
+                    <div class="canvas-container">
+                        <canvas id="exercise-canvas" width="400" height="300"></canvas>
+                        <div class="canvas-toolbar">
+                            <button type="button" class="btn-tool active" data-color="#000000" title="Negro"><i
+                                    class="fa-solid fa-circle" style="color: black;"></i></button>
+                            <button type="button" class="btn-tool" data-color="#FF0000" title="Rojo"><i
+                                    class="fa-solid fa-circle" style="color: red;"></i></button>
+                            <button type="button" class="btn-tool" data-color="#0000FF" title="Azul"><i
+                                    class="fa-solid fa-circle" style="color: blue;"></i></button>
+                            <div class="divider"></div>
+                            <button type="button" id="btn-clear-canvas" class="btn-tool" title="Borrar Pizarra"><i
+                                    class="fa-solid fa-eraser"></i></button>
+                        </div>
+                    </div>
+                    <small>Dibuja el esquema del ejercicio aquí.</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Edades Recomendadas</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" name="ex-age" value="Mini"> Mini</label>
+                        <label><input type="checkbox" name="ex-age" value="Infantil"> Infantil</label>
+                        <label><input type="checkbox" name="ex-age" value="Cadete"> Cadete</label>
+                        <label><input type="checkbox" name="ex-age" value="Junior"> Junior</label>
+                        <label><input type="checkbox" name="ex-age" value="Senior"> Senior</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="ex-type">Tipo de Ejercicio</label>
+                    <select id="ex-type" multiple size="5">
+                        <option value="Técnica Ind.">Técnica Individual</option>
+                        <option value="Táctica Ind.">Táctica Individual</option>
+                        <option value="Tiro">Tiro</option>
+                        <option value="Defensa">Defensa</option>
+                        <option value="Presión">Presión</option>
+                        <option value="3x3">3x3</option>
+                        <option value="4x4">4x4</option>
+                        <option value="5x5">5x5</option>
+                        <option value="Físico">Físico</option>
+                    </select>
+                    <small>Mantén presionado Ctrl (o Cmd) para seleccionar varios</small>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label for="ex-duration">Duración (min)</label>
+                        <input type="number" id="ex-duration" min="1" placeholder="Ej: 10">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="ex-variants">Variantes</label>
+                    <textarea id="ex-variants" rows="2"
+                        placeholder="Opciones para modificar el ejercicio..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary close-modal-btn">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar Ejercicio</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Creating Training -->
+    <div id="modal-training" class="modal">
+        <div class="modal-content modal-lg">
+            <span class="close-modal">&times;</span>
+            <h2>Nuevo Entrenamiento</h2>
+            <form id="form-training">
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label for="tr-date">Fecha</label>
+                        <input type="date" id="tr-date" required>
+                    </div>
+                    <div class="form-group half">
+                        <label for="tr-time">Hora</label>
+                        <input type="time" id="tr-time" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="tr-duration">Duración Total (min)</label>
+                    <input type="number" id="tr-duration" min="1" placeholder="Ej: 90">
+                </div>
+
+                <div class="form-group">
+                    <label for="tr-notes">Observaciones</label>
+                    <textarea id="tr-notes" rows="2" placeholder="Objetivos, material necesario..."></textarea>
+                </div>
+
+                <div class="training-exercises-wrapper">
+                    <h3>Bloque de Ejercicios</h3>
+                    <div id="selected-exercises-list" class="selected-exercises-list">
+                        <p class="empty-state">No hay ejercicios añadidos aún.</p>
+                    </div>
+
+                    <button type="button" id="btn-open-exercise-picker" class="btn-outline">
+                        <i class="fa-solid fa-list-check"></i> Añadir Ejercicio
+                    </button>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary close-modal-btn">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar Entrenamiento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Exercise Picker -->
+    <div id="modal-picker" class="modal">
+        <div class="modal-content">
+            <span class="close-modal-picker">&times;</span>
+            <h3>Seleccionar Ejercicio</h3>
+            <div class="picker-list" id="picker-list">
+                <!-- List of exercises to pick from -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, onSnapshot, deleteDoc, doc, updateDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
+
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB_vMoyhWLuSI7YAYgHl6Veofvt6KtQgfw",
+            authDomain: "basketball-trainer-c9e13.firebaseapp.com",
+            projectId: "basketball-trainer-c9e13",
+            storageBucket: "basketball-trainer-c9e13.firebasestorage.app",
+            messagingSenderId: "85788980437",
+            appId: "1:85788980437:web:32f1bd259fb3ce0d491e5c"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Expose to window for app.js
+        window.db = db;
+        window.firebaseMethods = {
+            collection, addDoc, getDocs, onSnapshot, deleteDoc, doc, updateDoc, query, orderBy
+        };
+        console.log("Firebase initialized with project: basketball-trainer-c9e13");
+    </script>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
