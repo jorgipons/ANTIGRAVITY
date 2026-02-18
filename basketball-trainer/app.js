@@ -3,11 +3,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const STATE = {
         exercises: [],
         trainings: [],
-        tempTrainingExercises: [], // Stores objects of exercises for the training being created
-        currentTrainingId: null // For Detail View
+        tempTrainingExercises: [],
+        currentTrainingId: null,
+        currentDrawings: [],
+        pickerContext: 'create' // 'create' or 'edit'
     };
 
-    // Firebase references (available from index.html)
+    // Firebase references
     const db = window.db;
     const { collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, query, orderBy } = window.firebaseMethods;
 
@@ -19,6 +21,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const navLinks = document.querySelectorAll('.nav-links li');
     const sections = document.querySelectorAll('main > section');
 
+    // Sidebar
+    const sidebar = document.getElementById('sidebar');
+    const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+
     // Exercises
     const exercisesListEl = document.getElementById('exercises-list');
     const btnAddExercise = document.getElementById('btn-add-exercise');
@@ -29,6 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('exercise-canvas');
     const ctx = canvas.getContext('2d');
     const btnClearCanvas = document.getElementById('btn-clear-canvas');
+    const btnAddStep = document.getElementById('btn-add-step');
+    const drawingFramesListEl = document.getElementById('drawing-frames-list');
     const colorButtons = document.querySelectorAll('.btn-tool[data-color]');
 
     // Trainings
@@ -44,9 +52,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const pickerListEl = document.getElementById('picker-list');
 
     // Detail View
-    const detailSection = document.getElementById('training-detail-section');
     const btnBackTrainings = document.getElementById('btn-back-trainings');
     const detailTimelineEl = document.getElementById('detail-timeline');
+    const btnDetailAddExercise = document.getElementById('btn-detail-add-exercise');
+
+    // --- Sidebar Toggle ---
+    btnToggleSidebar.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+    });
 
     // --- Navigation Logic ---
     const navigateTo = (sectionName) => {
@@ -88,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- Canvas Logic ---
+    // --- Canvas & Multi-Drawing Logic ---
     let isDrawing = false;
     let currentColor = '#000000';
 
@@ -104,6 +117,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnAddExercise.addEventListener('click', () => {
         formExercise.reset();
+        STATE.currentDrawings = []; // Reset frames
+        renderDrawingFrames();
         clearCanvas();
         openModal(modalExercise);
         setTimeout(setupCanvas, 100);
@@ -160,6 +175,31 @@ document.addEventListener('DOMContentLoaded', () => {
         return canvas.toDataURL() === blank.toDataURL();
     };
 
+    btnAddStep.addEventListener('click', () => {
+        if (isCanvasBlank(canvas)) {
+            alert("Dibuja algo antes de añadir un paso.");
+            return;
+        }
+
+        const dataUrl = canvas.toDataURL();
+        STATE.currentDrawings.push(dataUrl);
+        renderDrawingFrames();
+    });
+
+    const renderDrawingFrames = () => {
+        drawingFramesListEl.innerHTML = '';
+        STATE.currentDrawings.forEach((imgSrc, index) => {
+            const thumb = document.createElement('div');
+            thumb.className = 'frame-thumb';
+            thumb.innerHTML = `<img src="${imgSrc}">`;
+            thumb.addEventListener('click', () => {
+                // For now just Visual Feedback
+                // Could load back into canvas in future
+            });
+            drawingFramesListEl.appendChild(thumb);
+        });
+    };
+
     // --- Firebase Subscriptions ---
 
     const qExercises = query(exercisesCol, orderBy("title"));
@@ -179,7 +219,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         renderTrainings();
 
-        // Refresh detail view if it's open
         if (STATE.currentTrainingId) {
             const training = STATE.trainings.find(t => t.id === STATE.currentTrainingId);
             if (training) renderTrainingDetail(training);
@@ -195,16 +234,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const typeSelect = document.getElementById('ex-type');
         const selectedTypes = Array.from(typeSelect.selectedOptions).map(opt => opt.value);
 
-        let drawingData = null;
         if (!isCanvasBlank(canvas)) {
-            drawingData = canvas.toDataURL();
+            STATE.currentDrawings.push(canvas.toDataURL());
         }
 
         const newExercise = {
             title: document.getElementById('ex-title').value,
             description: document.getElementById('ex-description').value,
             image: document.getElementById('ex-image').value,
-            drawing: drawingData,
+            drawings: STATE.currentDrawings,
+            drawing: STATE.currentDrawings.length > 0 ? STATE.currentDrawings[0] : null,
             ages: selectedAges,
             types: selectedTypes,
             duration: document.getElementById('ex-duration').value,
@@ -236,7 +275,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const typesHtml = ex.types ? ex.types.map(type => `<span class="tag primary">${type}</span>`).join('') : '';
 
             let imgHtml = '';
-            if (ex.drawing) {
+
+            if (ex.drawings && ex.drawings.length > 0) {
+                const framesIndicator = ex.drawings.length > 1 ? `<span style="position:absolute; bottom:5px; right:5px; background:rgba(0,0,0,0.7); color:white; padding:2px 6px; border-radius:4px; font-size:0.7rem;">+${ex.drawings.length - 1} pasos</span>` : '';
+
+                imgHtml = `<div style="position:relative; margin-bottom:10px; border:1px solid #333; border-radius:8px; overflow:hidden; background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Basketball_court_half_court.svg/800px-Basketball_court_half_court.svg.png'); background-size: cover; background-position: center;">
+                    <img src="${ex.drawings[0]}" style="width:100%; display:block;" alt="Esquema táctico">
+                    ${framesIndicator}
+                </div>`;
+            } else if (ex.drawing) {
                 imgHtml = `<div style="margin-bottom:10px; border:1px solid #333; border-radius:8px; overflow:hidden; background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Basketball_court_half_court.svg/800px-Basketball_court_half_court.svg.png'); background-size: cover; background-position: center;">
                     <img src="${ex.drawing}" style="width:100%; display:block;" alt="Esquema táctico">
                 </div>`;
@@ -275,6 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Trainings Logic ---
 
     btnCreateTraining.addEventListener('click', () => {
+        STATE.pickerContext = 'create'; // Set context
         formTraining.reset();
         STATE.tempTrainingExercises = [];
         renderSelectedExercises();
@@ -282,9 +330,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     btnOpenPicker.addEventListener('click', () => {
+        // Context is already set to 'create' if coming from Create Modal
+        // But let's ensure
+        STATE.pickerContext = 'create';
         renderPickerList();
         openModal(modalPicker);
     });
+
+    // EDIT: Add exercise button in Detail
+    if (btnDetailAddExercise) {
+        btnDetailAddExercise.addEventListener('click', () => {
+            STATE.pickerContext = 'edit';
+            renderPickerList();
+            openModal(modalPicker);
+        });
+    }
 
     const renderPickerList = () => {
         pickerListEl.innerHTML = '';
@@ -301,12 +361,45 @@ document.addEventListener('DOMContentLoaded', () => {
                 </button>
             `;
             item.querySelector('button').addEventListener('click', () => {
-                STATE.tempTrainingExercises.push(ex);
-                renderSelectedExercises();
+                handlePickerSelection(ex);
                 closeModal(modalPicker);
             });
             pickerListEl.appendChild(item);
         });
+    };
+
+    const handlePickerSelection = async (ex) => {
+        if (STATE.pickerContext === 'create') {
+            STATE.tempTrainingExercises.push(ex);
+            renderSelectedExercises();
+        } else if (STATE.pickerContext === 'edit') {
+            // Add to current training and save
+            if (!STATE.currentTrainingId) return;
+            const training = STATE.trainings.find(t => t.id === STATE.currentTrainingId);
+            if (!training) return;
+
+            const newExObj = {
+                id: ex.id,
+                title: ex.title,
+                duration: ex.duration,
+                type: ex.types ? ex.types[0] : ''
+            };
+
+            const updatedExercises = [...(training.exercises || []), newExObj];
+
+            // Optimistic update
+            training.exercises = updatedExercises;
+            renderTrainingDetail(training);
+
+            try {
+                await updateDoc(doc(db, "trainer_trainings", training.id), {
+                    exercises: updatedExercises
+                });
+            } catch (e) {
+                console.error("Error adding exercise to training:", e);
+                alert("Error al añadir ejercicio.");
+            }
+        }
     };
 
     const renderSelectedExercises = () => {
@@ -370,7 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
         STATE.trainings.forEach(tr => {
             const card = document.createElement('div');
             card.className = 'card';
-            card.style.cursor = 'pointer'; // Indicate actionable
+            card.style.cursor = 'pointer';
 
             const exCount = tr.exercises ? tr.exercises.length : 0;
             const exList = tr.exercises ? tr.exercises.slice(0, 3).map(e => e.title).join(', ') + (exCount > 3 ? '...' : '') : 'Sin ejercicios';
@@ -390,16 +483,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
 
-            // Delete Action
             card.querySelector('.btn-delete-tr').addEventListener('click', async (e) => {
-                e.stopPropagation(); // Prevent opening detail
+                e.stopPropagation();
                 if (confirm('¿Borrar entrenamiento?')) {
                     await deleteDoc(doc(db, "trainer_trainings", tr.id));
                     if (STATE.currentTrainingId === tr.id) navigateTo('trainings');
                 }
             });
 
-            // Open Detail Action
             card.addEventListener('click', () => {
                 openTrainingDetail(tr);
             });
@@ -408,12 +499,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // --- Detail View Logic ---
+    // --- Detail View Logic (Trainings) ---
 
     const openTrainingDetail = (training) => {
         STATE.currentTrainingId = training.id;
         renderTrainingDetail(training);
-        navigateTo('training-detail'); // This is a special section, handled by navigateTo logic
+        navigateTo('training-detail');
     };
 
     const renderTrainingDetail = (training) => {
@@ -428,16 +519,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Calculate Start Times
-        let currentTime = new Date(`2000-01-01T${training.time}:00`); // Dummy date, just need time
+        let currentTime = new Date(`2000-01-01T${training.time}:00`);
 
         training.exercises.forEach((ex, index) => {
-            // Format HH:mm
             const timeString = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
             const row = document.createElement('div');
             row.className = 'timeline-item';
-
             row.innerHTML = `
                 <div class="time-col">
                     <span class="time-start">${timeString}</span>
@@ -454,16 +541,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button class="btn-move btn-down" ${index === training.exercises.length - 1 ? 'disabled' : ''} title="Bajar">
                         <i class="fa-solid fa-chevron-down"></i>
                     </button>
+                    <!-- DELETE BUTTON -->
+                    <button class="btn-move btn-delete-item" title="Eliminar del entreno" style="color: #ff4444;">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
                 </div>
             `;
 
-            // Reorder Handlers
             row.querySelector('.btn-up').addEventListener('click', () => moveExercise(training, index, -1));
             row.querySelector('.btn-down').addEventListener('click', () => moveExercise(training, index, 1));
 
-            detailTimelineEl.appendChild(row);
+            // Delete Listener
+            row.querySelector('.btn-delete-item').addEventListener('click', () => removeExerciseFromTraining(training, index));
 
-            // Increment time
+            detailTimelineEl.appendChild(row);
             currentTime.setMinutes(currentTime.getMinutes() + parseInt(ex.duration || 0));
         });
     };
@@ -471,17 +562,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const moveExercise = async (training, index, direction) => {
         const exercises = [...training.exercises];
         const newIndex = index + direction;
-
         if (newIndex < 0 || newIndex >= exercises.length) return;
-
-        // Swap
         [exercises[index], exercises[newIndex]] = [exercises[newIndex], exercises[index]];
-
-        // Update UI immediately (Optimistic UI)
         training.exercises = exercises;
         renderTrainingDetail(training);
-
-        // Save to Firebase
         try {
             await updateDoc(doc(db, "trainer_trainings", training.id), {
                 exercises: exercises
@@ -489,6 +573,26 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {
             console.error("Error updating order:", e);
             alert("Error al guardar el nuevo orden.");
+        }
+    };
+
+    // Remove Exercise from Detail View
+    const removeExerciseFromTraining = async (training, index) => {
+        if (!confirm("¿Quitar este ejercicio del entrenamiento?")) return;
+
+        const exercises = [...training.exercises];
+        exercises.splice(index, 1);
+
+        training.exercises = exercises;
+        renderTrainingDetail(training); // Update UI
+
+        try {
+            await updateDoc(doc(db, "trainer_trainings", training.id), {
+                exercises: exercises
+            });
+        } catch (e) {
+            console.error("Error removing exercise:", e);
+            alert("Error al eliminar ejercicio.");
         }
     };
 });
