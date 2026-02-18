@@ -488,7 +488,7 @@ select:focus {
 }
 
 .sidebar.collapsed .logo span,
-.sidebar.collapsed .link-text {
+.sidebar.collapsed .nav-links li span {
     display: none;
 }
 
