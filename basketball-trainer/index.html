@@ -67,6 +67,43 @@
                 </div>
             </section>
 
+            <!-- Training DETAIL Section -->
+            <section id="training-detail-section">
+                <header class="section-header">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <button id="btn-back-trainings" class="btn-secondary" style="padding: 8px 12px;"><i
+                                class="fa-solid fa-arrow-left"></i></button>
+                        <h1 id="detail-title">Detalle Entrenamiento</h1>
+                    </div>
+                </header>
+
+                <div class="card" style="margin-bottom: 2rem;">
+                    <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+                        <div>
+                            <small style="color:var(--text-muted);">FECHA</small>
+                            <p id="detail-date" style="font-size: 1.2rem; font-weight: 600;">--</p>
+                        </div>
+                        <div>
+                            <small style="color:var(--text-muted);">HORA INICIO</small>
+                            <p id="detail-time" style="font-size: 1.2rem; font-weight: 600;">--</p>
+                        </div>
+                        <div>
+                            <small style="color:var(--text-muted);">DURACIÓN</small>
+                            <p id="detail-duration" style="font-size: 1.2rem; font-weight: 600;">-- min</p>
+                        </div>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <small style="color:var(--text-muted);">OBSERVACIONES</small>
+                        <p id="detail-notes" style="color: var(--text-main);">--</p>
+                    </div>
+                </div>
+
+                <h2><i class="fa-solid fa-list-ol"></i> Cronograma</h2>
+                <div class="timeline-list" id="detail-timeline">
+                    <!-- Timeline items injected here -->
+                </div>
+            </section>
+
         </main>
     </div>
 

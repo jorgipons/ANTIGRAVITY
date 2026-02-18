@@ -3,12 +3,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const STATE = {
         exercises: [],
         trainings: [],
-        tempTrainingExercises: [] // Stores objects of exercises for the training being created
+        tempTrainingExercises: [], // Stores objects of exercises for the training being created
+        currentTrainingId: null // For Detail View
     };
 
     // Firebase references (available from index.html)
     const db = window.db;
-    const { collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy } = window.firebaseMethods;
+    const { collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, query, orderBy } = window.firebaseMethods;
 
     // Collections
     const exercisesCol = collection(db, "trainer_exercises");
@@ -42,18 +43,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalPicker = document.getElementById('modal-picker');
     const pickerListEl = document.getElementById('picker-list');
 
+    // Detail View
+    const detailSection = document.getElementById('training-detail-section');
+    const btnBackTrainings = document.getElementById('btn-back-trainings');
+    const detailTimelineEl = document.getElementById('detail-timeline');
+
     // --- Navigation Logic ---
+    const navigateTo = (sectionName) => {
+        navLinks.forEach(l => l.classList.remove('active'));
+        sections.forEach(s => s.classList.remove('active-section'));
+
+        let link = document.querySelector(`.nav-links li[data-section="${sectionName}"]`);
+        if (link) link.classList.add('active');
+
+        const sectionId = sectionName === 'training-detail' ? 'training-detail-section' : sectionName + '-section';
+        document.getElementById(sectionId).classList.add('active-section');
+    };
+
     navLinks.forEach(link => {
         link.addEventListener('click', () => {
-            // Remove active class
-            navLinks.forEach(l => l.classList.remove('active'));
-            sections.forEach(s => s.classList.remove('active-section'));
-
-            // Add active class
-            link.classList.add('active');
-            const sectionId = link.getAttribute('data-section') + '-section';
-            document.getElementById(sectionId).classList.add('active-section');
+            const section = link.getAttribute('data-section');
+            navigateTo(section);
         });
+    });
+
+    btnBackTrainings.addEventListener('click', () => {
+        navigateTo('trainings');
     });
 
     // --- Modal Logic ---
@@ -77,9 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isDrawing = false;
     let currentColor = '#000000';
 
-    // Setup Canvas
     const setupCanvas = () => {
-        // Fix canvas resolution for clear drawing
         const rect = canvas.getBoundingClientRect();
         canvas.width = rect.width;
         canvas.height = rect.height;
@@ -89,16 +102,13 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.strokeStyle = currentColor;
     };
 
-    // Call setup when modal opens to ensure correct sizing
     btnAddExercise.addEventListener('click', () => {
         formExercise.reset();
         clearCanvas();
         openModal(modalExercise);
-        // Small delay to allow modal to render before sizing canvas
         setTimeout(setupCanvas, 100);
     });
 
-    // Drawing Events
     const startDrawing = (e) => {
         isDrawing = true;
         draw(e);
@@ -111,29 +121,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const draw = (e) => {
         if (!isDrawing) return;
-
         const rect = canvas.getBoundingClientRect();
         const x = (e.clientX || e.touches[0].clientX) - rect.left;
         const y = (e.clientY || e.touches[0].clientY) - rect.top;
-
         ctx.lineTo(x, y);
         ctx.stroke();
         ctx.beginPath();
         ctx.moveTo(x, y);
     };
 
-    // Mouse Listeners
     canvas.addEventListener('mousedown', startDrawing);
     canvas.addEventListener('mousemove', draw);
     canvas.addEventListener('mouseup', stopDrawing);
     canvas.addEventListener('mouseout', stopDrawing);
-
-    // Touch Listeners (prevent scrolling)
     canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e); });
     canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
     canvas.addEventListener('touchend', stopDrawing);
 
-    // Toolbar Logic
     colorButtons.forEach(btn => {
         btn.addEventListener('click', () => {
             colorButtons.forEach(b => b.classList.remove('active'));
@@ -149,7 +153,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnClearCanvas.addEventListener('click', clearCanvas);
 
-    // Helper to check if canvas is empty (to avoid saving blank images if user didn't draw)
     const isCanvasBlank = (canvas) => {
         const blank = document.createElement('canvas');
         blank.width = canvas.width;
@@ -160,43 +163,38 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Firebase Subscriptions ---
 
     const qExercises = query(exercisesCol, orderBy("title"));
-    const unsubExercises = onSnapshot(qExercises, (snapshot) => {
+    onSnapshot(qExercises, (snapshot) => {
         STATE.exercises = [];
         snapshot.forEach((doc) => {
             STATE.exercises.push({ id: doc.id, ...doc.data() });
         });
         renderExercises();
-    }, (error) => {
-        console.error("Error fetching exercises:", error);
-    });
+    }, (error) => console.error("Error fetching exercises:", error));
 
     const qTrainings = query(trainingsCol, orderBy("date", "desc"));
-    const unsubTrainings = onSnapshot(qTrainings, (snapshot) => {
+    onSnapshot(qTrainings, (snapshot) => {
         STATE.trainings = [];
         snapshot.forEach((doc) => {
             STATE.trainings.push({ id: doc.id, ...doc.data() });
         });
         renderTrainings();
-    }, (error) => {
-        console.error("Error fetching trainings:", error);
-    });
+
+        // Refresh detail view if it's open
+        if (STATE.currentTrainingId) {
+            const training = STATE.trainings.find(t => t.id === STATE.currentTrainingId);
+            if (training) renderTrainingDetail(training);
+        }
+    }, (error) => console.error("Error fetching trainings:", error));
 
     // --- Exercises Logic ---
 
-    // Note: btnAddExercise listener moved up to handle canvas setup
-
     formExercise.addEventListener('submit', async (e) => {
         e.preventDefault();
-
-        // Collect checked ages
         const ageCheckboxes = document.querySelectorAll('input[name="ex-age"]:checked');
         const selectedAges = Array.from(ageCheckboxes).map(cb => cb.value);
-
-        // Collect selected types
         const typeSelect = document.getElementById('ex-type');
         const selectedTypes = Array.from(typeSelect.selectedOptions).map(opt => opt.value);
 
-        // Get drawing data if canvas is not blank
         let drawingData = null;
         if (!isCanvasBlank(canvas)) {
             drawingData = canvas.toDataURL();
@@ -206,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
             title: document.getElementById('ex-title').value,
             description: document.getElementById('ex-description').value,
             image: document.getElementById('ex-image').value,
-            drawing: drawingData, // Save base64 image
+            drawing: drawingData,
             ages: selectedAges,
             types: selectedTypes,
             duration: document.getElementById('ex-duration').value,
@@ -225,7 +223,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const renderExercises = () => {
         exercisesListEl.innerHTML = '';
-
         if (STATE.exercises.length === 0) {
             exercisesListEl.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted);">Cargando o sin ejercicios...</p>';
             return;
@@ -238,7 +235,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const agesHtml = ex.ages ? ex.ages.map(age => `<span class="tag">${age}</span>`).join('') : '';
             const typesHtml = ex.types ? ex.types.map(type => `<span class="tag primary">${type}</span>`).join('') : '';
 
-            // Image handling: Priority to drawn image, then URL image, then fallback
             let imgHtml = '';
             if (ex.drawing) {
                 imgHtml = `<div style="margin-bottom:10px; border:1px solid #333; border-radius:8px; overflow:hidden; background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Basketball_court_half_court.svg/800px-Basketball_court_half_court.svg.png'); background-size: cover; background-position: center;">
@@ -339,7 +335,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     formTraining.addEventListener('submit', async (e) => {
         e.preventDefault();
-
         const exercisesToSave = STATE.tempTrainingExercises.map(ex => ({
             id: ex.id,
             title: ex.title,
@@ -375,6 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
         STATE.trainings.forEach(tr => {
             const card = document.createElement('div');
             card.className = 'card';
+            card.style.cursor = 'pointer'; // Indicate actionable
 
             const exCount = tr.exercises ? tr.exercises.length : 0;
             const exList = tr.exercises ? tr.exercises.slice(0, 3).map(e => e.title).join(', ') + (exCount > 3 ? '...' : '') : 'Sin ejercicios';
@@ -386,7 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items: center; margin-bottom: 1rem;">
                     <p><strong>Duración:</strong> ${tr.duration} min</p>
-                    <button class="btn-delete-tr" data-id="${tr.id}" style="background:none; border:none; color:var(--text-muted); cursor:pointer;"><i class="fa-solid fa-trash"></i></button>
+                    <button class="btn-delete-tr" data-id="${tr.id}" style="background:none; border:none; color:var(--text-muted); cursor:pointer; z-index:10;"><i class="fa-solid fa-trash"></i></button>
                 </div>
                 <div style="background: #252525; padding: 10px; border-radius: 8px; margin-top: 10px;">
                     <small style="color: var(--primary-color);">Ejercicios (${exCount})</small>
@@ -394,13 +390,105 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
 
-            card.querySelector('.btn-delete-tr').addEventListener('click', async () => {
+            // Delete Action
+            card.querySelector('.btn-delete-tr').addEventListener('click', async (e) => {
+                e.stopPropagation(); // Prevent opening detail
                 if (confirm('¿Borrar entrenamiento?')) {
                     await deleteDoc(doc(db, "trainer_trainings", tr.id));
+                    if (STATE.currentTrainingId === tr.id) navigateTo('trainings');
                 }
+            });
+
+            // Open Detail Action
+            card.addEventListener('click', () => {
+                openTrainingDetail(tr);
             });
 
             trainingsListEl.appendChild(card);
         });
+    };
+
+    // --- Detail View Logic ---
+
+    const openTrainingDetail = (training) => {
+        STATE.currentTrainingId = training.id;
+        renderTrainingDetail(training);
+        navigateTo('training-detail'); // This is a special section, handled by navigateTo logic
+    };
+
+    const renderTrainingDetail = (training) => {
+        document.getElementById('detail-date').textContent = training.date;
+        document.getElementById('detail-time').textContent = training.time;
+        document.getElementById('detail-duration').textContent = training.duration + ' min';
+        document.getElementById('detail-notes').textContent = training.notes || 'Sin observaciones';
+
+        detailTimelineEl.innerHTML = '';
+        if (!training.exercises || training.exercises.length === 0) {
+            detailTimelineEl.innerHTML = '<p style="text-align:center; color:grey;">Sin ejercicios</p>';
+            return;
+        }
+
+        // Calculate Start Times
+        let currentTime = new Date(`2000-01-01T${training.time}:00`); // Dummy date, just need time
+
+        training.exercises.forEach((ex, index) => {
+            // Format HH:mm
+            const timeString = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            const row = document.createElement('div');
+            row.className = 'timeline-item';
+
+            row.innerHTML = `
+                <div class="time-col">
+                    <span class="time-start">${timeString}</span>
+                    <span class="time-duration">${ex.duration} min</span>
+                </div>
+                <div class="info-col">
+                    <h4>${ex.title}</h4>
+                    <span class="tag primary" style="width:fit-content; font-size:0.75rem;">${ex.type || 'Ejercicio'}</span>
+                </div>
+                <div class="actions-col">
+                    <button class="btn-move btn-up" ${index === 0 ? 'disabled' : ''} title="Subir">
+                        <i class="fa-solid fa-chevron-up"></i>
+                    </button>
+                    <button class="btn-move btn-down" ${index === training.exercises.length - 1 ? 'disabled' : ''} title="Bajar">
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                </div>
+            `;
+
+            // Reorder Handlers
+            row.querySelector('.btn-up').addEventListener('click', () => moveExercise(training, index, -1));
+            row.querySelector('.btn-down').addEventListener('click', () => moveExercise(training, index, 1));
+
+            detailTimelineEl.appendChild(row);
+
+            // Increment time
+            currentTime.setMinutes(currentTime.getMinutes() + parseInt(ex.duration || 0));
+        });
+    };
+
+    const moveExercise = async (training, index, direction) => {
+        const exercises = [...training.exercises];
+        const newIndex = index + direction;
+
+        if (newIndex < 0 || newIndex >= exercises.length) return;
+
+        // Swap
+        [exercises[index], exercises[newIndex]] = [exercises[newIndex], exercises[index]];
+
+        // Update UI immediately (Optimistic UI)
+        training.exercises = exercises;
+        renderTrainingDetail(training);
+
+        // Save to Firebase
+        try {
+            await updateDoc(doc(db, "trainer_trainings", training.id), {
+                exercises: exercises
+            });
+        } catch (e) {
+            console.error("Error updating order:", e);
+            alert("Error al guardar el nuevo orden.");
+        }
     };
 });
