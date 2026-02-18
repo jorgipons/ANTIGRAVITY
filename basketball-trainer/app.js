@@ -523,6 +523,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         training.exercises.forEach((ex, index) => {
             const timeString = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            // Image handling for timeline
+            let imgSrc = '';
+            if (ex.drawings && ex.drawings.length > 0) imgSrc = ex.drawings[0];
+            else if (ex.drawing) imgSrc = ex.drawing;
+            else if (ex.image) imgSrc = ex.image;
+
+            // Fallback image if none
+            if (!imgSrc) {
+                imgSrc = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Basketball_court_half_court.svg/800px-Basketball_court_half_court.svg.png';
+            }
+
             const row = document.createElement('div');
             row.className = 'timeline-item';
             row.innerHTML = `
@@ -530,9 +542,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="time-start">${timeString}</span>
                     <span class="time-duration">${ex.duration} min</span>
                 </div>
+                <div class="img-col">
+                    <img src="${imgSrc}" alt="Esquema">
+                </div>
                 <div class="info-col">
                     <h4>${ex.title}</h4>
-                    <span class="tag primary" style="width:fit-content; font-size:0.75rem;">${ex.type || 'Ejercicio'}</span>
+                    <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                         <span class="tag primary" style="width:fit-content; font-size:0.75rem;">${ex.type || 'Ejercicio'}</span>
+                    </div>
                 </div>
                 <div class="actions-col">
                     <button class="btn-move btn-up" ${index === 0 ? 'disabled' : ''} title="Subir">
@@ -541,7 +558,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button class="btn-move btn-down" ${index === training.exercises.length - 1 ? 'disabled' : ''} title="Bajar">
                         <i class="fa-solid fa-chevron-down"></i>
                     </button>
-                    <!-- DELETE BUTTON -->
                     <button class="btn-move btn-delete-item" title="Eliminar del entreno" style="color: #ff4444;">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
