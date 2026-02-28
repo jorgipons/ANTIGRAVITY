@@ -596,7 +596,33 @@ select:focus {
     border-radius: var(--radius);
     padding: 1rem;
     align-items: center;
+    transition: all 0.3s ease;
 }
+
+transition: all 0.3s ease;
+}
+
+.timeline-item.completed {
+    opacity: 0.8;
+    /* Less opacity reduction */
+    background-color: #1a1a1a;
+    border-color: #333;
+}
+
+.timeline-item.completed .time-col,
+.timeline-item.completed .img-col,
+.timeline-item.completed .info-col {
+    filter: grayscale(0.8);
+    opacity: 0.6;
+}
+
+.timeline-item.current {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 10px rgba(255, 87, 34, 0.3);
+    background-color: rgba(255, 87, 34, 0.05);
+    transform: scale(1.02);
+}
+
 
 .time-col {
     display: flex;
@@ -649,6 +675,33 @@ select:focus {
     flex-direction: column;
     gap: 5px;
     align-items: center;
+}
+
+.btn-check {
+    background: none;
+    border: 1px solid var(--text-muted);
+    color: var(--text-muted);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 5px;
+}
+
+.btn-check:hover {
+    color: var(--success-color);
+    border-color: var(--success-color);
+    background-color: rgba(76, 175, 80, 0.1);
+}
+
+.timeline-item.completed .btn-check {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+    color: white;
 }
 
 .btn-move {

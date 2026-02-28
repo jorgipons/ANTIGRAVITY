@@ -124,8 +124,26 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(setupCanvas, 100);
     });
 
+    const getCanvasPos = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+        // Scale coordinates to match CSS vs internal resolution
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        };
+    };
+
     const startDrawing = (e) => {
         isDrawing = true;
+        const pos = getCanvasPos(e);
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
         draw(e);
     };
 
@@ -136,13 +154,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const draw = (e) => {
         if (!isDrawing) return;
-        const rect = canvas.getBoundingClientRect();
-        const x = (e.clientX || e.touches[0].clientX) - rect.left;
-        const y = (e.clientY || e.touches[0].clientY) - rect.top;
-        ctx.lineTo(x, y);
+        const pos = getCanvasPos(e);
+        ctx.lineTo(pos.x, pos.y);
         ctx.stroke();
         ctx.beginPath();
-        ctx.moveTo(x, y);
+        ctx.moveTo(pos.x, pos.y);
     };
 
     canvas.addEventListener('mousedown', startDrawing);
@@ -191,7 +207,25 @@ document.addEventListener('DOMContentLoaded', () => {
         STATE.currentDrawings.forEach((imgSrc, index) => {
             const thumb = document.createElement('div');
             thumb.className = 'frame-thumb';
-            thumb.innerHTML = `<img src="${imgSrc}">`;
+            thumb.style.position = 'relative'; // Ensure positioning context
+
+            // Add light background to thumbnails so strokes are visible
+            thumb.innerHTML = `
+                <img src="${imgSrc}" style="background-color: #e0e0e0; border-radius: 4px; display: block; width: 100%; height: 100%;">
+                <button type="button" class="btn-delete-frame" title="Eliminar paso" style="position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; background: rgba(255, 68, 68, 0.9); border: none; color: white; display: flex; align-items: center; justify-content: center; font-size: 10px; cursor: pointer;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            `;
+
+            // Delete action
+            thumb.querySelector('.btn-delete-frame').addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent trigger if we add click-to-load later
+                if (confirm("¿Eliminar este paso del ejercicio?")) {
+                    STATE.currentDrawings.splice(index, 1);
+                    renderDrawingFrames(); // Re-render the list
+                }
+            });
+
             thumb.addEventListener('click', () => {
                 // For now just Visual Feedback
                 // Could load back into canvas in future
@@ -235,10 +269,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedTypes = Array.from(typeSelect.selectedOptions).map(opt => opt.value);
 
         if (!isCanvasBlank(canvas)) {
+            // If drawing exists, append it. 
+            // NOTE: In edit mode, if we just opened and didn't draw, we might not want to duplicates.
+            // But current logic is simple: whatever is on canvas gets saved.
+            // A better approach for edit: check if it changed. 
+            // For now, we only push if it's NOT blank. 
             STATE.currentDrawings.push(canvas.toDataURL());
         }
 
-        const newExercise = {
+        const exerciseData = {
             title: document.getElementById('ex-title').value,
             description: document.getElementById('ex-description').value,
             image: document.getElementById('ex-image').value,
@@ -248,14 +287,23 @@ document.addEventListener('DOMContentLoaded', () => {
             types: selectedTypes,
             duration: document.getElementById('ex-duration').value,
             variants: document.getElementById('ex-variants').value,
-            createdAt: new Date().toISOString()
+            updatedAt: new Date().toISOString()
         };
 
+        if (!STATE.editingExerciseId) {
+            exerciseData.createdAt = new Date().toISOString();
+        }
+
         try {
-            await addDoc(exercisesCol, newExercise);
+            if (STATE.editingExerciseId) {
+                await updateDoc(doc(db, "trainer_exercises", STATE.editingExerciseId), exerciseData);
+            } else {
+                await addDoc(exercisesCol, exerciseData);
+            }
             closeModal(modalExercise);
+            STATE.editingExerciseId = null; // Reset
         } catch (e) {
-            console.error("Error adding exercise: ", e);
+            console.error("Error saving exercise: ", e);
             alert("Error al guardar el ejercicio.");
         }
     });
@@ -275,29 +323,36 @@ document.addEventListener('DOMContentLoaded', () => {
             const typesHtml = ex.types ? ex.types.map(type => `<span class="tag primary">${type}</span>`).join('') : '';
 
             let imgHtml = '';
+            // Always ensure image container exists
+            let imgSrc = '';
+            let extraHtml = '';
 
-            if (ex.drawings && ex.drawings.length > 0) {
-                const framesIndicator = ex.drawings.length > 1 ? `<span style="position:absolute; bottom:5px; right:5px; background:rgba(0,0,0,0.7); color:white; padding:2px 6px; border-radius:4px; font-size:0.7rem;">+${ex.drawings.length - 1} pasos</span>` : '';
+            const isValidImg = (src) => src && typeof src === 'string' && src !== 'undefined' && src !== 'null' && src.trim() !== '';
 
-                imgHtml = `<div style="position:relative; margin-bottom:10px; border:1px solid #333; border-radius:8px; overflow:hidden; background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Basketball_court_half_court.svg/800px-Basketball_court_half_court.svg.png'); background-size: cover; background-position: center;">
-                    <img src="${ex.drawings[0]}" style="width:100%; display:block;" alt="Esquema táctico">
-                    ${framesIndicator}
-                </div>`;
-            } else if (ex.drawing) {
-                imgHtml = `<div style="margin-bottom:10px; border:1px solid #333; border-radius:8px; overflow:hidden; background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Basketball_court_half_court.svg/800px-Basketball_court_half_court.svg.png'); background-size: cover; background-position: center;">
-                    <img src="${ex.drawing}" style="width:100%; display:block;" alt="Esquema táctico">
-                </div>`;
-            } else if (ex.image) {
-                imgHtml = `<div style="margin-bottom:10px; border-radius:8px; overflow:hidden; height:150px;">
-                    <img src="${ex.image}" style="width:100%; height:100%; object-fit:cover;" alt="Imagen ejercicio">
-                </div>`;
+            if (ex.drawings && Array.isArray(ex.drawings) && ex.drawings.length > 0 && isValidImg(ex.drawings[0])) {
+                imgSrc = ex.drawings[0];
+                if (ex.drawings.length > 1) {
+                    extraHtml = `<span style="position:absolute; bottom:5px; right:5px; background:rgba(0,0,0,0.7); color:white; padding:2px 6px; border-radius:4px; font-size:0.7rem;">+${ex.drawings.length - 1} pasos</span>`;
+                }
+            } else if (isValidImg(ex.drawing)) {
+                imgSrc = ex.drawing;
+            } else if (isValidImg(ex.image)) {
+                imgSrc = ex.image;
             }
+
+            if (!imgSrc) {
+                imgSrc = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Basketball_court_half_court.svg/800px-Basketball_court_half_court.svg.png';
+            }
+
+            imgHtml = `<div style="position:relative; margin-bottom:10px; border:1px solid #333; border-radius:8px; overflow:hidden; height:180px; background-color:#e0e0e0;">
+                <img src="${imgSrc}" style="width:100%; height:100%; object-fit:cover;" alt="Esquema táctico">
+                ${extraHtml}
+            </div>`;
 
             card.innerHTML = `
                 ${imgHtml}
                 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                     <h3>${ex.title}</h3>
-                    <button class="btn-delete-ex" data-id="${ex.id}" style="background:none; border:none; color:var(--text-muted); cursor:pointer;"><i class="fa-solid fa-trash"></i></button>
                 </div>
                 <div class="tags">
                     ${agesHtml}
@@ -309,15 +364,104 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
 
-            card.querySelector('.btn-delete-ex').addEventListener('click', async (e) => {
-                if (confirm('¿Seguro que quieres borrar este ejercicio?')) {
-                    await deleteDoc(doc(db, "trainer_exercises", ex.id));
-                }
-            });
+            card.style.cursor = 'pointer';
+            card.addEventListener('click', () => openEditExerciseModal(ex));
 
             exercisesListEl.appendChild(card);
         });
     };
+
+    // --- Edit Exercise Logic ---
+    const openEditExerciseModal = (ex) => {
+        STATE.editingExerciseId = ex.id; // Track ID
+        document.getElementById('ex-title').value = ex.title;
+        document.getElementById('ex-description').value = ex.description;
+        document.getElementById('ex-image').value = ex.image || '';
+        document.getElementById('ex-duration').value = ex.duration;
+        document.getElementById('ex-variants').value = ex.variants || '';
+
+        // Types
+        const typeSelect = document.getElementById('ex-type');
+        Array.from(typeSelect.options).forEach(opt => {
+            opt.selected = ex.types && ex.types.includes(opt.value);
+        });
+
+        // Ages
+        document.querySelectorAll('input[name="ex-age"]').forEach(cb => {
+            cb.checked = ex.ages && ex.ages.includes(cb.value);
+        });
+
+        // Drawings
+        STATE.currentDrawings = ex.drawings || (ex.drawing ? [ex.drawing] : []);
+        renderDrawingFrames();
+        clearCanvas(); // Start with blank canvas or load first frame? 
+        // Loading first frame to canvas might be complex due to 'load' event, 
+        // for now just showing thumbnails is safer.
+        setTimeout(setupCanvas, 100);
+
+
+        const btnDelete = document.getElementById('btn-delete-exercise-modal');
+        if (btnDelete) {
+            btnDelete.style.display = 'block';
+            btnDelete.onclick = async () => {
+                if (confirm('¿Seguro que quieres borrar este ejercicio?')) {
+                    await deleteDoc(doc(db, "trainer_exercises", ex.id));
+                    closeModal(modalExercise);
+                }
+            };
+        }
+
+
+
+
+        openModal(modalExercise);
+    };
+
+    // Update Add Button to reset state
+    btnAddExercise.addEventListener('click', () => {
+        STATE.editingExerciseId = null;
+        const btnDelete = document.getElementById('btn-delete-exercise-modal');
+        if (btnDelete) btnDelete.style.display = 'none';
+    });
+
+    // Update Add Button to reset state
+    btnAddExercise.addEventListener('click', () => {
+        STATE.editingExerciseId = null;
+        const btnDelete = document.getElementById('btn-delete-exercise-modal');
+        if (btnDelete) btnDelete.style.display = 'none';
+        // Note: we rely on the other listener to open modal and reset form
+    });
+
+    // Update Add Button to reset state
+    const originalAddBtnHandler = btnAddExercise.onclick; // Save if needed, but better to replace or extend
+    // Re-bind click
+    btnAddExercise.onclick = null; // Clear old if any inline, but we used addEventListener
+    // Note: Since we used addEventListener ('click', ...), we can't easily remove anonymous function.
+    // Instead, let's just modify the existing listener or handling logic.
+    // Actually, let's just make sure we reset editingId in the existing listener.
+    // Easier approach: Just add a new listener that runs FIRST if possible, or modify the boolean.
+    // We'll replace the listener logic by re-writing it below if we could. 
+    // BUT we can't overwrite anonymous listeners. 
+    // New Strategy: We'll modify the STATE.editingExerciseId inside the `btnAddExercise` listener we already defined?
+    // No, we defined it in the block above (line 118). 
+    // Let's attach a NEW listener that resets it, assuming it runs.
+
+    btnAddExercise.addEventListener('click', () => {
+        STATE.editingExerciseId = null; // Reset to create mode
+        // The other listener (line 118) handles form reset.
+    });
+
+
+    // Override Submit Handler logic
+    // We need to modify the submit handler at line 230 to check for STATE.editingExerciseId
+    // Since we are REPLACING code, we will rewrite the submit handler here in this tool call context 
+    // but the previous replace_file_content targeted renderExercises. 
+    // Wait, I can't rewrite line 230 from here effectively without a huge block.
+    // I will replace line 230 in a separate call or encompass it here if I scroll up.
+    // This replace block ends at 320. 
+
+    // Let's stick to adding the button and helper here. I will do the submit handler update in next step.
+
 
     // --- Trainings Logic ---
 
@@ -369,21 +513,25 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handlePickerSelection = async (ex) => {
+        const newExObj = {
+            id: ex.id,
+            title: ex.title,
+            duration: ex.duration,
+            type: ex.types ? ex.types[0] : '',
+            // Ensure all image properties are carried over correctly
+            image: ex.image || null,
+            drawing: ex.drawing || null,
+            drawings: ex.drawings || []
+        };
+
         if (STATE.pickerContext === 'create') {
-            STATE.tempTrainingExercises.push(ex);
+            STATE.tempTrainingExercises.push(newExObj);
             renderSelectedExercises();
         } else if (STATE.pickerContext === 'edit') {
             // Add to current training and save
             if (!STATE.currentTrainingId) return;
             const training = STATE.trainings.find(t => t.id === STATE.currentTrainingId);
             if (!training) return;
-
-            const newExObj = {
-                id: ex.id,
-                title: ex.title,
-                duration: ex.duration,
-                type: ex.types ? ex.types[0] : ''
-            };
 
             const updatedExercises = [...(training.exercises || []), newExObj];
 
@@ -432,7 +580,11 @@ document.addEventListener('DOMContentLoaded', () => {
             id: ex.id,
             title: ex.title,
             duration: ex.duration,
-            type: ex.types ? ex.types[0] : ''
+            type: ex.types ? ex.types[0] : '',
+            // Fix: Include image data so it persists
+            image: ex.image || null,
+            drawing: ex.drawing || null,
+            drawings: ex.drawings || []
         }));
 
         const newTraining = {
@@ -521,37 +673,80 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let currentTime = new Date(`2000-01-01T${training.time}:00`);
 
+        let firstIncompleteFound = false;
+
         training.exercises.forEach((ex, index) => {
             const timeString = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+            // Lookup canonical exercise from library to get the latest image data
+            const canonEx = STATE.exercises.find(e => e.id === ex.id) || ex;
+
             // Image handling for timeline
             let imgSrc = '';
-            if (ex.drawings && ex.drawings.length > 0) imgSrc = ex.drawings[0];
-            else if (ex.drawing) imgSrc = ex.drawing;
-            else if (ex.image) imgSrc = ex.image;
 
-            // Fallback image if none
+            const isValidImg = (src) => {
+                if (!src || typeof src !== 'string') return false;
+                const lowerSrc = src.toLowerCase();
+                if (lowerSrc === 'undefined' || lowerSrc === 'null' || lowerSrc.includes('base64,undefined') || lowerSrc.includes('base64,null')) return false;
+                return src.trim() !== '';
+            };
+
+            // Prefer canonEx images, fallback to ex images
+            if (canonEx.drawings && Array.isArray(canonEx.drawings) && canonEx.drawings.length > 0 && isValidImg(canonEx.drawings[0])) {
+                imgSrc = canonEx.drawings[0];
+            } else if (isValidImg(canonEx.drawing)) {
+                imgSrc = canonEx.drawing;
+            } else if (isValidImg(canonEx.image)) {
+                imgSrc = canonEx.image;
+            } else if (ex.drawings && Array.isArray(ex.drawings) && ex.drawings.length > 0 && isValidImg(ex.drawings[0])) {
+                imgSrc = ex.drawings[0];
+            } else if (isValidImg(ex.drawing)) {
+                imgSrc = ex.drawing;
+            } else if (isValidImg(ex.image)) {
+                imgSrc = ex.image;
+            }
+
+            // Fallback image if none or invalid
             if (!imgSrc) {
                 imgSrc = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Basketball_court_half_court.svg/800px-Basketball_court_half_court.svg.png';
             }
 
             const row = document.createElement('div');
             row.className = 'timeline-item';
+
+            // Determine status
+            const isCompleted = ex.completed === true;
+            if (isCompleted) {
+                row.classList.add('completed');
+            } else if (!firstIncompleteFound) {
+                row.classList.add('current');
+                row.id = 'current-exercise'; // ID for scrolling
+                firstIncompleteFound = true;
+            }
+
             row.innerHTML = `
                 <div class="time-col">
                     <span class="time-start">${timeString}</span>
                     <span class="time-duration">${ex.duration} min</span>
                 </div>
                 <div class="img-col">
-                    <img src="${imgSrc}" alt="Esquema">
+                    <img src="${imgSrc}" alt="Esquema" style="background-color: #e0e0e0; border-radius: 4px;">
                 </div>
                 <div class="info-col">
+                    <div style="margin-bottom: 4px;">
+                        <button class="btn-view-link" style="background:none; border:none; color:var(--primary-color); cursor:pointer; font-size:0.85rem; padding:0; display:flex; align-items:center; gap:4px;">
+                            <i class="fa-regular fa-eye"></i> Ver detalle
+                        </button>
+                    </div>
                     <h4>${ex.title}</h4>
                     <div style="display:flex; gap:5px; flex-wrap:wrap;">
                          <span class="tag primary" style="width:fit-content; font-size:0.75rem;">${ex.type || 'Ejercicio'}</span>
                     </div>
                 </div>
                 <div class="actions-col">
+                    <button class="btn-check" title="${isCompleted ? 'Marcar como pendiente' : 'Marcar como completado'}">
+                        <i class="fa-solid fa-check"></i>
+                    </button>
                     <button class="btn-move btn-up" ${index === 0 ? 'disabled' : ''} title="Subir">
                         <i class="fa-solid fa-chevron-up"></i>
                     </button>
@@ -564,15 +759,167 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
 
+            row.querySelector('.btn-check').addEventListener('click', () => toggleExerciseCompletion(training, index));
+            row.querySelector('.btn-view-link').addEventListener('click', (e) => {
+                e.stopPropagation();
+                openViewExerciseModal(ex);
+            });
             row.querySelector('.btn-up').addEventListener('click', () => moveExercise(training, index, -1));
             row.querySelector('.btn-down').addEventListener('click', () => moveExercise(training, index, 1));
-
-            // Delete Listener
             row.querySelector('.btn-delete-item').addEventListener('click', () => removeExerciseFromTraining(training, index));
 
             detailTimelineEl.appendChild(row);
             currentTime.setMinutes(currentTime.getMinutes() + parseInt(ex.duration || 0));
         });
+
+        // Auto-scroll to current exercise
+        setTimeout(() => {
+            const currentEx = document.getElementById('current-exercise');
+            if (currentEx) {
+                currentEx.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 300);
+    };
+
+    // --- View Detail Logic ---
+    const modalView = document.getElementById('modal-view-exercise');
+    const closeViewBtn = document.querySelector('.close-view-modal');
+
+    if (closeViewBtn) {
+        closeViewBtn.addEventListener('click', () => closeModal(modalView));
+    }
+
+    const openViewExerciseModal = (ex) => {
+        document.getElementById('view-ex-title').textContent = ex.title;
+        document.getElementById('view-ex-desc').textContent = ex.description || 'Sin descripción';
+        document.getElementById('view-ex-variants').textContent = ex.variants || 'Sin variantes';
+        document.getElementById('view-ex-duration').textContent = (ex.duration || 0) + ' min';
+
+        const tagsContainer = document.getElementById('view-ex-tags');
+        tagsContainer.innerHTML = '';
+        if (ex.types && Array.isArray(ex.types)) {
+            ex.types.forEach(t => {
+                tagsContainer.innerHTML += `<span class="tag primary">${t}</span>`;
+            });
+        }
+
+        // Image Handling
+        const mainImgContainer = document.getElementById('view-main-image');
+        mainImgContainer.style.backgroundColor = '#e0e0e0'; // Apply bright background
+        const mainImg = mainImgContainer.querySelector('img');
+        const framesList = document.getElementById('view-frames-list');
+        framesList.innerHTML = '';
+
+        // Lookup canonical exercise from library to get the latest image data
+        const canonEx = STATE.exercises.find(e => e.id === ex.id) || ex;
+
+        const isValidImg = (src) => {
+            if (!src || typeof src !== 'string') return false;
+            const lowerSrc = src.toLowerCase();
+            if (lowerSrc === 'undefined' || lowerSrc === 'null' || lowerSrc.includes('base64,undefined') || lowerSrc.includes('base64,null')) return false;
+            return src.trim() !== '';
+        };
+
+        let frames = [];
+        if (canonEx.drawings && Array.isArray(canonEx.drawings) && canonEx.drawings.length > 0 && isValidImg(canonEx.drawings[0])) {
+            frames = canonEx.drawings;
+        } else if (isValidImg(canonEx.drawing)) {
+            frames = [canonEx.drawing];
+        } else if (isValidImg(canonEx.image)) {
+            frames = [canonEx.image];
+        } else if (ex.drawings && Array.isArray(ex.drawings) && ex.drawings.length > 0 && isValidImg(ex.drawings[0])) {
+            frames = ex.drawings;
+        } else if (isValidImg(ex.drawing)) {
+            frames = [ex.drawing];
+        } else if (isValidImg(ex.image)) {
+            frames = [ex.image];
+        }
+
+        const btnPrev = document.getElementById('view-prev-img-btn');
+        const btnNext = document.getElementById('view-next-img-btn');
+
+        if (frames.length > 0) {
+            let currentFrameIndex = 0;
+
+            const updateSlider = () => {
+                mainImg.src = frames[currentFrameIndex];
+                if (frames.length > 1) {
+                    btnPrev.style.display = currentFrameIndex > 0 ? 'flex' : 'none';
+                    btnNext.style.display = currentFrameIndex < frames.length - 1 ? 'flex' : 'none';
+
+                    Array.from(framesList.children).forEach((thumb, idx) => {
+                        thumb.style.outline = idx === currentFrameIndex ? '2px solid var(--primary-color)' : 'none';
+                    });
+                } else {
+                    btnPrev.style.display = 'none';
+                    btnNext.style.display = 'none';
+                }
+            };
+
+            btnPrev.onclick = () => {
+                if (currentFrameIndex > 0) {
+                    currentFrameIndex--;
+                    updateSlider();
+                }
+            };
+
+            btnNext.onclick = () => {
+                if (currentFrameIndex < frames.length - 1) {
+                    currentFrameIndex++;
+                    updateSlider();
+                }
+            };
+
+            // Thumbnails
+            if (frames.length > 1) {
+                frames.forEach((src, idx) => {
+                    if (!isValidImg(src)) return;
+                    const thumb = document.createElement('div');
+                    thumb.className = 'frame-thumb';
+                    thumb.setAttribute('style', 'cursor:pointer; outline-offset:-2px;');
+                    thumb.innerHTML = `<img src="${src}" style="background-color: #e0e0e0; border-radius: 4px;">`;
+                    thumb.addEventListener('click', () => {
+                        currentFrameIndex = idx;
+                        updateSlider();
+                    });
+                    framesList.appendChild(thumb);
+                });
+            }
+
+            updateSlider(); // Initialize
+
+        } else {
+            mainImg.src = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Basketball_court_half_court.svg/800px-Basketball_court_half_court.svg.png';
+            mainImgContainer.style.backgroundColor = 'transparent'; // Remove bg for placeholder
+            btnPrev.style.display = 'none';
+            btnNext.style.display = 'none';
+        }
+
+        openModal(modalView);
+    };
+
+    const toggleExerciseCompletion = async (training, index) => {
+        const exercises = [...training.exercises];
+        const exercise = exercises[index];
+
+        // Toggle status
+        exercise.completed = !exercise.completed;
+
+        // Update local state and re-render immediately for responsiveness
+        training.exercises = exercises;
+        renderTrainingDetail(training);
+
+        try {
+            await updateDoc(doc(db, "trainer_trainings", training.id), {
+                exercises: exercises
+            });
+        } catch (e) {
+            console.error("Error updating completion status:", e);
+            // Revert on error (optional, but good practice)
+            exercise.completed = !exercise.completed;
+            renderTrainingDetail(training);
+            alert("Error al actualizar estado.");
+        }
     };
 
     const moveExercise = async (training, index, direction) => {

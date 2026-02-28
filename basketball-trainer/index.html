@@ -28,11 +28,11 @@
                 <span>Trainer Pro</span>
             </div>
             <ul class="nav-links">
-                <li class="active" data-section="exercises">
+                <li data-section="exercises">
                     <i class="fa-solid fa-dumbbell"></i>
                     <span>Ejercicios</span>
                 </li>
-                <li data-section="trainings">
+                <li class="active" data-section="trainings">
                     <i class="fa-solid fa-clipboard-list"></i>
                     <span>Entrenamientos</span>
                 </li>
@@ -43,7 +43,7 @@
         <main class="content-area">
 
             <!-- Exercises Section -->
-            <section id="exercises-section" class="active-section">
+            <section id="exercises-section">
                 <header class="section-header">
                     <h1>Biblioteca de Ejercicios</h1>
                     <button id="btn-add-exercise" class="btn-primary">
@@ -57,7 +57,7 @@
             </section>
 
             <!-- Trainings Section -->
-            <section id="trainings-section">
+            <section id="trainings-section" class="active-section">
                 <header class="section-header">
                     <h1>Mis Entrenamientos</h1>
                     <button id="btn-create-training" class="btn-primary">
@@ -208,9 +208,13 @@
                         placeholder="Opciones para modificar el ejercicio..."></textarea>
                 </div>
 
-                <div class="form-actions">
-                    <button type="button" class="btn-secondary close-modal-btn">Cancelar</button>
-                    <button type="submit" class="btn-primary">Guardar Ejercicio</button>
+                <div class="form-actions" style="justify-content: space-between;">
+                    <button type="button" id="btn-delete-exercise-modal" class="btn-secondary"
+                        style="color: var(--danger-color); border-color: var(--danger-color); display: none;">Eliminar</button>
+                    <div style="display:flex; gap:10px;">
+                        <button type="button" class="btn-secondary close-modal-btn">Cancelar</button>
+                        <button type="submit" class="btn-primary">Guardar Ejercicio</button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -269,6 +273,58 @@
             <h3>Seleccionar Ejercicio</h3>
             <div class="picker-list" id="picker-list">
                 <!-- List of exercises to pick from -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Viewing Exercise Detail (Read-Only) -->
+    <div id="modal-view-exercise" class="modal">
+        <div class="modal-content modal-xl">
+            <span class="close-view-modal">&times;</span>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem;">
+                <h2 id="view-ex-title" style="margin:0;">Título del Ejercicio</h2>
+                <div id="view-ex-tags" class="tags"></div>
+            </div>
+
+            <div class="view-body" style="display:grid; grid-template-columns: 1fr 1fr; gap:2rem;">
+                <!-- Left Column: Visuals -->
+                <div class="view-visuals">
+                    <div id="view-main-image"
+                        style="width:100%; aspect-ratio:4/3; background:#000; border-radius:8px; overflow:hidden; margin-bottom:1rem; position:relative;">
+                        <img src="" style="width:100%; height:100%; object-fit:contain;" alt="Detalle">
+                        <button id="view-prev-img-btn"
+                            style="position:absolute; top:50%; left:10px; transform:translateY(-50%); background:rgba(0,0,0,0.6); color:white; border:none; width:36px; height:36px; border-radius:50%; cursor:pointer; display:none; align-items:center; justify-content:center; z-index:10;">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </button>
+                        <button id="view-next-img-btn"
+                            style="position:absolute; top:50%; right:10px; transform:translateY(-50%); background:rgba(0,0,0,0.6); color:white; border:none; width:36px; height:36px; border-radius:50%; cursor:pointer; display:none; align-items:center; justify-content:center; z-index:10;">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    <div id="view-frames-list" class="drawing-frames-list" style="justify-content:center;">
+                        <!-- Thumbnails -->
+                    </div>
+                </div>
+
+                <!-- Right Column: Info -->
+                <div class="view-info">
+                    <div style="margin-bottom:1.5rem;">
+                        <h3 style="font-size:1.1rem; color:var(--text-muted); margin-bottom:0.5rem;">DESCRIPTION</h3>
+                        <p id="view-ex-desc" style="white-space: pre-wrap;">...</p>
+                    </div>
+
+                    <div style="margin-bottom:1.5rem;">
+                        <h3 style="font-size:1.1rem; color:var(--text-muted); margin-bottom:0.5rem;">VARIANTS</h3>
+                        <p id="view-ex-variants" style="white-space: pre-wrap;">...</p>
+                    </div>
+
+                    <div style="display:flex; gap:2rem;">
+                        <div>
+                            <small style="color:var(--text-muted);">DURACIÓN</small>
+                            <p id="view-ex-duration" style="font-size:1.2rem; font-weight:600;">-- min</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
