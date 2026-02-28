@@ -845,19 +845,41 @@
                                     createdAt: new Date().toISOString()
                                 });
                                 imported++;
-                            } else if (federatedMatch.state === 'finished' && federatedMatch.score) {
-                                // Existe. ¿Actualizamos el marcador si ha terminado?
-                                const hasScoreChanged = !existing.score ||
-                                    existing.score.local !== federatedMatch.score.local ||
-                                    existing.score.visitor !== federatedMatch.score.visitor;
+                            } else {
+                                // Existe. Verificamos si hay cambios en info básica o marcador
+                                const hasBasicInfoChanged =
+                                    existing.date !== federatedMatch.date ||
+                                    existing.time !== federatedMatch.time ||
+                                    existing.location !== federatedMatch.location ||
+                                    existing.matchDay !== federatedMatch.matchDay ||
+                                    existing.opponent !== federatedMatch.opponent ||
+                                    existing.isHome !== federatedMatch.isHome;
 
-                                if (hasScoreChanged || existing.state === 'pending') {
+                                const hasScoreChanged = federatedMatch.state === 'finished' && federatedMatch.score &&
+                                    (!existing.score ||
+                                        existing.score.local !== federatedMatch.score.local ||
+                                        existing.score.visitor !== federatedMatch.score.visitor);
+
+                                if (hasBasicInfoChanged || hasScoreChanged || (federatedMatch.state === 'finished' && existing.state === 'pending')) {
                                     const matchRef = doc(db, 'matches', existing.id);
-                                    await updateDoc(matchRef, {
-                                        score: federatedMatch.score,
-                                        result: federatedMatch.result,
-                                        state: 'finished'
-                                    });
+                                    const updates = {};
+
+                                    if (hasBasicInfoChanged) {
+                                        updates.date = federatedMatch.date;
+                                        updates.time = federatedMatch.time;
+                                        updates.location = federatedMatch.location;
+                                        updates.matchDay = federatedMatch.matchDay;
+                                        updates.opponent = federatedMatch.opponent;
+                                        updates.isHome = federatedMatch.isHome;
+                                    }
+
+                                    if (hasScoreChanged || (federatedMatch.state === 'finished' && existing.state === 'pending')) {
+                                        updates.score = federatedMatch.score;
+                                        updates.result = federatedMatch.result;
+                                        updates.state = 'finished';
+                                    }
+
+                                    await updateDoc(matchRef, updates);
                                     updated++;
                                 }
                             }
