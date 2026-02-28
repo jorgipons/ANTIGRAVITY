@@ -783,6 +783,7 @@
         };
 
         const TeamDetailView = ({ team, matches, navigate, updateTeamInDb, getRoles, addDoc, collection, db }) => {
+            const { doc, updateDoc } = window.firebaseMethods;
             const [newPlayerName, setNewPlayerName] = useState('');
             const [newPlayerNumber, setNewPlayerNumber] = useState('');
             const [syncing, setSyncing] = useState(false);
