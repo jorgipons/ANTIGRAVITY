@@ -1301,7 +1301,10 @@
             const togglePlay = async (period, playerId) => {
                 if (isLocked) return;
                 const isEditable = editAllMode || period === currentP;
-                if (!isEditable) return;
+                if (!isEditable) {
+                    alert("Para editar periodos anteriores o futuros debes activar el modo 'Edición Libre' pulsando el icono del candado arriba a la derecha.");
+                    return;
+                }
 
                 // FIX: Check if there's an injury for this player in this period and remove it
                 // This allows the user to manually override the "Injury" status (arrow) with a normal role assignment
@@ -1380,7 +1383,12 @@
                 if (isLocked) return;
                 const status = getPeriodStatus(period);
                 const isEditable = editAllMode || status === 'active';
-                if (!isEditable || (match.players.find(p => p.id === playerId)?.disabled)) return;
+                if (match.players.find(p => p.id === playerId)?.disabled) return;
+
+                if (!isEditable) {
+                    alert("Para editar periodos anteriores o futuros debes activar el modo 'Edición Libre' pulsando el icono del candado arriba a la derecha.");
+                    return;
+                }
 
                 // FIX: Check if there's an injury for this player in this period and remove it
                 const injuryIndex = matchInjuries.findIndex(inj => inj.period === period && (inj.playerOut === playerId || inj.playerIn === playerId));
