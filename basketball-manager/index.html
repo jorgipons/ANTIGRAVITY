@@ -3826,14 +3826,33 @@
                 };
             }, []);
 
-            const navigate = (newView, teamId = null, matchId = null) => {
+            const navigate = (newView, teamId = null, matchId = null, isBack = false) => {
                 setView(newView);
-                if (teamId) setSelectedTeamId(teamId);
-                if (matchId) setActiveMatchId(matchId);
+                if (teamId !== undefined && teamId !== null) setSelectedTeamId(teamId);
+                if (matchId !== undefined && matchId !== null) setActiveMatchId(matchId);
                 window.scrollTo(0, 0);
                 setShowTutorial(false);
                 setTutorialStep(0);
+
+                if (!isBack) {
+                    window.history.pushState({ view: newView, teamId, matchId }, '', `#${newView}`);
+                }
             };
+
+            useEffect(() => {
+                window.history.replaceState({ view: 'teams-list', teamId: null, matchId: null }, '', '#teams-list');
+
+                const handlePopState = (event) => {
+                    if (event.state && event.state.view) {
+                        navigate(event.state.view, event.state.teamId, event.state.matchId, true);
+                    } else {
+                        navigate('teams-list', null, null, true);
+                    }
+                };
+
+                window.addEventListener('popstate', handlePopState);
+                return () => window.removeEventListener('popstate', handlePopState);
+            }, []);
 
             useEffect(() => {
                 onAuthStateChanged(auth, async (u) => {
