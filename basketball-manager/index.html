@@ -828,6 +828,7 @@
             const longPressRef = React.useRef({ timer: null, triggered: false });
 
             const handleMatchLongPress = (match) => {
+                if (longPressRef.current.triggered) return;
                 longPressRef.current.triggered = true;
                 if (confirm(`¿Eliminar el partido contra ${match.opponent}?`)) {
                     const { doc, deleteDoc } = window.firebaseMethods;
