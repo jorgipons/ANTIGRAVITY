@@ -825,6 +825,15 @@
             const [newPlayerNumber, setNewPlayerNumber] = useState('');
             const [syncing, setSyncing] = useState(false);
             const [showSyncMenu, setShowSyncMenu] = useState(false);
+            const longPressRef = React.useRef({ timer: null, triggered: false });
+
+            const handleMatchLongPress = (match) => {
+                longPressRef.current.triggered = true;
+                if (confirm(`¿Eliminar el partido contra ${match.opponent}?`)) {
+                    const { doc, deleteDoc } = window.firebaseMethods;
+                    deleteDoc(doc(db, 'matches', match.id)).catch(err => alert('Error: ' + err.message));
+                }
+            };
 
             const handleSyncFederation = async (silent = false) => {
                 if (!team.federationId) return;
@@ -1105,7 +1114,32 @@
                         if (!nextMatch) return null;
 
                         return (
-                            <div onClick={() => navigate('active-match', team.id, nextMatch.id)} className="mb-8 bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl p-0.5 shadow-lg group cursor-pointer active:scale-[0.98] transition-all">
+                            <div
+                                onClick={(e) => {
+                                    if (longPressRef.current.triggered) {
+                                        longPressRef.current.triggered = false;
+                                        return;
+                                    }
+                                    navigate('active-match', team.id, nextMatch.id);
+                                }}
+                                onTouchStart={() => {
+                                    longPressRef.current.triggered = false;
+                                    longPressRef.current.timer = setTimeout(() => handleMatchLongPress(nextMatch), 800);
+                                }}
+                                onTouchEnd={() => clearTimeout(longPressRef.current.timer)}
+                                onTouchMove={() => clearTimeout(longPressRef.current.timer)}
+                                onMouseDown={() => {
+                                    longPressRef.current.triggered = false;
+                                    longPressRef.current.timer = setTimeout(() => handleMatchLongPress(nextMatch), 800);
+                                }}
+                                onMouseUp={() => clearTimeout(longPressRef.current.timer)}
+                                onMouseLeave={() => clearTimeout(longPressRef.current.timer)}
+                                onContextMenu={(e) => {
+                                    e.preventDefault();
+                                    handleMatchLongPress(nextMatch);
+                                }}
+                                className="mb-8 bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl p-0.5 shadow-lg group cursor-pointer active:scale-[0.98] transition-all select-none"
+                            >
                                 <div className="bg-slate-900 rounded-[10px] p-4 relative overflow-hidden">
                                     <div className="absolute top-0 right-0 p-3 opacity-10">
                                         <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="calendar" class="w-24 h-24 text-white"></i>' }}></span>
@@ -1176,9 +1210,34 @@
                             {getSortedMatches(teamMatches).map(m => (
                                 <div
                                     key={m.id}
-                                    className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex justify-between items-center group/match"
+                                    className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex justify-between items-center group/match select-none"
                                 >
-                                    <div onClick={() => navigate('active-match', team.id, m.id)} className="flex-1 cursor-pointer">
+                                    <div
+                                        onClick={(e) => {
+                                            if (longPressRef.current.triggered) {
+                                                longPressRef.current.triggered = false;
+                                                return;
+                                            }
+                                            navigate('active-match', team.id, m.id);
+                                        }}
+                                        onTouchStart={() => {
+                                            longPressRef.current.triggered = false;
+                                            longPressRef.current.timer = setTimeout(() => handleMatchLongPress(m), 800);
+                                        }}
+                                        onTouchEnd={() => clearTimeout(longPressRef.current.timer)}
+                                        onTouchMove={() => clearTimeout(longPressRef.current.timer)}
+                                        onMouseDown={() => {
+                                            longPressRef.current.triggered = false;
+                                            longPressRef.current.timer = setTimeout(() => handleMatchLongPress(m), 800);
+                                        }}
+                                        onMouseUp={() => clearTimeout(longPressRef.current.timer)}
+                                        onMouseLeave={() => clearTimeout(longPressRef.current.timer)}
+                                        onContextMenu={(e) => {
+                                            e.preventDefault();
+                                            handleMatchLongPress(m);
+                                        }}
+                                        className="flex-1 cursor-pointer"
+                                    >
                                         <p className="font-bold text-slate-800">{m.opponent}</p>
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
                                             {m.date} {m.time ? `• ${m.time} h` : ''}
@@ -2853,7 +2912,7 @@
                             <button
                                 onClick={() => {
                                     const dateStr = new Date(matchDate).toLocaleDateString('ca-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-                                    const text = `🏀 *PARTIT* 🏀\n${match.opponent}\n📅 ${dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}\n⏰ ${matchTime}h\n📍 ${location || (isHome ? 'Local' : 'Visitant')}\n${!isHome && departureTime ? `🚌 Eixida: ${departureTime}h des de ${departureLocation || 'Pavelló'}` : ''}\n${callTime ? `🔔 Convocatòria: ${callTime}h` : ''}\n\n👥 *JUGADORS:*\n${(match.players || []).map(p => `- ${p.name} (#${p.number})`).join('\n')}\n\n${observations ? `📝 ${observations}` : ''}`;
+                                    const text = `🏀 *PARTIT* 🏀\n\n🎽 ${match.opponent}\n📅 ${dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}\n⏰ ${matchTime}h\n📍 ${location || (isHome ? 'Local' : 'Visitant')}\n${!isHome && departureTime ? `🚌 Eixida: ${departureTime}h des de ${departureLocation || 'Pavelló'}` : ''}\n${callTime ? `🔔 Convocatòria: ${callTime}h` : ''}\n\n👥 Convocats:\n${(match.players || []).map(p => `- ${p.name}`).join('\n')}\n\n${observations ? `📝 ${observations}` : ''}`;
                                     navigator.clipboard.writeText(text).then(() => alert('Convocatòria (Val) copiada!'));
                                 }}
                                 className="flex-1 py-2 bg-orange-100 text-orange-700 rounded-lg font-bold text-xs hover:bg-orange-200 transition-colors flex items-center justify-center gap-2"
@@ -2863,7 +2922,7 @@
                             <button
                                 onClick={() => {
                                     const dateStr = new Date(matchDate).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-                                    const text = `🏀 *PARTIDO* 🏀\n${match.opponent}\n📅 ${dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}\n⏰ ${matchTime}h\n📍 ${location || (isHome ? 'Local' : 'Visitante')}\n${!isHome && departureTime ? `🚌 Salida: ${departureTime}h desde ${departureLocation || 'Pabellón'}` : ''}\n${callTime ? `🔔 Convocatoria: ${callTime}h` : ''}\n\n👥 *JUGADORES:*\n${(match.players || []).map(p => `- ${p.name} (#${p.number})`).join('\n')}\n\n${observations ? `📝 ${observations}` : ''}`;
+                                    const text = `🏀 *PARTIDO* 🏀\n\n🎽 ${match.opponent}\n📅 ${dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}\n⏰ ${matchTime}h\n📍 ${location || (isHome ? 'Local' : 'Visitante')}\n${!isHome && departureTime ? `🚌 Salida: ${departureTime}h desde ${departureLocation || 'Pabellón'}` : ''}\n${callTime ? `🔔 Convocatoria: ${callTime}h` : ''}\n\n👥 Convocados:\n${(match.players || []).map(p => `- ${p.name}`).join('\n')}\n\n${observations ? `📝 ${observations}` : ''}`;
                                     navigator.clipboard.writeText(text).then(() => alert('Convocatoria (Cas) copiada!'));
                                 }}
                                 className="flex-1 py-2 bg-emerald-100 text-emerald-700 rounded-lg font-bold text-xs hover:bg-emerald-200 transition-colors flex items-center justify-center gap-2"
