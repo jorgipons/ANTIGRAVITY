@@ -121,7 +121,7 @@
         const { useState, useEffect, useMemo } = React;
 
         // --- Logic & Types ---
-        const APP_VERSION = '1.11.6';
+        const APP_VERSION = '1.11.7';
         const RULESETS = {
             'fbcv_8p': {
                 id: 'fbcv_8p',
@@ -171,7 +171,65 @@
             await updateDoc(teamRef, updates);
         };
 
-        const generateConvocatoria = (match, team, lang = 'val') => {
+        const generateConvocatoria = (match, team, lang = 'val', players = null) => {
+            const date = new Date(match.date);
+            const daysVAL = ['Diumenge', 'Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres', 'Dissabte'];
+            const daysCAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+            const dayName = lang === 'val' ? daysVAL[date.getDay()] : daysCAS[date.getDay()];
+
+            const rival = match.opponent;
+            const teamName = team.name;
+            const horaIni = match.time;
+            const horaConvo = match.callTime || '---';
+            const location = match.location || (match.isHome ? (lang === 'val' ? 'Local' : 'Local') : (lang === 'val' ? 'Visitant' : 'Visitante'));
+
+            const transportIcon = match.transportType === 'bus' ? '🚌' : '🚗';
+            const departurePart = (!match.isHome && match.departureTime)
+                ? `\n${transportIcon}  ${match.departureTime}h (Eixida: ${match.departureLocation || 'Pavelló'})`
+                : '';
+            const departurePartCas = (!match.isHome && match.departureTime)
+                ? `\n${transportIcon}  ${match.departureTime}h (Salida: ${match.departureLocation || 'Pabellón'})`
+                : '';
+            const arrivalPart = (!match.isHome && match.arrivalTime)
+                ? `\n🏁  ${match.arrivalTime}h (Tornada aprox.)`
+                : '';
+            const arrivalPartCas = (!match.isHome && match.arrivalTime)
+                ? `\n🏁  ${match.arrivalTime}h (Vuelta aprox.)`
+                : '';
+
+            const playersList = players && players.length > 0
+                ? `\n\n👥  Convocats:\n${players.map(p => `- ${p.name}`).join('\n')}`
+                : '';
+            const playersListCas = players && players.length > 0
+                ? `\n\n👥  Convocados:\n${players.map(p => `- ${p.name}`).join('\n')}`
+                : '';
+
+            if (lang === 'val') {
+                return `Hola, aquesta és la convocatòria per al pròxim partit:\n\n` +
+                    `⚠ IMPORTANT! ⚠\n` +
+                    `Avisar perfavor si algú no pot vindre per planificar quant abans millor.\n\n` +
+                    `👕  ${teamName} vs ${rival}\n` +
+                    `📍  ${location}\n` +
+                    `🗓  ${dayName}\n` +
+                    (match.isHome ? '' : `${departurePart}${arrivalPart}\n`) +
+                    `🤝  ${horaConvo}h (Convocatòria)\n` +
+                    `🏀  ${horaIni}h (Inici partit)` +
+                    playersList;
+            } else {
+                return `Hola, esta es la convocatoria para el próximo partido:\n\n` +
+                    `⚠ ¡IMPORTANTE! ⚠\n` +
+                    `Avisad por favor si alguien no puede venir para planificar cuanto antes mejor.\n\n` +
+                    `👕  ${teamName} vs ${rival}\n` +
+                    `📍  ${location}\n` +
+                    `🗓  ${dayName}\n` +
+                    (!match.isHome ? `${departurePartCas}${arrivalPartCas}\n` : '') +
+                    `🤝  ${horaConvo}h (Convocatoria)\n` +
+                    `🏀  ${horaIni}h (Inicio partido)` +
+                    playersListCas;
+            }
+        };
+
+        const generateInfoPartido = (match, team, lang = 'val') => {
             const date = new Date(match.date);
             const daysVAL = ['Diumenge', 'Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres', 'Dissabte'];
             const daysCAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -198,7 +256,7 @@
                 : '';
 
             if (lang === 'val') {
-                return `Bon dia, aquesta és la convocatòria per al pròxim partit:\n\n` +
+                return `Hola, aquesta és la informació del pròxim partit:\n\n` +
                     `⚠ IMPORTANT! ⚠\n` +
                     `Avisar perfavor si algú no pot vindre per planificar quant abans millor.\n\n` +
                     `👕  ${teamName} vs ${rival}\n` +
@@ -208,7 +266,7 @@
                     `🤝  ${horaConvo}h (Convocatòria)\n` +
                     `🏀  ${horaIni}h (Inici partit)`;
             } else {
-                return `Buenos días, esta es la convocatoria para el próximo partido:\n\n` +
+                return `Hola, esta es la información del próximo partido:\n\n` +
                     `⚠ ¡IMPORTANTE! ⚠\n` +
                     `Avisad por favor si alguien no puede venir para planificar cuanto antes mejor.\n\n` +
                     `👕  ${teamName} vs ${rival}\n` +
@@ -220,9 +278,9 @@
             }
         };
 
-        const copyToClipboard = (text) => {
+        const copyToClipboard = (text, msg = '¡Copiado al portapapeles!') => {
             navigator.clipboard.writeText(text).then(() => {
-                alert('¡Convocatoria copiada al portapapeles!');
+                alert(msg);
             }).catch(err => {
                 console.error('Error al copiar:', err);
                 alert('Error al copiar al portapapeles');
@@ -2737,16 +2795,35 @@
 
                         <div className="mb-0 bg-slate-50 p-4 rounded-xl border border-slate-200">
                             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Copiar Convocatoria</h3>
-                            <p className="text-[10px] text-slate-400 mb-3">Copia el mensaje para compartirlo con los padres por WhatsApp</p>
+                            <p className="text-[10px] text-slate-400 mb-3">Con el listado de jugadores convocados seleccionados</p>
                             <div className="flex gap-2">
                                 <button
-                                    onClick={() => copyToClipboard(generateConvocatoria({ opponent, date: matchDate, time: matchTime, callTime, location, isHome, departureTime, departureLocation, transportType, arrivalTime }, team, 'val'))}
+                                    onClick={() => { const convocats = players.filter(p => selectedPlayers.includes(p.id)); copyToClipboard(generateConvocatoria({ opponent, date: matchDate, time: matchTime, callTime, location, isHome, departureTime, departureLocation, transportType, arrivalTime }, team, 'val', convocats)); }}
                                     className="flex-1 py-2 bg-orange-100 text-orange-700 rounded-lg font-bold text-xs hover:bg-orange-200 transition-colors flex items-center justify-center gap-2 active:scale-95"
                                 >
                                     <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="copy"></i>' }}></span> Valencià
                                 </button>
                                 <button
-                                    onClick={() => copyToClipboard(generateConvocatoria({ opponent, date: matchDate, time: matchTime, callTime, location, isHome, departureTime, departureLocation, transportType, arrivalTime }, team, 'cas'))}
+                                    onClick={() => { const convocats = players.filter(p => selectedPlayers.includes(p.id)); copyToClipboard(generateConvocatoria({ opponent, date: matchDate, time: matchTime, callTime, location, isHome, departureTime, departureLocation, transportType, arrivalTime }, team, 'cas', convocats)); }}
+                                    className="flex-1 py-2 bg-emerald-100 text-emerald-700 rounded-lg font-bold text-xs hover:bg-emerald-200 transition-colors flex items-center justify-center gap-2 active:scale-95"
+                                >
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="copy"></i>' }}></span> Castellano
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mb-0 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Copiar Info Partido</h3>
+                            <p className="text-[10px] text-slate-400 mb-3">Sin listado de jugadores, solo la información del partido</p>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => copyToClipboard(generateInfoPartido({ opponent, date: matchDate, time: matchTime, callTime, location, isHome, departureTime, departureLocation, transportType, arrivalTime }, team, 'val'))}
+                                    className="flex-1 py-2 bg-orange-100 text-orange-700 rounded-lg font-bold text-xs hover:bg-orange-200 transition-colors flex items-center justify-center gap-2 active:scale-95"
+                                >
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="copy"></i>' }}></span> Valencià
+                                </button>
+                                <button
+                                    onClick={() => copyToClipboard(generateInfoPartido({ opponent, date: matchDate, time: matchTime, callTime, location, isHome, departureTime, departureLocation, transportType, arrivalTime }, team, 'cas'))}
                                     className="flex-1 py-2 bg-emerald-100 text-emerald-700 rounded-lg font-bold text-xs hover:bg-emerald-200 transition-colors flex items-center justify-center gap-2 active:scale-95"
                                 >
                                     <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="copy"></i>' }}></span> Castellano
@@ -2914,25 +2991,36 @@
                         <textarea className="w-full p-3 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" placeholder="Observaciones" rows="2" value={observations} onChange={e => setObservations(e.target.value)}></textarea>
                     </div>
 
-                    <div className="mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Copiar Convocatoria</h3>
+                    <div className="mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Copiar Convocatoria</h3>
+                        <p className="text-[10px] text-slate-400 mb-3">Con el listado de jugadores convocados</p>
                         <div className="flex gap-2">
                             <button
-                                onClick={() => {
-                                    const dateStr = new Date(matchDate).toLocaleDateString('ca-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-                                    const text = `🏀 *PARTIT* 🏀\n\n🎽 ${match.opponent}\n📅 ${dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}\n⏰ ${matchTime}h\n📍 ${location || (isHome ? 'Local' : 'Visitant')}\n${!isHome && departureTime ? `🚌 Eixida: ${departureTime}h des de ${departureLocation || 'Pavelló'}` : ''}\n${callTime ? `🔔 Convocatòria: ${callTime}h` : ''}\n\n👥 Convocats:\n${(match.players || []).map(p => `- ${p.name}`).join('\n')}\n\n${observations ? `📝 ${observations}` : ''}`;
-                                    navigator.clipboard.writeText(text).then(() => alert('Convocatòria (Val) copiada!'));
-                                }}
+                                onClick={() => copyToClipboard(generateConvocatoria({ opponent: match.opponent, date: matchDate, time: matchTime, callTime, location, isHome, departureTime, departureLocation, transportType, arrivalTime }, team, 'val', match.players || []))}
                                 className="flex-1 py-2 bg-orange-100 text-orange-700 rounded-lg font-bold text-xs hover:bg-orange-200 transition-colors flex items-center justify-center gap-2"
                             >
                                 <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="copy"></i>' }}></span> Valencià
                             </button>
                             <button
-                                onClick={() => {
-                                    const dateStr = new Date(matchDate).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-                                    const text = `🏀 *PARTIDO* 🏀\n\n🎽 ${match.opponent}\n📅 ${dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}\n⏰ ${matchTime}h\n📍 ${location || (isHome ? 'Local' : 'Visitante')}\n${!isHome && departureTime ? `🚌 Salida: ${departureTime}h desde ${departureLocation || 'Pabellón'}` : ''}\n${callTime ? `🔔 Convocatoria: ${callTime}h` : ''}\n\n👥 Convocados:\n${(match.players || []).map(p => `- ${p.name}`).join('\n')}\n\n${observations ? `📝 ${observations}` : ''}`;
-                                    navigator.clipboard.writeText(text).then(() => alert('Convocatoria (Cas) copiada!'));
-                                }}
+                                onClick={() => copyToClipboard(generateConvocatoria({ opponent: match.opponent, date: matchDate, time: matchTime, callTime, location, isHome, departureTime, departureLocation, transportType, arrivalTime }, team, 'cas', match.players || []))}
+                                className="flex-1 py-2 bg-emerald-100 text-emerald-700 rounded-lg font-bold text-xs hover:bg-emerald-200 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="copy"></i>' }}></span> Castellano
+                            </button>
+                        </div>
+                    </div>
+                    <div className="mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Copiar Info Partido</h3>
+                        <p className="text-[10px] text-slate-400 mb-3">Sin listado de jugadores, solo la información del partido</p>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => copyToClipboard(generateInfoPartido({ opponent: match.opponent, date: matchDate, time: matchTime, callTime, location, isHome, departureTime, departureLocation, transportType, arrivalTime }, team, 'val'))}
+                                className="flex-1 py-2 bg-orange-100 text-orange-700 rounded-lg font-bold text-xs hover:bg-orange-200 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="copy"></i>' }}></span> Valencià
+                            </button>
+                            <button
+                                onClick={() => copyToClipboard(generateInfoPartido({ opponent: match.opponent, date: matchDate, time: matchTime, callTime, location, isHome, departureTime, departureLocation, transportType, arrivalTime }, team, 'cas'))}
                                 className="flex-1 py-2 bg-emerald-100 text-emerald-700 rounded-lg font-bold text-xs hover:bg-emerald-200 transition-colors flex items-center justify-center gap-2"
                             >
                                 <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="copy"></i>' }}></span> Castellano
