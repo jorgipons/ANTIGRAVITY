@@ -121,7 +121,7 @@
         const { useState, useEffect, useMemo } = React;
 
         // --- Logic & Types ---
-        const APP_VERSION = '1.11.5';
+        const APP_VERSION = '1.11.6';
         const RULESETS = {
             'fbcv_8p': {
                 id: 'fbcv_8p',
@@ -3441,9 +3441,21 @@
             };
 
             const deleteTeam = async () => {
-                if (!confirm('⚠️ ¿ESTÁS SEGURO? Se eliminará el equipo y todos sus partidos. Esta acción no se puede deshacer.')) return;
-                await deleteDoc(doc(db, 'teams', team.id));
-                navigate('teams-list');
+                if (!confirm('⚠️ ¿ESTÁS SEGURO? Se eliminará el equipo y TODOS sus partidos. Esta acción no se puede deshacer.')) return;
+                try {
+                    const { query, collection: col, where, getDocs, deleteDoc: del, doc: d } = window.firebaseMethods;
+                    // Delete all matches belonging to this team
+                    const matchesQuery = query(col(db, 'matches'), where('teamId', '==', team.id));
+                    const matchesSnap = await getDocs(matchesQuery);
+                    const deletions = matchesSnap.docs.map(mdoc => del(d(db, 'matches', mdoc.id)));
+                    await Promise.all(deletions);
+                    // Delete the team itself
+                    await deleteDoc(doc(db, 'teams', team.id));
+                    navigate('teams-list');
+                } catch (e) {
+                    console.error('Error eliminando equipo:', e);
+                    alert('Error al eliminar el equipo: ' + e.message);
+                }
             };
 
             return (
