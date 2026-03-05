@@ -825,15 +825,21 @@
             const [newPlayerNumber, setNewPlayerNumber] = useState('');
             const [syncing, setSyncing] = useState(false);
             const [showSyncMenu, setShowSyncMenu] = useState(false);
-            const longPressRef = React.useRef({ timer: null, triggered: false });
+            const longPressRef = React.useRef({ timer: null, suppressClick: false, handling: false });
 
             const handleMatchLongPress = (match) => {
-                if (longPressRef.current.triggered) return;
-                longPressRef.current.triggered = true;
-                if (confirm(`¿Eliminar el partido contra ${match.opponent}?`)) {
-                    const { doc, deleteDoc } = window.firebaseMethods;
-                    deleteDoc(doc(db, 'matches', match.id)).catch(err => alert('Error: ' + err.message));
-                }
+                if (longPressRef.current.handling) return;
+                longPressRef.current.handling = true;
+                longPressRef.current.suppressClick = true;
+
+                setTimeout(() => {
+                    if (confirm(`¿Eliminar el partido contra ${match.opponent}?`)) {
+                        const { doc, deleteDoc } = window.firebaseMethods;
+                        deleteDoc(doc(db, 'matches', match.id)).catch(err => alert('Error: ' + err.message));
+                    }
+                    longPressRef.current.handling = false;
+                    setTimeout(() => { longPressRef.current.suppressClick = false; }, 500);
+                }, 50);
             };
 
             const handleSyncFederation = async (silent = false) => {
@@ -1117,20 +1123,15 @@
                         return (
                             <div
                                 onClick={(e) => {
-                                    if (longPressRef.current.triggered) {
-                                        longPressRef.current.triggered = false;
-                                        return;
-                                    }
+                                    if (longPressRef.current.suppressClick) return;
                                     navigate('active-match', team.id, nextMatch.id);
                                 }}
                                 onTouchStart={() => {
-                                    longPressRef.current.triggered = false;
                                     longPressRef.current.timer = setTimeout(() => handleMatchLongPress(nextMatch), 800);
                                 }}
                                 onTouchEnd={() => clearTimeout(longPressRef.current.timer)}
                                 onTouchMove={() => clearTimeout(longPressRef.current.timer)}
                                 onMouseDown={() => {
-                                    longPressRef.current.triggered = false;
                                     longPressRef.current.timer = setTimeout(() => handleMatchLongPress(nextMatch), 800);
                                 }}
                                 onMouseUp={() => clearTimeout(longPressRef.current.timer)}
@@ -1215,20 +1216,15 @@
                                 >
                                     <div
                                         onClick={(e) => {
-                                            if (longPressRef.current.triggered) {
-                                                longPressRef.current.triggered = false;
-                                                return;
-                                            }
+                                            if (longPressRef.current.suppressClick) return;
                                             navigate('active-match', team.id, m.id);
                                         }}
                                         onTouchStart={() => {
-                                            longPressRef.current.triggered = false;
                                             longPressRef.current.timer = setTimeout(() => handleMatchLongPress(m), 800);
                                         }}
                                         onTouchEnd={() => clearTimeout(longPressRef.current.timer)}
                                         onTouchMove={() => clearTimeout(longPressRef.current.timer)}
                                         onMouseDown={() => {
-                                            longPressRef.current.triggered = false;
                                             longPressRef.current.timer = setTimeout(() => handleMatchLongPress(m), 800);
                                         }}
                                         onMouseUp={() => clearTimeout(longPressRef.current.timer)}
