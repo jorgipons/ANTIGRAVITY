@@ -825,21 +825,32 @@
             const [newPlayerNumber, setNewPlayerNumber] = useState('');
             const [syncing, setSyncing] = useState(false);
             const [showSyncMenu, setShowSyncMenu] = useState(false);
-            const longPressRef = React.useRef({ timer: null, suppressClick: false, handling: false });
+            const [swipedMatchId, setSwipedMatchId] = React.useState(null);
+            const swipeRef = React.useRef({ startX: 0, startY: 0, swiping: false });
 
-            const handleMatchLongPress = (match) => {
-                if (longPressRef.current.handling) return;
-                longPressRef.current.handling = true;
-                longPressRef.current.suppressClick = true;
+            const handleSwipeTouchStart = (e, matchId) => {
+                const t = e.touches[0];
+                swipeRef.current = { startX: t.clientX, startY: t.clientY, swiping: false };
+            };
+            const handleSwipeTouchMove = (e, matchId) => {
+                const t = e.touches[0];
+                const dx = swipeRef.current.startX - t.clientX;
+                const dy = Math.abs(swipeRef.current.startY - t.clientY);
+                if (dy > dx) return; // mostly vertical scroll, ignore
+                if (dx > 60) {
+                    swipeRef.current.swiping = true;
+                    setSwipedMatchId(matchId);
+                } else if (dx < -20) {
+                    setSwipedMatchId(null);
+                }
+            };
+            const handleSwipeTouchEnd = () => { /* keep revealed until user acts */ };
 
-                setTimeout(() => {
-                    if (confirm(`¿Eliminar el partido contra ${match.opponent}?`)) {
-                        const { doc, deleteDoc } = window.firebaseMethods;
-                        deleteDoc(doc(db, 'matches', match.id)).catch(err => alert('Error: ' + err.message));
-                    }
-                    longPressRef.current.handling = false;
-                    setTimeout(() => { longPressRef.current.suppressClick = false; }, 500);
-                }, 50);
+            const handleDeleteMatch = (match) => {
+                if (!confirm(`¿Eliminar el partido contra ${match.opponent}?`)) return;
+                const { doc, deleteDoc } = window.firebaseMethods;
+                deleteDoc(doc(db, 'matches', match.id)).catch(err => alert('Error: ' + err.message));
+                setSwipedMatchId(null);
             };
 
             const handleSyncFederation = async (silent = false) => {
@@ -1120,71 +1131,77 @@
 
                         if (!nextMatch) return null;
 
+                        const isRevealed = swipedMatchId === nextMatch.id;
+
                         return (
-                            <div
-                                onClick={(e) => {
-                                    if (longPressRef.current.suppressClick) return;
-                                    navigate('active-match', team.id, nextMatch.id);
-                                }}
-                                onTouchStart={() => {
-                                    longPressRef.current.timer = setTimeout(() => handleMatchLongPress(nextMatch), 800);
-                                }}
-                                onTouchEnd={() => clearTimeout(longPressRef.current.timer)}
-                                onTouchMove={() => clearTimeout(longPressRef.current.timer)}
-                                onMouseDown={() => {
-                                    longPressRef.current.timer = setTimeout(() => handleMatchLongPress(nextMatch), 800);
-                                }}
-                                onMouseUp={() => clearTimeout(longPressRef.current.timer)}
-                                onMouseLeave={() => clearTimeout(longPressRef.current.timer)}
-                                onContextMenu={(e) => {
-                                    e.preventDefault();
-                                    handleMatchLongPress(nextMatch);
-                                }}
-                                className="mb-8 bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl p-0.5 shadow-lg group cursor-pointer active:scale-[0.98] transition-all select-none"
-                            >
-                                <div className="bg-slate-900 rounded-[10px] p-4 relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 p-3 opacity-10">
-                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="calendar" class="w-24 h-24 text-white"></i>' }}></span>
-                                    </div>
-                                    <div className="relative z-10">
-                                        <h3 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
-                                            Próximo Partido
-                                        </h3>
-                                        <h2 className="text-lg font-bold text-white mb-3 block w-full leading-tight truncate">{nextMatch.opponent}</h2>
+                            <div className="mb-8 relative overflow-hidden rounded-xl select-none">
+                                {/* Delete background */}
+                                <div className="absolute inset-0 bg-red-600 flex items-center justify-end pr-5 rounded-xl">
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trash-2" class="w-6 h-6 text-white"></i>' }}></span>
+                                </div>
+                                {/* Swipeable card */}
+                                <div
+                                    style={{ transform: isRevealed ? 'translateX(-80px)' : 'translateX(0)', transition: 'transform 0.25s ease', touchAction: 'pan-y' }}
+                                    onTouchStart={(e) => handleSwipeTouchStart(e, nextMatch.id)}
+                                    onTouchMove={(e) => handleSwipeTouchMove(e, nextMatch.id)}
+                                    onTouchEnd={handleSwipeTouchEnd}
+                                    onClick={() => { if (isRevealed) { setSwipedMatchId(null); return; } navigate('active-match', team.id, nextMatch.id); }}
+                                    className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl p-0.5 shadow-lg group cursor-pointer active:scale-[0.98]  relative z-10"
+                                >
+                                    <div className="bg-slate-900 rounded-[10px] p-4 relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 p-3 opacity-10">
+                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="calendar" class="w-24 h-24 text-white"></i>' }}></span>
+                                        </div>
+                                        <div className="relative z-10">
+                                            <h3 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                                                Próximo Partido
+                                            </h3>
+                                            <h2 className="text-lg font-bold text-white mb-3 block w-full leading-tight truncate">{nextMatch.opponent}</h2>
 
-                                        <div className="flex items-end justify-between">
-                                            <div className="space-y-2">
-                                                <p className="text-slate-400 text-xs font-medium flex items-center gap-1.5">
-                                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="clock" class="w-3.5 h-3.5"></i>' }}></span>
-                                                    {new Date(nextMatch.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
-                                                    {nextMatch.time ? ` • ${nextMatch.time}h` : ''}
-                                                </p>
-                                                {nextMatch.location && (
-                                                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-300">
-                                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="map-pin" class="w-3 h-3 text-red-400"></i>' }}></span>
-                                                        <span className="truncate max-w-[200px]">{nextMatch.location}</span>
-                                                    </div>
-                                                )}
-                                                {nextMatch.callTime && nextMatch.isHome && (
-                                                    <div className="text-[10px] text-emerald-400 font-bold flex items-center gap-1.5">
-                                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="bell" class="w-3 h-3"></i>' }}></span>
-                                                        Convocatoria: {nextMatch.callTime}h (1h antes)
-                                                    </div>
-                                                )}
-                                            </div>
+                                            <div className="flex items-end justify-between">
+                                                <div className="space-y-2">
+                                                    <p className="text-slate-400 text-xs font-medium flex items-center gap-1.5">
+                                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="clock" class="w-3.5 h-3.5"></i>' }}></span>
+                                                        {new Date(nextMatch.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                                        {nextMatch.time ? ` • ${nextMatch.time}h` : ''}
+                                                    </p>
+                                                    {nextMatch.location && (
+                                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-300">
+                                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="map-pin" class="w-3 h-3 text-red-400"></i>' }}></span>
+                                                            <span className="truncate max-w-[200px]">{nextMatch.location}</span>
+                                                        </div>
+                                                    )}
+                                                    {nextMatch.callTime && nextMatch.isHome && (
+                                                        <div className="text-[10px] text-emerald-400 font-bold flex items-center gap-1.5">
+                                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="bell" class="w-3 h-3"></i>' }}></span>
+                                                            Convocatoria: {nextMatch.callTime}h (1h antes)
+                                                        </div>
+                                                    )}
+                                                </div>
 
-                                            <div className={`px-3 py-1.5 rounded-xl text-[10px] font-bold shadow-sm mb-0.5 ml-2 shrink-0 ${nextMatch.isHome ? 'bg-blue-600 text-white border border-blue-500' : 'bg-orange-500 text-white border border-orange-400'}`}>
-                                                {nextMatch.isHome ? '🏠 CASA' : '✈️ FUERA'}
+                                                <div className={`px-3 py-1.5 rounded-xl text-[10px] font-bold shadow-sm mb-0.5 ml-2 shrink-0 ${nextMatch.isHome ? 'bg-blue-600 text-white border border-blue-500' : 'bg-orange-500 text-white border border-orange-400'}`}>
+                                                    {nextMatch.isHome ? '🏠 CASA' : '✈️ FUERA'}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-2 group-hover:translate-x-0">
-                                        <div className="bg-blue-600 text-white p-1.5 rounded-full shadow-lg">
-                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-right" class="w-4 h-4"></i>' }}></span>
+                                        <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-2 group-hover:translate-x-0">
+                                            <div className="bg-blue-600 text-white p-1.5 rounded-full shadow-lg">
+                                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-right" class="w-4 h-4"></i>' }}></span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
+                                {/* Delete button revealed on swipe */}
+                                {isRevealed && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteMatch(nextMatch); }}
+                                        className="absolute right-0 top-0 bottom-0 w-20 bg-red-600 flex flex-col items-center justify-center text-white rounded-r-xl z-20 active:bg-red-700"
+                                    >
+                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trash-2" class="w-5 h-5 mb-1"></i>' }}></span>
+                                        <span className="text-[10px] font-bold">Borrar</span>
+                                    </button>
+                                )}
                             </div>
                         );
                     })()}
@@ -1209,74 +1226,81 @@
                         </div>
                         <div className="space-y-2">
                             {teamMatches.length === 0 && <p className="text-sm text-slate-400">Sin partidos registrados.</p>}
-                            {getSortedMatches(teamMatches).map(m => (
-                                <div
-                                    key={m.id}
-                                    className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex justify-between items-center group/match select-none"
-                                >
+                            {getSortedMatches(teamMatches).map(m => {
+                                const isRevealed = swipedMatchId === m.id;
+                                return (
                                     <div
-                                        onClick={(e) => {
-                                            if (longPressRef.current.suppressClick) return;
-                                            navigate('active-match', team.id, m.id);
-                                        }}
-                                        onTouchStart={() => {
-                                            longPressRef.current.timer = setTimeout(() => handleMatchLongPress(m), 800);
-                                        }}
-                                        onTouchEnd={() => clearTimeout(longPressRef.current.timer)}
-                                        onTouchMove={() => clearTimeout(longPressRef.current.timer)}
-                                        onMouseDown={() => {
-                                            longPressRef.current.timer = setTimeout(() => handleMatchLongPress(m), 800);
-                                        }}
-                                        onMouseUp={() => clearTimeout(longPressRef.current.timer)}
-                                        onMouseLeave={() => clearTimeout(longPressRef.current.timer)}
-                                        onContextMenu={(e) => {
-                                            e.preventDefault();
-                                            handleMatchLongPress(m);
-                                        }}
-                                        className="flex-1 cursor-pointer"
+                                        key={m.id}
+                                        className="relative overflow-hidden rounded-xl select-none"
                                     >
-                                        <p className="font-bold text-slate-800">{m.opponent}</p>
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                                            {m.date} {m.time ? `• ${m.time} h` : ''}
-                                            {m.state === 'finished' ? (
-                                                <span className={`ml-1 ${m.result === 'won' ? 'text-green-600' : (m.result === 'lost' ? 'text-red-500' : 'text-slate-500')}`}>
-                                                    • {m.result === 'won' ? 'Victoria' : (m.result === 'lost' ? 'Derrota' : 'Finalizado')}
-                                                    {m.score ? ` (${m.score.local} - ${m.score.visitor})` : ''}
-                                                </span>
-                                            ) : <span className="text-blue-600 ml-1">• P{m.currentPeriod}</span>}
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                        {m.state !== 'finished' && (
-                                            <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-100 md:opacity-0 md:group-hover/match:opacity-100 transition-opacity">
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); navigate('edit-match', team.id, m.id); }}
-                                                    className="p-1 px-1.5 text-blue-600 hover:bg-blue-50 rounded"
-                                                    title="Editar Partido"
-                                                >
-                                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="edit-2" class="w-3.5 h-3.5"></i>' }}></span>
-                                                </button>
-                                                <div className="w-px h-3 bg-slate-200 mx-0.5"></div>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); copyToClipboard(generateConvocatoria(m, team, 'val')); }}
-                                                    className="p-1 px-1.5 text-[10px] font-bold text-emerald-600 hover:bg-emerald-50 rounded"
-                                                    title="Copy VAL"
-                                                >
-                                                    VAL
-                                                </button>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); copyToClipboard(generateConvocatoria(m, team, 'cas')); }}
-                                                    className="p-1 px-1.5 text-[10px] font-bold text-emerald-600 hover:bg-emerald-50 rounded border-l border-slate-200"
-                                                    title="Copy CAS"
-                                                >
-                                                    CAS
-                                                </button>
+                                        {/* Delete button in background */}
+                                        <div className="absolute inset-0 bg-red-500 flex items-center justify-end pr-5 rounded-xl">
+                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trash-2" class="w-5 h-5 text-white"></i>' }}></span>
+                                        </div>
+                                        {/* Swipeable card */}
+                                        <div
+                                            style={{ transform: isRevealed ? 'translateX(-72px)' : 'translateX(0)', transition: 'transform 0.25s ease', touchAction: 'pan-y' }}
+                                            onTouchStart={(e) => { setSwipedMatchId(null); handleSwipeTouchStart(e, m.id); }}
+                                            onTouchMove={(e) => handleSwipeTouchMove(e, m.id)}
+                                            onTouchEnd={handleSwipeTouchEnd}
+                                            onClick={() => { if (isRevealed) { setSwipedMatchId(null); return; } navigate('active-match', team.id, m.id); }}
+                                            className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex justify-between items-center group/match relative z-10 cursor-pointer"
+                                        >
+                                            <div>
+                                                <p className="font-bold text-slate-800">{m.opponent}</p>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                                                    {m.date} {m.time ? `• ${m.time} h` : ''}
+                                                    {m.state === 'finished' ? (
+                                                        <span className={`ml-1 ${m.result === 'won' ? 'text-green-600' : (m.result === 'lost' ? 'text-red-500' : 'text-slate-500')}`}>
+                                                            • {m.result === 'won' ? 'Victoria' : (m.result === 'lost' ? 'Derrota' : 'Finalizado')}
+                                                            {m.score ? ` (${m.score.local} - ${m.score.visitor})` : ''}
+                                                        </span>
+                                                    ) : <span className="text-blue-600 ml-1">• P{m.currentPeriod}</span>}
+                                                </p>
                                             </div>
+                                            <div className="flex items-center gap-1.5">
+                                                {m.state !== 'finished' && (
+                                                    <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-100 md:opacity-0 md:group-hover/match:opacity-100 transition-opacity">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); navigate('edit-match', team.id, m.id); }}
+                                                            className="p-1 px-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                                                            title="Editar Partido"
+                                                        >
+                                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="edit-2" class="w-3.5 h-3.5"></i>' }}></span>
+                                                        </button>
+                                                        <div className="w-px h-3 bg-slate-200 mx-0.5"></div>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); copyToClipboard(generateConvocatoria(m, team, 'val')); }}
+                                                            className="p-1 px-1.5 text-[10px] font-bold text-emerald-600 hover:bg-emerald-50 rounded"
+                                                            title="Copy VAL"
+                                                        >
+                                                            VAL
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); copyToClipboard(generateConvocatoria(m, team, 'cas')); }}
+                                                            className="p-1 px-1.5 text-[10px] font-bold text-emerald-600 hover:bg-emerald-50 rounded border-l border-slate-200"
+                                                            title="Copy CAS"
+                                                        >
+                                                            CAS
+                                                        </button>
+                                                    </div>
+                                                )}
+                                                <div className={`w-2 h-2 rounded-full ${m.state === 'finished' ? 'bg-slate-300' : 'bg-blue-500 animate-pulse'}`}></div>
+                                            </div>
+                                        </div>
+                                        {/* Delete button revealed on swipe */}
+                                        {isRevealed && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleDeleteMatch(m); }}
+                                                className="absolute right-0 top-0 bottom-0 w-[72px] bg-red-500 flex flex-col items-center justify-center text-white rounded-r-xl z-20 active:bg-red-600"
+                                            >
+                                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trash-2" class="w-4 h-4 mb-1"></i>' }}></span>
+                                                <span className="text-[10px] font-bold">Borrar</span>
+                                            </button>
                                         )}
-                                        <div className={`w-2 h-2 rounded-full ${m.state === 'finished' ? 'bg-slate-300' : 'bg-blue-500 animate-pulse'}`}></div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </section>
 
