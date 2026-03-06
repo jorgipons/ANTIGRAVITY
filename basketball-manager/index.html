@@ -775,7 +775,7 @@
             }
         };
 
-        const DesktopSidebar = ({ navigate, view, signOut, subscription, isOnline, startTutorial, isAdmin }) => {
+        const DesktopSidebar = ({ navigate, view, signOut, subscription, isOnline, startTutorial, isAdmin, teams = [], matches = [] }) => {
             const handleLogout = async () => {
                 if (confirm('¿Cerrar sesión?')) {
                     await signOut(window.auth);
@@ -783,20 +783,18 @@
                 }
             };
 
-            useEffect(() => { lucide.createIcons(); }, [view, isOnline]);
+            useEffect(() => { lucide.createIcons(); }, [view, isOnline, teams.length, isAdmin]);
 
-            const navBtn = (targetView, icon, label, teamId = null) => {
-                const active = view === targetView;
+            const navBtn = (targetView, icon, label, teamId = null, matchId = null) => {
+                const active = view === targetView && (!teamId || window.selectedTeamId === teamId);
                 return (
                     <button
-                        onClick={() => navigate(targetView, teamId)}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                        onClick={() => navigate(targetView, teamId, matchId)}
+                        className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition-all"
                         style={{
                             backgroundColor: active ? 'rgba(255,255,255,0.18)' : 'transparent',
                             color: active ? 'white' : 'rgba(255,255,255,0.65)',
                         }}
-                        onMouseEnter={e => { if (!active) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
-                        onMouseLeave={e => { if (!active) e.currentTarget.style.backgroundColor = 'transparent'; }}
                     >
                         <span dangerouslySetInnerHTML={{ __html: `<i data-lucide="${icon}" class="w-4 h-4 flex-shrink-0"></i>` }}></span>
                         <span className="truncate">{label}</span>
@@ -806,28 +804,56 @@
             };
 
             return (
-                <aside className="hidden lg:flex flex-col w-56 flex-shrink-0 min-h-screen sticky top-0" style={{ backgroundColor: '#002D62' }}>
+                <aside className="hidden lg:flex flex-col w-64 flex-shrink-0 min-h-screen sticky top-0" style={{ backgroundColor: '#002D62' }}>
                     {/* Logo */}
                     <div className="px-4 py-5 flex items-center gap-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
                         <img src="./icon.png" alt="Basket Manager" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
                         <span className="text-white font-black text-sm leading-tight">Basket Manager</span>
                     </div>
 
-                    {/* Offline banner */}
-                    {!isOnline && (
-                        <div className="text-white text-[10px] font-bold text-center py-1.5 flex items-center justify-center gap-1.5" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}>
-                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="wifi-off" class="w-3 h-3"></i>' }}></span>
-                            SIN CONEXIÓN
-                        </div>
-                    )}
-
                     {/* Navigation */}
-                    <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-                        <p className="text-[9px] font-bold uppercase tracking-widest px-3 mb-2" style={{ color: 'rgba(255,255,255,0.35)' }}>Navegación</p>
-                        {navBtn('teams-list', 'layout-list', 'Mis Equipos')}
-                        {navBtn('all-matches-calendar', 'calendar-days', 'Calendario Global')}
-                        {isAdmin && navBtn('admin-dashboard', 'shield-check', 'Administración')}
-                    </nav>
+                    <div className="flex-1 overflow-y-auto customize-scrollbar">
+                        <nav className="px-3 py-4 space-y-1">
+                            <p className="text-[9px] font-bold uppercase tracking-widest px-3 mb-2" style={{ color: 'rgba(255,255,255,0.35)' }}>Navegación</p>
+                            {navBtn('teams-list', 'layout-list', 'Resumen General')}
+                            {navBtn('all-matches-calendar', 'calendar-days', 'Calendario Global')}
+                            {isAdmin && navBtn('admin-dashboard', 'shield-check', 'Administración')}
+                        </nav>
+
+                        {teams.length > 0 && (
+                            <div className="px-3 py-2 space-y-3">
+                                <p className="text-[9px] font-bold uppercase tracking-widest px-3 mb-1" style={{ color: 'rgba(255,255,255,0.35)' }}>Mis Equipos</p>
+                                <div className="space-y-1">
+                                    {teams.filter(t => !t.archived).map(team => {
+                                        const teamMatches = matches.filter(m => m.teamId === team.id);
+                                        const nextMatch = teamMatches
+                                            .filter(m => m.state !== 'finished' && new Date(m.date) >= new Date().setHours(0, 0, 0, 0))
+                                            .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
+
+                                        return (
+                                            <div key={team.id} className="space-y-1">
+                                                <button
+                                                    onClick={() => navigate('team-detail', team.id)}
+                                                    className={`w-full text-left px-3 py-2 rounded-xl text-sm font-bold transition-all truncate ${view === 'team-detail' && window.selectedTeamId === team.id ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/5 hover:text-white/80'}`}
+                                                >
+                                                    {team.name}
+                                                </button>
+                                                {nextMatch && (
+                                                    <button
+                                                        onClick={() => navigate('active-match', team.id, nextMatch.id)}
+                                                        className="w-full text-left px-3 py-1.5 ml-2 border-l-2 border-white/10 hover:border-blue-400 transition-all group"
+                                                    >
+                                                        <div className="text-[10px] font-bold text-blue-400 truncate group-hover:text-blue-300">vs {nextMatch.opponent}</div>
+                                                        <div className="text-[9px] text-white/40">{new Date(nextMatch.date).toLocaleDateString()}</div>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
                     {/* Bottom user area */}
                     <div className="px-3 py-4 border-t space-y-2" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
@@ -837,31 +863,17 @@
                                 <span className="text-xs font-bold" style={{ color: '#FFD700' }}>Premium</span>
                             </div>
                         )}
-                        <button
-                            onClick={startTutorial}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all"
-                            style={{ color: 'rgba(255,255,255,0.55)' }}
-                            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'}
-                            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                        >
-                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="circle-help" class="w-4 h-4"></i>' }}></span>
-                            Ayuda / Tutorial
+                        <button onClick={startTutorial} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold text-white/50 hover:bg-white/5 hover:text-white transition-all">
+                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="circle-help" class="w-4 h-4"></i>' }}></span> Ayuda
                         </button>
-                        <button
-                            onClick={handleLogout}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all"
-                            style={{ color: 'rgba(255,255,255,0.55)' }}
-                            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'}
-                            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                        >
-                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="log-out" class="w-4 h-4"></i>' }}></span>
-                            Cerrar sesión
+                        <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold text-white/50 hover:bg-white/5 hover:text-white transition-all">
+                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="log-out" class="w-4 h-4"></i>' }}></span> Salir
                         </button>
-                        <p className="text-center text-[9px] font-bold pt-2" style={{ color: 'rgba(255,255,255,0.2)' }}>v{APP_VERSION}</p>
                     </div>
                 </aside>
             );
         };
+
 
         const TopBar = ({ navigate, view, signOut, subscription, isOnline, startTutorial, isAdmin }) => {
             const handleLogout = async () => {
@@ -873,7 +885,7 @@
 
             useEffect(() => {
                 lucide.createIcons();
-            }, [isOnline]); // Re-render icons when online status changes
+            }, [isOnline, isAdmin]); // Re-render icons when online or admin status changes
 
             return (
                 <div className="lg:hidden sticky top-0 z-50" style={{ backgroundColor: '#002D62' }}>
@@ -1647,34 +1659,28 @@
                                                             ) : <span className="text-blue-600 ml-1">• P{m.currentPeriod}</span>}
                                                         </p>
                                                     </div>
-                                                    <div className="flex items-center gap-1.5">
-                                                        {m.state !== 'finished' && (
-                                                            <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-100 md:opacity-0 md:group-hover/match:opacity-100 transition-opacity">
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); navigate('edit-match', team.id, m.id); }}
-                                                                    className="p-1 px-1.5 text-blue-600 hover:bg-blue-50 rounded"
-                                                                    title="Editar Partido"
-                                                                >
-                                                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="edit-2" class="w-3.5 h-3.5"></i>' }}></span>
-                                                                </button>
-                                                                <div className="w-px h-3 bg-slate-200 mx-0.5"></div>
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); copyToClipboard(generateConvocatoria(m, team, 'val')); }}
-                                                                    className="p-1 px-1.5 text-[10px] font-bold text-emerald-600 hover:bg-emerald-50 rounded"
-                                                                    title="Copy VAL"
-                                                                >
-                                                                    VAL
-                                                                </button>
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); copyToClipboard(generateConvocatoria(m, team, 'cas')); }}
-                                                                    className="p-1 px-1.5 text-[10px] font-bold text-emerald-600 hover:bg-emerald-50 rounded border-l border-slate-200"
-                                                                    title="Copy CAS"
-                                                                >
-                                                                    CAS
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                        <div className={`w-2 h-2 rounded-full ${m.state === 'finished' ? 'bg-slate-300' : 'bg-blue-500 animate-pulse'}`}></div>
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); navigate('attendance-status', team.id, m.id); }}
+                                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                            title="Ver Asistencia"
+                                                        >
+                                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="users" class="w-4 h-4"></i>' }}></span>
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); navigate('edit-match', team.id, m.id); }}
+                                                            className="p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-800 rounded-lg transition-colors"
+                                                            title="Editar Partido"
+                                                        >
+                                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="pencil" class="w-4 h-4"></i>' }}></span>
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); navigate('active-match', team.id, m.id); }}
+                                                            className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                                                            title="Ver Partido"
+                                                        >
+                                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="dribbble" class="w-4 h-4"></i>' }}></span>
+                                                        </button>
                                                     </div>
                                                 </div>
                                                 {/* Delete button revealed on swipe */}
@@ -1769,7 +1775,7 @@
             }, []);
 
             return (
-                <div className="p-4 max-w-md mx-auto">
+                <div className="p-4 max-w-md lg:max-w-4xl mx-auto">
                     <h2 className="font-bold text-lg mb-4 text-red-600 flex items-center gap-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="activity" class="w-5 h-5"></i>' }}></span> Sustitución por Lesión (P{currentP})</h2>
                     <div className="space-y-4">
                         <div>
@@ -2206,7 +2212,7 @@
                 const currentIds = (match.players || []).map(p => p.id);
                 const availablePlayers = (team.players || []).filter(p => !currentIds.includes(p.id));
                 return (
-                    <div className="p-4 max-w-md mx-auto">
+                    <div className="p-4 max-w-md lg:max-w-4xl mx-auto">
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="font-bold text-lg">Añadir Jugador Tardío</h2>
                             <button
@@ -2249,7 +2255,7 @@
 
             if (mode === 'summary') {
                 return (
-                    <div className="p-4 max-w-md mx-auto">
+                    <div className="p-4 max-w-md lg:max-w-4xl mx-auto">
                         <header className="mb-6 flex items-center gap-2">
                             <button onClick={() => navigate('team-detail', match.teamId)} className="p-2 -ml-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
                             <h1 className="text-2xl font-bold">Resumen</h1>
@@ -2274,7 +2280,7 @@
 
             if (mode === 'edit-match') {
                 return (
-                    <div className="p-4 max-w-md mx-auto">
+                    <div className="p-4 max-w-md lg:max-w-4xl mx-auto">
                         <EditMatchView
                             match={match}
                             team={team}
@@ -2301,7 +2307,7 @@
             }
 
             return (
-                <div className="p-2 md:p-4 max-w-4xl mx-auto pb-24 mobile-landscape-stretch">
+                <div className="p-4 max-w-md lg:max-w-4xl mx-auto pb-24 mobile-landscape-stretch">
                     <header className="mb-4 mobile-landscape-compact-nav">
                         <div className="flex items-center justify-between mb-2">
                             <button onClick={() => navigate('team-detail', match.teamId)} className="p-2 -ml-2 text-slate-600 hover:text-slate-900"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left" class="w-6 h-6"></i>' }}></span></button>
@@ -2314,6 +2320,17 @@
                                 <button id="tutorial-edit-mode" onClick={() => setEditAllMode(!editAllMode)} disabled={isLocked} className={`p-2 rounded-lg transition-colors border ${isLocked ? 'bg-slate-50 text-slate-300 opacity-50 cursor-not-allowed border-transparent' : (editAllMode ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-slate-100 text-slate-500 border-transparent hover:bg-slate-200')}`} title="Modo Edición Total"><span dangerouslySetInnerHTML={{ __html: `<i data-lucide="${editAllMode ? 'unlock' : 'lock'}" class="w-5 h-5"></i>` }}></span></button>
                                 <button onClick={addLatePlayer} disabled={isLocked} className={`p-2 rounded-lg transition-colors ${isLocked ? 'bg-slate-50 text-slate-300 opacity-50 cursor-not-allowed' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`} title="Añadir Convocado"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="user-plus" class="w-5 h-5"></i>' }}></span></button>
                                 <button onClick={() => setMode('edit-match')} className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors" title="Configurar Partido"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="settings" class="w-5 h-5"></i>' }}></span></button>
+                                <button
+                                    onClick={() => {
+                                        const url = `${window.location.origin}${window.location.pathname}?matchId=${match.id}`;
+                                        copyToClipboard(url);
+                                        showToast('Enlace de asistencia copiado');
+                                    }}
+                                    className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                                    title="Copiar Enlace para Padres"
+                                >
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="link" class="w-5 h-5"></i>' }}></span>
+                                </button>
 
                             </div>
                         </div>
@@ -2342,7 +2359,16 @@
                                     return (
                                         <tr key={p.id} className={`border-b last:border-0 h-10 mobile-landscape-compact-nav group/row ${isDisabled ? 'bg-slate-100 text-slate-400' : (hasError ? 'bg-red-100 border-red-200' : (isPlayingNow ? 'bg-blue-50/30' : 'hover:bg-slate-50'))}`}>
                                             <td className={`p-2 mobile-landscape-compact-p border-r sticky left-0 z-10 font-medium text-xs md:text-sm whitespace-nowrap flex items-center justify-between ${isDisabled ? 'bg-slate-100 text-slate-400' : (hasError ? 'bg-red-100 text-red-900 font-bold' : (isPlayingNow ? 'bg-blue-50 text-blue-900 font-extrabold' : 'bg-white text-slate-800 group-hover/row:bg-slate-50'))}`}>
-                                                <div className={isDisabled ? 'line-through decoration-slate-400' : ''}><span className="inline-block w-6">#{p.number}</span><span className="mr-1">{p.name}</span>{!isDisabled && defaultRole && roles[defaultRole] && (<span className={`w-2 h-2 rounded-full inline-block mb-0.5 ${roles[defaultRole].bg.replace('-50', '-400')}`}></span>)}</div>
+                                                <div className={isDisabled ? 'line-through decoration-slate-400' : ''}>
+                                                    <span className="inline-block w-6">#{p.number}</span>
+                                                    <span className="mr-1">{p.name}</span>
+                                                    {match.attendance?.[p.id] && (
+                                                        <span className={`w-2 h-2 rounded-full inline-block mb-0.5 mr-1 ${match.attendance[p.id].status === 'available' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                                    )}
+                                                    {!isDisabled && defaultRole && roles[defaultRole] && (
+                                                        <span className={`w-2 h-2 rounded-full inline-block mb-0.5 ${roles[defaultRole].bg.replace('-50', '-400')}`}></span>
+                                                    )}
+                                                </div>
                                                 {!isLocked && (<button onClick={() => togglePlayerActiveStatus(p.id, p.name, isDisabled)} className={`p-1 opacity-0 group-hover/row:opacity-100 transition-opacity ${isDisabled ? 'text-green-500 hover:text-green-700' : 'text-slate-300 hover:text-red-500'}`}><span dangerouslySetInnerHTML={{ __html: `<i data-lucide="${isDisabled ? 'rotate-ccw' : 'ban'}" class="w-3 h-3"></i>` }}></span></button>)}
                                             </td>
                                             {periodsArray.map(period => {
@@ -3037,6 +3063,9 @@
             }, [team]);
 
             if (!team) return null;
+
+            const [matchId, setMatchId] = useState(null);
+            const [saveStatus, setSaveStatus] = useState('');
             const [opponent, setOpponent] = useState('');
             const [matchDate, setMatchDate] = useState(new Date().toISOString().split('T')[0]);
             const [matchTime, setMatchTime] = useState('');
@@ -3072,38 +3101,69 @@
                 );
             };
 
-            const createMatch = async () => {
+            const handleSave = async (shouldNavigate = false) => {
                 if (!opponent.trim() || selectedPlayers.length === 0) {
                     alert('Debes ingresar un rival y seleccionar al menos un jugador.');
-                    return;
+                    return null;
                 }
-                const fullPlayers = players.filter(p => selectedPlayers.includes(p.id));
-                const newMatch = {
-                    teamId: team.id,
-                    opponent,
-                    date: matchDate,
-                    time: matchTime,
-                    callTime,
-                    location,
-                    matchDay,
-                    isHome,
-                    observations,
-                    players: fullPlayers,
-                    currentPeriod: 1,
-                    state: 'active',
-                    history: {},
-                    injuries: [],
-                    score: { local: 0, visitor: 0 },
-                    rulesetId: rulesetId,
-                    ownerId: window.auth.currentUser.uid,
-                    createdAt: new Date().toISOString(),
-                    departureTime: !isHome ? departureTime : '',
-                    departureLocation: !isHome ? departureLocation : '',
-                    transportType: !isHome ? transportType : '',
-                    arrivalTime: !isHome ? arrivalTime : ''
-                };
-                const docRef = await addDoc(collection(db, 'matches'), newMatch);
-                navigate('active-match', team.id, docRef.id);
+
+                setSaveStatus('Guardando...');
+                try {
+                    const fullPlayers = players.filter(p => selectedPlayers.includes(p.id));
+                    const matchData = {
+                        teamId: team.id,
+                        opponent,
+                        date: matchDate,
+                        time: matchTime,
+                        callTime,
+                        location,
+                        matchDay,
+                        isHome,
+                        observations,
+                        players: fullPlayers,
+                        currentPeriod: 1,
+                        state: 'active',
+                        history: {},
+                        injuries: [],
+                        score: { local: 0, visitor: 0 },
+                        rulesetId: rulesetId,
+                        ownerId: window.auth.currentUser.uid,
+                        createdAt: matchId ? undefined : new Date().toISOString(), // Only set on creation
+                        updatedAt: new Date().toISOString(),
+                        departureTime: !isHome ? departureTime : '',
+                        departureLocation: !isHome ? departureLocation : '',
+                        transportType: !isHome ? transportType : '',
+                        arrivalTime: !isHome ? arrivalTime : ''
+                    };
+
+                    let currentId = matchId;
+                    if (currentId) {
+                        const matchRef = doc(db, 'matches', currentId);
+                        await updateDoc(matchRef, matchData);
+                    } else {
+                        const docRef = await addDoc(collection(db, 'matches'), matchData);
+                        currentId = docRef.id;
+                        setMatchId(currentId);
+                    }
+
+                    if (shouldNavigate) {
+                        navigate('active-match', team.id, currentId);
+                    } else {
+                        setSaveStatus('Guardado ✅');
+                        setTimeout(() => setSaveStatus(''), 3000);
+                        if (window.lucide) window.lucide.createIcons();
+                    }
+                    return currentId;
+                } catch (error) {
+                    console.error("Error saving match:", error);
+                    setSaveStatus('Error ❌');
+                    alert('Error al guardar el partido: ' + error.message);
+                    return null;
+                }
+            };
+
+            const createMatch = async () => {
+                await handleSave(true);
             };
 
             useEffect(() => {
@@ -3179,7 +3239,7 @@
                                             <input className="w-full p-2.5 border border-blue-200 rounded-lg focus:border-blue-500 outline-none transition-all bg-white text-sm" placeholder="Pabellón..." value={departureLocation} onChange={e => setDepartureLocation(e.target.value)} />
                                         </div>
                                         <div className="space-y-1">
-                                            <label className="block text-[10px] font-bold text-blue-400 uppercase ml-1">Hora Llegada</label>
+                                            <label className="block text-[10px] font-bold text-blue-400 uppercase ml-1">Hora Vuelta</label>
                                             <input type="time" className="w-full p-2.5 border border-blue-200 rounded-lg focus:border-blue-500 outline-none transition-all bg-white text-sm" value={arrivalTime} onChange={e => setArrivalTime(e.target.value)} />
                                         </div>
                                     </div>
@@ -3201,9 +3261,21 @@
 
                             <textarea className="w-full p-3 border border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-all bg-white shadow-sm" placeholder="Observaciones (opcional)" rows="2" value={observations} onChange={e => setObservations(e.target.value)}></textarea>
 
-                            <button onClick={createMatch} className="hidden lg:flex mt-4 w-full bg-slate-900 text-white p-4 rounded-xl font-extrabold shadow-xl active:scale-[0.98] transition-all items-center justify-center gap-2">
-                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="play" class="w-5 h-5 fill-white"></i>' }}></span> Empezar Partido
-                            </button>
+                            <div className="hidden lg:flex flex-col gap-3 mt-4">
+                                <button
+                                    onClick={() => handleSave(false)}
+                                    className="w-full bg-white border-2 border-slate-900 text-slate-900 p-4 rounded-xl font-extrabold shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                                >
+                                    {saveStatus ? <span>{saveStatus}</span> : (
+                                        <>
+                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="save" class="w-5 h-5"></i>' }}></span> Guardar
+                                        </>
+                                    )}
+                                </button>
+                                <button onClick={createMatch} className="w-full bg-slate-900 text-white p-4 rounded-xl font-extrabold shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="play" class="w-5 h-5 fill-white"></i>' }}></span> Empezar Partido
+                                </button>
+                            </div>
                         </div>
 
                         {/* Right Column: Players and Copy buttons */}
@@ -3247,6 +3319,24 @@
                                 </div>
                             </div>
 
+                            <div className={`${matchId ? 'bg-blue-50/50 p-4 border-blue-100 animate-in fade-in zoom-in duration-300' : 'bg-slate-50 p-4 opacity-70'} rounded-xl border border-slate-200 transition-all`}>
+                                <h3 className={`text-xs font-bold ${matchId ? 'text-blue-600' : 'text-slate-500'} uppercase tracking-widest mb-1`}>Enlace para Padres</h3>
+                                <p className={`text-[10px] ${matchId ? 'text-blue-400' : 'text-slate-400'} mb-3`}>
+                                    {matchId ? 'Envía este enlace por WhatsApp para que los padres confirmen asistencia' : 'Guarda el partido primero para generar el enlace'}
+                                </p>
+                                <button
+                                    onClick={() => {
+                                        if (!matchId) return alert('Primero debes guardar el partido para generar un enlace válido.');
+                                        const url = `${window.location.origin}${window.location.pathname}?matchId=${matchId}`;
+                                        navigator.clipboard.writeText(url);
+                                        alert('Enlace copiado ✅');
+                                    }}
+                                    className={`w-full py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 active:scale-95 ${matchId ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm shadow-blue-200' : 'bg-slate-200 text-slate-500 cursor-not-allowed'}`}
+                                >
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="link" class="w-4 h-4"></i>' }}></span> Copiar Enlace de Asistencia
+                                </button>
+                            </div>
+
                             <div className="flex-1 flex flex-col">
                                 <h3 className="font-bold text-slate-800 mb-2 ml-1">Seleccionar Jugadores ({selectedPlayers.length})</h3>
                                 <div className="space-y-2 mb-6 max-h-[400px] overflow-y-auto pr-2 no-scrollbar flex-1">
@@ -3260,7 +3350,9 @@
                                                 className={`w-full p-3 rounded-xl border flex items-center justify-between transition-all ${selectedPlayers.includes(p.id) ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500' : 'bg-white border-slate-200 hover:border-slate-300'}`}
                                             >
                                                 <div className="flex items-center gap-3">
-                                                    <span className="w-8 h-8 flex items-center justify-center bg-slate-100 border border-slate-200 shadow-sm rounded-full text-slate-700 font-bold text-xs">{p.number}</span>
+                                                    <div className="relative">
+                                                        <span className="w-8 h-8 flex items-center justify-center bg-slate-100 border border-slate-200 shadow-sm rounded-full text-slate-700 font-bold text-xs">{p.number}</span>
+                                                    </div>
                                                     <span className="font-bold text-slate-700 text-sm">{p.name}</span>
                                                 </div>
                                                 <div className="flex items-center gap-3">
@@ -3281,9 +3373,47 @@
                         </div>
                     </div>
 
-                    <button onClick={createMatch} className="lg:hidden w-full bg-slate-900 text-white p-4 rounded-xl font-extrabold shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="play" class="w-5 h-5 fill-white"></i>' }}></span> Empezar Partido
-                    </button>
+                    {saveStatus === 'Saved' && (
+                        <div className="mb-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="p-3 bg-blue-50 rounded-xl border border-blue-100 flex flex-col gap-2 shadow-sm">
+                                <p className="text-[10px] text-blue-600 font-bold uppercase tracking-widest text-center">Convocatoria Activa</p>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => navigate('attendance-status', team.id, matchId)}
+                                        className="flex-1 py-1.5 bg-blue-600 text-white rounded-lg font-bold text-[10px] hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
+                                    >
+                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="users" class="w-3 h-3"></i>' }}></span> Ver Estado
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const url = `${window.location.origin}${window.location.pathname}?matchId=${matchId}`;
+                                            copyToClipboard(url);
+                                            alert('Enlace copiado ✅');
+                                        }}
+                                        className="flex-1 py-1.5 bg-white border border-blue-200 text-blue-600 rounded-lg font-bold text-[10px] hover:bg-blue-50 transition-colors flex items-center justify-center gap-1.5 active:scale-95"
+                                    >
+                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="link" class="w-3 h-3"></i>' }}></span> Copiar Link
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex gap-3 lg:hidden">
+                        <button
+                            onClick={() => handleSave(false)}
+                            className="flex-1 bg-white border-2 border-slate-900 text-slate-900 p-4 rounded-xl font-extrabold shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                        >
+                            {saveStatus ? <span>{saveStatus}</span> : (
+                                <>
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="save" class="w-5 h-5"></i>' }}></span> Guardar
+                                </>
+                            )}
+                        </button>
+                        <button onClick={createMatch} className="flex-[2] bg-slate-900 text-white p-4 rounded-xl font-extrabold shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="play" class="w-5 h-5 fill-white"></i>' }}></span> Empezar Partido
+                        </button>
+                    </div>
                 </div>
             );
         };
@@ -3407,7 +3537,7 @@
                                             <input className="w-full p-2.5 border border-blue-200 rounded-lg focus:border-blue-500 outline-none transition-all bg-white text-sm" placeholder="Pabellón..." value={departureLocation} onChange={e => setDepartureLocation(e.target.value)} />
                                         </div>
                                         <div className="space-y-1">
-                                            <label className="block text-[10px] font-bold text-blue-400 uppercase ml-1">Hora Llegada</label>
+                                            <label className="block text-[10px] font-bold text-blue-400 uppercase ml-1">Hora Vuelta</label>
                                             <input type="time" className="w-full p-2.5 border border-blue-200 rounded-lg focus:border-blue-500 outline-none transition-all bg-white text-sm" value={arrivalTime} onChange={e => setArrivalTime(e.target.value)} />
                                         </div>
                                     </div>
@@ -3464,6 +3594,26 @@
                                         <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="copy"></i>' }}></span> Castellano
                                     </button>
                                 </div>
+                            </div>
+
+                            <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                                <h3 className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-1">Enlace para Padres</h3>
+                                <p className="text-[10px] text-blue-400 mb-3">Envía este enlace por WhatsApp para que los padres confirmen asistencia</p>
+                                <button
+                                    onClick={() => navigate('attendance-status', team.id, match.id)}
+                                    className="w-full py-2 bg-white border border-blue-600 text-blue-600 rounded-lg font-bold text-xs hover:bg-blue-50 transition-colors flex items-center justify-center gap-2 active:scale-95 shadow-sm mb-2"
+                                >
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="users" class="w-3 h-3"></i>' }}></span> Ver Estado Convocatoria
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const url = `${window.location.origin}${window.location.pathname}?matchId=${match.id}`;
+                                        copyToClipboard(url);
+                                    }}
+                                    className="w-full py-2 bg-blue-600 text-white rounded-lg font-bold text-xs hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 active:scale-95 shadow-sm"
+                                >
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="link" class="w-3 h-3"></i>' }}></span> Copiar Enlace de Asistencia
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -4310,15 +4460,304 @@
             );
         };
 
+        const PublicMatchView = ({ matchId, db, doc, onSnapshot, updateDoc, collection, query, where, getDocs }) => {
+            const [match, setMatch] = useState(null);
+            const [team, setTeam] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [selectedPlayerId, setSelectedPlayerId] = useState('');
+            const [status, setStatus] = useState('available');
+            const [submitted, setSubmitted] = useState(false);
+
+            useEffect(() => {
+                const matchRef = doc(db, 'matches', matchId);
+                const unsubMatch = onSnapshot(matchRef, async (snap) => {
+                    if (snap.exists()) {
+                        const mData = { id: snap.id, ...snap.data() };
+                        setMatch(mData);
+
+                        // Fetch team
+                        const teamRef = doc(db, 'teams', mData.teamId);
+                        const unsubTeam = onSnapshot(teamRef, (tSnap) => {
+                            if (tSnap.exists()) {
+                                setTeam({ id: tSnap.id, ...tSnap.data() });
+                            }
+                            setLoading(false);
+                        });
+                        return () => unsubTeam();
+                    } else {
+                        setLoading(false);
+                    }
+                });
+                return () => unsubMatch();
+            }, [matchId]);
+
+            useEffect(() => {
+                if (window.lucide) {
+                    lucide.createIcons();
+                }
+            }, [loading, submitted, status]);
+
+            const handleConfirm = async () => {
+                if (!selectedPlayerId) return alert('Por favor, selecciona un jugador');
+
+                const playerName = team.players.find(p => p.id === selectedPlayerId)?.name;
+                const confirmMsg = `¿Confirmas que ${playerName} ${status === 'available' ? 'ASISTIRÁ' : 'NO ASISTIRÁ'} al partido contra ${match.opponent}?`;
+
+                if (!window.confirm(confirmMsg)) return;
+
+                const attendance = match.attendance || {};
+                attendance[selectedPlayerId] = {
+                    status,
+                    updatedAt: new Date().toISOString()
+                };
+
+                await updateDoc(doc(db, 'matches', matchId), { attendance });
+                setSubmitted(true);
+            };
+
+            if (loading) return (
+                <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Cargando datos del partido...</p>
+                    </div>
+                </div>
+            );
+
+            if (!match || !team) return (
+                <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+                    <div className="bg-white p-8 rounded-3xl shadow-xl border border-slate-100 text-center max-w-sm">
+                        <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="alert-circle" class="w-8 h-8"></i>' }}></span>
+                        </div>
+                        <h2 className="text-xl font-bold text-slate-800 mb-2">Partido no encontrado</h2>
+                        <p className="text-slate-500 text-sm">El enlace puede haber expirado o ser incorrecto.</p>
+                    </div>
+                </div>
+            );
+
+            if (submitted) return (
+                <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+                    <div className="bg-white p-8 rounded-3xl shadow-xl border border-slate-200 text-center max-w-sm animate-in zoom-in-95 duration-300">
+                        <div className="w-16 h-16 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="check-circle" class="w-8 h-8"></i>' }}></span>
+                        </div>
+                        <h2 className="text-xl font-bold text-slate-800 mb-2">¡Confirmación enviada!</h2>
+                        <p className="text-slate-500 text-sm mb-6">Gracias por confirmar la asistencia para <strong>{team.players.find(p => p.id === selectedPlayerId)?.name}</strong>.</p>
+                        <p className="text-slate-400 text-[10px] italic">Esta confirmación ya no se puede modificar.</p>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="min-h-screen bg-slate-50 p-4 md:p-8 flex items-center justify-center">
+                    <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="bg-[#002D62] p-6 text-white">
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <p className="text-blue-200 text-[10px] font-bold uppercase tracking-widest mb-1">{team.name}</p>
+                                    <h1 className="text-2xl font-bold">vs {match.opponent}</h1>
+                                </div>
+                                <div className="p-2 bg-white/10 rounded-xl backdrop-blur-sm border border-white/10">
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="calendar" class="w-5 h-5 text-blue-200"></i>' }}></span>
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-blue-100">
+                                <div className="flex items-center gap-1.5"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="calendar" class="w-4 h-4 text-blue-300"></i>' }}></span> {match.date}</div>
+                                <div className="flex items-center gap-1.5 font-bold"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="clock" class="w-4 h-4 text-blue-300"></i>' }}></span> Inicio: {match.time}</div>
+                                {match.callTime && (
+                                    <div className="flex items-center gap-1.5 bg-white/20 px-2 py-0.5 rounded text-white font-black"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="megaphone" class="w-3.5 h-3.5"></i>' }}></span> Cita: {match.callTime}</div>
+                                )}
+                                <div className="flex items-center gap-1.5 w-full mt-1 border-t border-white/10 pt-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="map-pin" class="w-4 h-4 text-blue-300"></i>' }}></span> {match.location}</div>
+                            </div>
+
+                            {/* Displacement info for away matches */}
+                            {!match.isHome && (match.departureTime || match.arrivalTime) && (
+                                <div className="mt-4 p-3 bg-white/10 rounded-2xl border border-white/10 flex flex-wrap gap-4 items-center animate-in slide-in-from-top-2 duration-500">
+                                    <p className="text-[10px] font-black uppercase tracking-widest w-full text-blue-200 mb-1 flex items-center gap-2">
+                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="truck" class="w-3 h-3"></i>' }}></span> Info Desplazamiento
+                                    </p>
+                                    {match.departureTime && (
+                                        <div className="flex flex-col">
+                                            <span className="text-[9px] uppercase tracking-tighter text-blue-300">Salida</span>
+                                            <span className="text-sm font-bold">{match.departureTime} {match.departureLocation && `@ ${match.departureLocation}`}</span>
+                                        </div>
+                                    )}
+                                    {match.transportType && (
+                                        <div className="flex flex-col">
+                                            <span className="text-[9px] uppercase tracking-tighter text-blue-300">Transporte</span>
+                                            <span className="text-sm font-bold capitalize">{match.transportType === 'bus' ? '🚌 Autobús' : '🚗 Coches'}</span>
+                                        </div>
+                                    )}
+                                    {match.arrivalTime && (
+                                        <div className="flex flex-col">
+                                            <span className="text-[9px] uppercase tracking-tighter text-blue-300">Vuelta</span>
+                                            <span className="text-sm font-bold">{match.arrivalTime}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-6 space-y-6">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Selecciona al Jugador</label>
+                                <select
+                                    value={selectedPlayerId}
+                                    onChange={(e) => setSelectedPlayerId(e.target.value)}
+                                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-blue-500 outline-none text-slate-800 font-medium transition-all appearance-none"
+                                    style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%2364748b\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\' /%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1.25rem' }}
+                                >
+                                    <option value="">-- Elige un jugador --</option>
+                                    {team.players.sort((a, b) => parseInt(a.number) - parseInt(b.number)).map(p => {
+                                        const isConfirmed = !!match.attendance?.[p.id];
+                                        return (
+                                            <option
+                                                key={p.id}
+                                                value={p.id}
+                                                className={isConfirmed ? 'text-slate-400' : 'text-slate-800'}
+                                            >
+                                                #{p.number} {p.name} {isConfirmed ? '✓' : ''}
+                                            </option>
+                                        );
+                                    })}
+                                </select>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    onClick={() => setStatus('available')}
+                                    className={`p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all ${status === 'available' ? 'bg-green-50 border-green-500 ring-2 ring-green-100' : 'bg-white border-slate-100 hover:border-slate-200'}`}
+                                >
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${status === 'available' ? 'bg-green-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="check" class="w-5 h-5"></i>' }}></span>
+                                    </div>
+                                    <span className={`font-bold ${status === 'available' ? 'text-green-700' : 'text-slate-400'}`}>Disponible</span>
+                                </button>
+                                <button
+                                    onClick={() => setStatus('unavailable')}
+                                    className={`p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all ${status === 'unavailable' ? 'bg-red-50 border-red-500 ring-2 ring-red-100' : 'bg-white border-slate-100 hover:border-slate-200'}`}
+                                >
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${status === 'unavailable' ? 'bg-red-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="x" class="w-5 h-5"></i>' }}></span>
+                                    </div>
+                                    <span className={`font-bold ${status === 'unavailable' ? 'text-red-700' : 'text-slate-400'}`}>No Disponible</span>
+                                </button>
+                            </div>
+
+                            {match.attendance?.[selectedPlayerId] && (
+                                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="info" class="w-5 h-5 text-amber-500"></i>' }}></span>
+                                    <p className="text-xs text-amber-700">Este jugador ya tiene una confirmación registrada y no se puede modificar.</p>
+                                </div>
+                            )}
+
+                            <button
+                                onClick={handleConfirm}
+                                disabled={!selectedPlayerId || !!match.attendance?.[selectedPlayerId]}
+                                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:shadow-none"
+                            >
+                                Confirmar Asistencia
+                            </button>
+
+                            <p className="text-center text-[10px] text-slate-400 flex items-center justify-center gap-2">
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="lock" class="w-3 h-3"></i>' }}></span>
+                                Tu respuesta es privada y solo la verá el entrenador.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const AttendanceStatusView = ({ match, team, navigate }) => {
+            useEffect(() => { lucide.createIcons(); }, []);
+
+            if (!match || !team) return null;
+
+            const attendance = match.attendance || {};
+            const players = team.players || [];
+
+            const stats = {
+                available: Object.values(attendance).filter(a => a.status === 'available').length,
+                unavailable: Object.values(attendance).filter(a => a.status === 'unavailable').length,
+                pending: players.length - Object.keys(attendance).length
+            };
+
+            return (
+                <div className="p-4 max-w-md lg:max-w-4xl mx-auto pb-24">
+                    <header className="flex items-center gap-2 mb-6">
+                        <button onClick={() => navigate('edit-match', team.id, match.id)} className="p-2 -ml-2 text-slate-400 hover:text-slate-800 transition-colors">
+                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span>
+                        </button>
+                        <div>
+                            <h1 className="text-2xl font-bold text-slate-800">Estado Convocatoria</h1>
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">vs {match.opponent} • {match.date}</p>
+                        </div>
+                    </header>
+
+                    <div className="grid grid-cols-3 gap-3 mb-6">
+                        <div className="bg-white p-4 rounded-2xl border border-slate-200 text-center">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Van</p>
+                            <p className="text-2xl font-black text-green-600">{stats.available}</p>
+                        </div>
+                        <div className="bg-white p-4 rounded-2xl border border-slate-200 text-center">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">No Van</p>
+                            <p className="text-2xl font-black text-red-500">{stats.unavailable}</p>
+                        </div>
+                        <div className="bg-white p-4 rounded-2xl border border-slate-200 text-center">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Pendiente</p>
+                            <p className="text-2xl font-black text-slate-400">{stats.pending}</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                        <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between">
+                            <span className="text-xs font-bold text-slate-500 uppercase">Jugador</span>
+                            <span className="text-xs font-bold text-slate-500 uppercase">Respuesta</span>
+                        </div>
+                        <div className="divide-y divide-slate-100">
+                            {players.sort((a, b) => parseInt(a.number) - parseInt(b.number)).map(p => {
+                                const response = attendance[p.id];
+                                return (
+                                    <div key={p.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                                        <div className="flex items-center gap-3">
+                                            <span className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 border border-slate-200">
+                                                {p.number}
+                                            </span>
+                                            <span className="font-bold text-slate-700">{p.name}</span>
+                                        </div>
+                                        <div>
+                                            {response ? (
+                                                <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${response.status === 'available' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                    <span dangerouslySetInnerHTML={{ __html: `<i data-lucide="${response.status === 'available' ? 'check' : 'x'}" class="w-3 h-3"></i>` }}></span>
+                                                    {response.status === 'available' ? 'Asistirá' : 'No asistirá'}
+                                                </div>
+                                            ) : (
+                                                <div className="text-[10px] font-bold text-slate-300 uppercase italic">Pendiente</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         const App = () => {
             const { onAuthStateChanged, collection, query, where, onSnapshot, addDoc, updateDoc, doc, deleteDoc, signOut, orderBy, setDoc, getDocs } = window.firebaseMethods;
+            const urlParams = new URL(window.location.href).searchParams;
+            const publicMatchId = urlParams.get('matchId');
+
             const [user, setUser] = useState(null);
             const [isAdmin, setIsAdmin] = useState(false);
-            const [view, setView] = useState('teams-list');
+            const [view, setView] = useState(publicMatchId ? 'public-match' : 'teams-list');
             const [teams, setTeams] = useState([]);
             const [matches, setMatches] = useState([]);
             const [selectedTeamId, setSelectedTeamId] = useState(null);
-            const [activeMatchId, setActiveMatchId] = useState(null);
+            const [activeMatchId, setActiveMatchId] = useState(publicMatchId || null);
             const [authLoading, setAuthLoading] = useState(true);
             const [subscription, setSubscription] = useState(undefined); // undefined = loading, null = free, 'active' = premium
             const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -4511,6 +4950,12 @@
                 return () => unsubscribe();
             }, [user]);
 
+            useEffect(() => {
+                if (window.lucide) {
+                    lucide.createIcons();
+                }
+            }, [view, isAdmin]);
+
             const startCheckout = async () => {
                 setCheckoutLoading(true);
                 try {
@@ -4557,16 +5002,17 @@
                 </div>
             );
 
-            if (!user) return <AuthView />;
+            if (!user && view !== 'public-match') return <AuthView />;
 
             return (
-                <div className="min-h-screen lg:h-screen lg:flex lg:overflow-hidden">
-                    {/* Desktop sidebar – only visible on lg+ */}
-                    <DesktopSidebar navigate={navigate} view={view} signOut={signOut} subscription={subscription} isOnline={isOnline} startTutorial={startTutorial} isAdmin={isAdmin} />
+                <div className="min-h-screen flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden bg-slate-50">
+                    {/* Desktop sidebar – only visible on lg+ and NOT in public-match */}
+                    {view !== 'public-match' && <DesktopSidebar navigate={navigate} view={view} signOut={signOut} subscription={subscription} isOnline={isOnline} startTutorial={startTutorial} isAdmin={isAdmin} teams={teams} matches={matches} />}
 
                     {/* Main column: mobile top-bar + scrollable content */}
                     <div className="flex flex-col flex-1 min-w-0 lg:overflow-y-auto">
-                        <TopBar navigate={navigate} view={view} signOut={signOut} subscription={subscription} isOnline={isOnline} startTutorial={startTutorial} isAdmin={isAdmin} />
+                        {view !== 'public-match' && <TopBar navigate={navigate} view={view} signOut={signOut} subscription={subscription} isOnline={isOnline} startTutorial={startTutorial} isAdmin={isAdmin} />}
+
 
                         {showTutorial && (
                             <TutorialOverlay
@@ -4578,11 +5024,12 @@
                         )}
 
                         <div className="flex-grow">
+                            {view === 'public-match' && <PublicMatchView matchId={activeMatchId} db={db} doc={doc} onSnapshot={onSnapshot} updateDoc={updateDoc} collection={collection} query={query} where={where} getDocs={getDocs} />}
                             {view === 'teams-list' && <TeamsListView teams={teams} matches={matches} navigate={navigate} addDoc={addDoc} collection={collection} db={db} deleteDoc={deleteDoc} doc={doc} subscription={subscription} startCheckout={startCheckout} />}
                             {view === 'admin-dashboard' && isAdmin && <AdminDashboardView navigate={navigate} db={db} collection={collection} getDocs={getDocs} query={query} where={where} />}
                             {view === 'all-matches-calendar' && <AllMatchesCalendarView teams={teams} matches={matches} navigate={navigate} />}
                             {view === 'team-detail' && <TeamDetailView team={getSelectedTeam()} matches={matches} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} addDoc={addDoc} collection={collection} db={db} />}
-                            {view === 'match-setup' && <MatchSetupView team={getSelectedTeam()} navigate={navigate} addDoc={addDoc} collection={collection} db={db} />}
+                            {view === 'match-setup' && <MatchSetupView team={getSelectedTeam()} navigate={navigate} addDoc={addDoc} collection={collection} db={db} updateDoc={updateDoc} doc={doc} />}
                             {view === 'active-match' && <ActiveMatchView match={getActiveMatch()} teams={teams} updateMatchInDb={updateMatchInDb} navigate={navigate} getRoles={getRoles} />}
                             {view === 'calendar' && <CalendarView team={getSelectedTeam()} matches={matches} navigate={navigate} />}
                             {view === 'edit-match' && (
@@ -4590,33 +5037,41 @@
                                     <EditMatchView
                                         match={getActiveMatch()}
                                         team={getSelectedTeam()}
+                                        navigate={navigate}
+                                        db={db}
+                                        doc={doc}
+                                        deleteDoc={deleteDoc}
+                                        onBack={() => navigate('team-detail', selectedTeamId)}
                                         onSave={async (updates) => { await updateMatchInDb(activeMatchId, updates); navigate('team-detail', selectedTeamId); }}
                                     />
                                 </div>
                             )}
+                            {view === 'attendance-status' && <AttendanceStatusView match={getActiveMatch()} team={getSelectedTeam()} navigate={navigate} />}
                             {view === 'manage-players' && <ManagePlayersView team={getSelectedTeam()} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} match={getActiveMatch()} updateMatchInDb={updateMatchInDb} />}
                             {view === 'manage-roles' && <ManageRolesView team={getSelectedTeam()} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} />}
                             {view === 'team-settings' && <TeamSettingsView team={getSelectedTeam()} navigate={navigate} updateTeamInDb={updateTeamInDb} deleteDoc={deleteDoc} doc={doc} db={db} />}
                         </div>
-                        <footer className="lg:hidden p-4 text-center mt-auto" style={{ backgroundColor: '#002D62' }}>
-                            <div className="flex items-center justify-center gap-4">
-                                {isAdmin && (
-                                    <button
-                                        onClick={() => navigate('admin-dashboard')}
-                                        className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 px-2 py-1 rounded-full transition-colors"
-                                        style={{ color: 'rgba(255,255,255,0.8)', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)' }}
-                                    >
-                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="shield-check" class="w-3 h-3"></i>' }}></span> Admin
-                                    </button>
-                                )}
-                                {subscription === 'active' || subscription === 'trialing' ? (
-                                    <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 px-2 py-1 rounded-full" style={{ color: '#FFD700', backgroundColor: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.25)' }}>
-                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="crown" class="w-3 h-3"></i>' }}></span> Premium
-                                    </span>
-                                ) : null}
-                                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>v{APP_VERSION}</span>
-                            </div>
-                        </footer>
+                        {view !== 'public-match' && (
+                            <footer className="lg:hidden p-4 text-center mt-auto" style={{ backgroundColor: '#002D62' }}>
+                                <div className="flex items-center justify-center gap-4">
+                                    {isAdmin && (
+                                        <button
+                                            onClick={() => navigate('admin-dashboard')}
+                                            className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 px-2 py-1 rounded-full transition-colors"
+                                            style={{ color: 'rgba(255,255,255,0.8)', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)' }}
+                                        >
+                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="shield-check" class="w-3 h-3"></i>' }}></span> Admin
+                                        </button>
+                                    )}
+                                    {subscription === 'active' || subscription === 'trialing' ? (
+                                        <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 px-2 py-1 rounded-full" style={{ color: '#FFD700', backgroundColor: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.25)' }}>
+                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="crown" class="w-3 h-3"></i>' }}></span> Premium
+                                        </span>
+                                    ) : null}
+                                    <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>v{APP_VERSION}</span>
+                                </div>
+                            </footer>
+                        )}
                     </div>
 
                     {checkoutLoading && (
