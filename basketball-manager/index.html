@@ -4504,9 +4504,11 @@
 
             useEffect(() => {
                 if (window.lucide) {
-                    lucide.createIcons();
+                    // Small delay to ensure React finished patching the DOM
+                    const timeout = setTimeout(() => lucide.createIcons(), 50);
+                    return () => clearTimeout(timeout);
                 }
-            }, [loading, submitted, status]);
+            }, [loading, submitted, status, selectedPlayerId, match]);
 
             const handleConfirm = async () => {
                 if (!selectedPlayerId) return alert('Por favor, selecciona un jugador');
@@ -4694,7 +4696,12 @@
             const { updateDoc, doc } = window.firebaseMethods;
             const db = window.db;
 
-            useEffect(() => { lucide.createIcons(); }, []);
+            useEffect(() => {
+                if (window.lucide) {
+                    const timeout = setTimeout(() => lucide.createIcons(), 50);
+                    return () => clearTimeout(timeout);
+                }
+            }, [match, team]);
 
             if (!match || !team) return null;
 
