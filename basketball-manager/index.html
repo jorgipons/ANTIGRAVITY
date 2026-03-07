@@ -1585,219 +1585,218 @@
                                                             {nextMatch.isHome ? '🏠 CASA' : '✈️ FUERA'}
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </div>
-                                            <div className="absolute top-3 right-3 flex flex-col items-center gap-2 z-20">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        e.nativeEvent.stopImmediatePropagation();
-                                                        navigate('attendance-status', team.id, nextMatch.id);
-                                                    }}
-                                                    className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-xl transition-all shadow-md border border-blue-500 flex items-center justify-center"
-                                                    title="Ver Asistencia"
-                                                >
-                                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="users" class="w-4 h-4"></i>' }}></span>
-                                                </button>
-                                                <div className="flex gap-1.5 mt-0.5">
-                                                    {(() => {
-                                                        const att = nextMatch.attendance || {};
-                                                        const players = nextMatch.players || [];
-                                                        const confirmed = players.filter(p => att[p.id]?.status === 'available').length;
-                                                        const declined = players.filter(p => att[p.id]?.status === 'unavailable').length;
-                                                        const pending = players.length - confirmed - declined;
-                                                        return (
-                                                            <>
-                                                                <div className="flex items-center gap-0.5" title="Confirmados">
-                                                                    <div className="w-2 h-2 rounded-full bg-green-500 shadow-sm shadow-green-900/50"></div>
-                                                                    <span className="text-[10px] font-bold text-white leading-none">{confirmed}</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-0.5" title="No vienen">
-                                                                    <div className="w-2 h-2 rounded-full bg-red-500 shadow-sm shadow-red-900/50"></div>
-                                                                    <span className="text-[10px] font-bold text-white leading-none">{declined}</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-0.5" title="Pendientes">
-                                                                    <div className="w-2 h-2 rounded-full bg-slate-500 shadow-sm shadow-slate-900/50"></div>
-                                                                    <span className="text-[10px] font-bold text-white leading-none">{pending}</span>
-                                                                </div>
-                                                            </>
-                                                        );
-                                                    })()}
-                                                </div>
-                                                <div className="bg-blue-600 text-white p-1.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-2 group-hover:translate-x-0">
-                                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-right" class="w-4 h-4"></i>' }}></span>
+                                                    <div className="absolute top-3 right-3 flex flex-col items-center gap-2 z-20">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                e.nativeEvent.stopImmediatePropagation();
+                                                                navigate('attendance-status', team.id, nextMatch.id);
+                                                            }}
+                                                            className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-xl transition-all shadow-md border border-blue-500 flex items-center justify-center"
+                                                            title="Ver Asistencia"
+                                                        >
+                                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="users" class="w-4 h-4"></i>' }}></span>
+                                                        </button>
+                                                        <div className="flex gap-1.5 mt-0.5">
+                                                            {(() => {
+                                                                const att = nextMatch.attendance || {};
+                                                                const players = nextMatch.players || [];
+                                                                const confirmed = players.filter(p => att[p.id]?.status === 'available').length;
+                                                                const declined = players.filter(p => att[p.id]?.status === 'unavailable').length;
+                                                                const pending = players.length - confirmed - declined;
+                                                                return (
+                                                                    <>
+                                                                        <div className="flex items-center gap-0.5" title="Confirmados">
+                                                                            <div className="w-2 h-2 rounded-full bg-green-500 shadow-sm shadow-green-900/50"></div>
+                                                                            <span className="text-[10px] font-bold text-white leading-none">{confirmed}</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-0.5" title="No vienen">
+                                                                            <div className="w-2 h-2 rounded-full bg-red-500 shadow-sm shadow-red-900/50"></div>
+                                                                            <span className="text-[10px] font-bold text-white leading-none">{declined}</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-0.5" title="Pendientes">
+                                                                            <div className="w-2 h-2 rounded-full bg-slate-500 shadow-sm shadow-slate-900/50"></div>
+                                                                            <span className="text-[10px] font-bold text-white leading-none">{pending}</span>
+                                                                        </div>
+                                                                    </>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                        <div className="bg-blue-600 text-white p-1.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-2 group-hover:translate-x-0">
+                                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-right" class="w-4 h-4"></i>' }}></span>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                        {/* Delete button revealed on swipe */ }
-                                {
-                                    isRevealed && (
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); handleDeleteMatch(nextMatch); }}
-                                            className="absolute right-0 top-0 bottom-0 w-20 bg-red-600 flex flex-col items-center justify-center text-white rounded-r-xl z-20 active:bg-red-700"
-                                        >
-                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trash-2" class="w-5 h-5 mb-1"></i>' }}></span>
-                                            <span className="text-[10px] font-bold">Borrar</span>
-                                        </button>
-                                    )
-                                }
-                                    </div>
-                        );
-                            })()}
-                        <section>
-                            <div className="flex justify-between items-center mb-3">
-                                <h3 className="font-bold text-slate-800">Partidos</h3>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => navigate('calendar', team.id)}
-                                        className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-full font-bold hover:bg-slate-200 transition-colors flex items-center gap-1"
-                                        title="Ver Calendario"
-                                    >
-                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="calendar" class="w-3.5 h-3.5"></i>' }}></span>
-                                    </button>
-                                    <button
-                                        onClick={() => navigate('match-setup', team.id)}
-                                        className="text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-bold"
-                                    >
-                                        + Nuevo Partido
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                {teamMatches.length === 0 && <p className="text-sm text-slate-400">Sin partidos registrados.</p>}
-                                {getSortedMatches(teamMatches).map(m => {
-                                    const isRevealed = swipedMatchId === m.id;
-                                    return (
-                                        <div
-                                            key={m.id}
-                                            className="relative overflow-hidden rounded-xl select-none"
-                                        >
-                                            {/* Delete button in background */}
-                                            <div className="absolute inset-0 bg-red-500 flex items-center justify-end pr-5 rounded-xl">
-                                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trash-2" class="w-5 h-5 text-white"></i>' }}></span>
-                                            </div>
-                                            {/* Swipeable card */}
-                                            <div
-                                                style={{ transform: isRevealed ? 'translateX(-72px)' : 'translateX(0)', transition: 'transform 0.25s ease', touchAction: 'pan-y' }}
-                                                onTouchStart={(e) => { setSwipedMatchId(null); handleSwipeTouchStart(e, m.id); }}
-                                                onTouchMove={(e) => handleSwipeTouchMove(e, m.id)}
-                                                onTouchEnd={handleSwipeTouchEnd}
-                                                onClick={() => { if (isRevealed) { setSwipedMatchId(null); return; } navigate('active-match', team.id, m.id); }}
-                                                className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex justify-between items-center group/match relative z-10 cursor-pointer"
-                                            >
-                                                <div>
-                                                    <p className="font-bold text-slate-800">{m.opponent}</p>
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                                                        {m.date} {m.time ? `• ${m.time} h` : ''}
-                                                        {m.state === 'finished' ? (
-                                                            <span className={`ml-1 ${m.result === 'won' ? 'text-green-600' : (m.result === 'lost' ? 'text-red-500' : 'text-slate-500')}`}>
-                                                                • {m.result === 'won' ? 'Victoria' : (m.result === 'lost' ? 'Derrota' : 'Finalizado')}
-                                                                {m.score ? ` (${m.score.local} - ${m.score.visitor})` : ''}
-                                                            </span>
-                                                        ) : <span className="text-blue-600 ml-1">• P{m.currentPeriod}</span>}
-                                                    </p>
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); navigate('attendance-status', team.id, m.id); }}
-                                                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                        title="Ver Asistencia"
-                                                    >
-                                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="users" class="w-4 h-4"></i>' }}></span>
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); navigate('edit-match', team.id, m.id); }}
-                                                        className="p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-800 rounded-lg transition-colors"
-                                                        title="Editar Partido"
-                                                    >
-                                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="pencil" class="w-4 h-4"></i>' }}></span>
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); navigate('active-match', team.id, m.id); }}
-                                                        className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                                                        title="Ver Partido"
-                                                    >
-                                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="dribbble" class="w-4 h-4"></i>' }}></span>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            {/* Delete button revealed on swipe */}
-                                            {isRevealed && (
+                                        {/* Delete button revealed on swipe */}
+                                        {
+                                            isRevealed && (
                                                 <button
-                                                    onClick={(e) => { e.stopPropagation(); handleDeleteMatch(m); }}
-                                                    className="absolute right-0 top-0 bottom-0 w-[72px] bg-red-500 flex flex-col items-center justify-center text-white rounded-r-xl z-20 active:bg-red-600"
+                                                    onClick={(e) => { e.stopPropagation(); handleDeleteMatch(nextMatch); }}
+                                                    className="absolute right-0 top-0 bottom-0 w-20 bg-red-600 flex flex-col items-center justify-center text-white rounded-r-xl z-20 active:bg-red-700"
                                                 >
-                                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trash-2" class="w-4 h-4 mb-1"></i>' }}></span>
+                                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trash-2" class="w-5 h-5 mb-1"></i>' }}></span>
                                                     <span className="text-[10px] font-bold">Borrar</span>
                                                 </button>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </section>
-                    </div>
-
-                    {/* Right Column: Players Roster & Roles (Spans 5 cols on lg) */}
-                    <div className="lg:col-span-5 hidden lg:flex lg:flex-col space-y-6 mt-6 lg:mt-0">
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex-1 flex flex-col">
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="font-bold text-slate-800 flex items-center gap-2">
-                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="users" class="w-5 h-5 text-blue-600"></i>' }}></span>
-                                    Plantilla
-                                </h2>
-                                <button onClick={() => navigate('manage-players', team.id)} className="text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg transition-colors">
-                                    Gestionar
-                                </button>
-                            </div>
-
-                            <div className="space-y-2 overflow-y-auto pr-2 flex-1 max-h-[600px] no-scrollbar">
-                                {players.length === 0 ? (
-                                    <div className="text-center p-6 bg-slate-50 rounded-xl border border-slate-100">
-                                        <p className="text-sm text-slate-500 mb-2">No hay jugadores registrados</p>
-                                        <button onClick={() => navigate('manage-players', team.id)} className="text-xs font-bold text-blue-600 bg-white border border-blue-100 px-4 py-2 rounded-xl shadow-sm hover:shadow active:scale-95 transition-all">Añadir Jugadores</button>
+                                            )
+                                        }
                                     </div>
-                                ) : (
-                                    players.map(p => {
-                                        const roleInfo = p.role && roles[p.role];
+                                );
+                            })()}
+                            <section>
+                                <div className="flex justify-between items-center mb-3">
+                                    <h3 className="font-bold text-slate-800">Partidos</h3>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => navigate('calendar', team.id)}
+                                            className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-full font-bold hover:bg-slate-200 transition-colors flex items-center gap-1"
+                                            title="Ver Calendario"
+                                        >
+                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="calendar" class="w-3.5 h-3.5"></i>' }}></span>
+                                        </button>
+                                        <button
+                                            onClick={() => navigate('match-setup', team.id)}
+                                            className="text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-bold"
+                                        >
+                                            + Nuevo Partido
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    {teamMatches.length === 0 && <p className="text-sm text-slate-400">Sin partidos registrados.</p>}
+                                    {getSortedMatches(teamMatches).map(m => {
+                                        const isRevealed = swipedMatchId === m.id;
                                         return (
-                                            <div key={p.id} className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors">
-                                                <div className="flex items-center gap-3">
-                                                    <span className="w-8 h-8 flex items-center justify-center bg-slate-100 border border-slate-200 shadow-sm rounded-full text-slate-700 font-bold text-xs">{p.number}</span>
-                                                    <span className="font-bold text-slate-800 text-sm leading-none">{p.name}</span>
+                                            <div
+                                                key={m.id}
+                                                className="relative overflow-hidden rounded-xl select-none"
+                                            >
+                                                {/* Delete button in background */}
+                                                <div className="absolute inset-0 bg-red-500 flex items-center justify-end pr-5 rounded-xl">
+                                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trash-2" class="w-5 h-5 text-white"></i>' }}></span>
                                                 </div>
-                                                {roleInfo && (
-                                                    <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full ${roleInfo.bg || 'bg-slate-100'} ${roleInfo.color || 'text-slate-600'}`}>{roleInfo.label || roleInfo.name}</span>
+                                                {/* Swipeable card */}
+                                                <div
+                                                    style={{ transform: isRevealed ? 'translateX(-72px)' : 'translateX(0)', transition: 'transform 0.25s ease', touchAction: 'pan-y' }}
+                                                    onTouchStart={(e) => { setSwipedMatchId(null); handleSwipeTouchStart(e, m.id); }}
+                                                    onTouchMove={(e) => handleSwipeTouchMove(e, m.id)}
+                                                    onTouchEnd={handleSwipeTouchEnd}
+                                                    onClick={() => { if (isRevealed) { setSwipedMatchId(null); return; } navigate('active-match', team.id, m.id); }}
+                                                    className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex justify-between items-center group/match relative z-10 cursor-pointer"
+                                                >
+                                                    <div>
+                                                        <p className="font-bold text-slate-800">{m.opponent}</p>
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                                                            {m.date} {m.time ? `• ${m.time} h` : ''}
+                                                            {m.state === 'finished' ? (
+                                                                <span className={`ml-1 ${m.result === 'won' ? 'text-green-600' : (m.result === 'lost' ? 'text-red-500' : 'text-slate-500')}`}>
+                                                                    • {m.result === 'won' ? 'Victoria' : (m.result === 'lost' ? 'Derrota' : 'Finalizado')}
+                                                                    {m.score ? ` (${m.score.local} - ${m.score.visitor})` : ''}
+                                                                </span>
+                                                            ) : <span className="text-blue-600 ml-1">• P{m.currentPeriod}</span>}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); navigate('attendance-status', team.id, m.id); }}
+                                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                            title="Ver Asistencia"
+                                                        >
+                                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="users" class="w-4 h-4"></i>' }}></span>
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); navigate('edit-match', team.id, m.id); }}
+                                                            className="p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-800 rounded-lg transition-colors"
+                                                            title="Editar Partido"
+                                                        >
+                                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="pencil" class="w-4 h-4"></i>' }}></span>
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); navigate('active-match', team.id, m.id); }}
+                                                            className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                                                            title="Ver Partido"
+                                                        >
+                                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="dribbble" class="w-4 h-4"></i>' }}></span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                {/* Delete button revealed on swipe */}
+                                                {isRevealed && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleDeleteMatch(m); }}
+                                                        className="absolute right-0 top-0 bottom-0 w-[72px] bg-red-500 flex flex-col items-center justify-center text-white rounded-r-xl z-20 active:bg-red-600"
+                                                    >
+                                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="trash-2" class="w-4 h-4 mb-1"></i>' }}></span>
+                                                        <span className="text-[10px] font-bold">Borrar</span>
+                                                    </button>
                                                 )}
                                             </div>
                                         );
-                                    })
-                                )}
-                            </div>
+                                    })}
+                                </div>
+                            </section>
+                        </div>
 
-                            <div className="mt-4 pt-4 border-t border-slate-100 flex gap-2">
-                                <button onClick={() => navigate('manage-roles', team.id)} className="flex-1 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2">
-                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="shield" class="w-4 h-4 text-amber-600"></i>' }}></span>
-                                    Roles
-                                </button>
+                        {/* Right Column: Players Roster & Roles (Spans 5 cols on lg) */}
+                        <div className="lg:col-span-5 hidden lg:flex lg:flex-col space-y-6 mt-6 lg:mt-0">
+                            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex-1 flex flex-col">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="users" class="w-5 h-5 text-blue-600"></i>' }}></span>
+                                        Plantilla
+                                    </h2>
+                                    <button onClick={() => navigate('manage-players', team.id)} className="text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg transition-colors">
+                                        Gestionar
+                                    </button>
+                                </div>
+
+                                <div className="space-y-2 overflow-y-auto pr-2 flex-1 max-h-[600px] no-scrollbar">
+                                    {players.length === 0 ? (
+                                        <div className="text-center p-6 bg-slate-50 rounded-xl border border-slate-100">
+                                            <p className="text-sm text-slate-500 mb-2">No hay jugadores registrados</p>
+                                            <button onClick={() => navigate('manage-players', team.id)} className="text-xs font-bold text-blue-600 bg-white border border-blue-100 px-4 py-2 rounded-xl shadow-sm hover:shadow active:scale-95 transition-all">Añadir Jugadores</button>
+                                        </div>
+                                    ) : (
+                                        players.map(p => {
+                                            const roleInfo = p.role && roles[p.role];
+                                            return (
+                                                <div key={p.id} className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="w-8 h-8 flex items-center justify-center bg-slate-100 border border-slate-200 shadow-sm rounded-full text-slate-700 font-bold text-xs">{p.number}</span>
+                                                        <span className="font-bold text-slate-800 text-sm leading-none">{p.name}</span>
+                                                    </div>
+                                                    {roleInfo && (
+                                                        <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full ${roleInfo.bg || 'bg-slate-100'} ${roleInfo.color || 'text-slate-600'}`}>{roleInfo.label || roleInfo.name}</span>
+                                                    )}
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+
+                                <div className="mt-4 pt-4 border-t border-slate-100 flex gap-2">
+                                    <button onClick={() => navigate('manage-roles', team.id)} className="flex-1 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2">
+                                        <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="shield" class="w-4 h-4 text-amber-600"></i>' }}></span>
+                                        Roles
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                    {/* Loading Overlay */ }
-            {
-                (importing || syncing) && (
-                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex flex-col items-center justify-center animate-in fade-in duration-200">
-                        <div className="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center max-w-[80vw] mx-auto text-center border border-slate-100">
-                            <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-100 border-b-emerald-500 mb-4"></div>
-                            <p className="text-slate-800 font-bold text-lg">Conectando con FBCV...</p>
-                            <p className="text-slate-500 text-sm mt-1 font-medium">Esto puede tardar unos segundos</p>
-                        </div>
-                    </div>
-                )
-            }
+                    {/* Loading Overlay */}
+                    {
+                        (importing || syncing) && (
+                            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex flex-col items-center justify-center animate-in fade-in duration-200">
+                                <div className="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center max-w-[80vw] mx-auto text-center border border-slate-100">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-100 border-b-emerald-500 mb-4"></div>
+                                    <p className="text-slate-800 font-bold text-lg">Conectando con FBCV...</p>
+                                    <p className="text-slate-500 text-sm mt-1 font-medium">Esto puede tardar unos segundos</p>
+                                </div>
+                            </div>
+                        )
+                    }
                 </div >
             );
         };
@@ -2176,12 +2175,9 @@
                 setMode('matrix');
             };
 
-            const togglePlayerActiveStatus = async (playerId, playerName, currentDisabled) => {
-                const action = currentDisabled ? "habilitar" : "deshabilitar";
-                if (!confirm(`¿Deseas ${action} a ${playerName} para este partido ? `)) return;
-                const updatedPlayers = (match.players || []).map(p =>
-                    p.id === playerId ? { ...p, disabled: !currentDisabled } : p
-                );
+            const removePlayerFromMatch = async (playerId, playerName) => {
+                if (!confirm(`¿Deseas quitar a ${playerName} de la convocatoria para este partido? Podrás añadirlo de nuevo después si quieres.`)) return;
+                const updatedPlayers = (match.players || []).filter(p => p.id !== playerId);
                 await updateMatchInDb(match.id, { players: updatedPlayers });
             };
 
@@ -2401,7 +2397,7 @@
                                                         <span className={`w-2 h-2 rounded-full inline-block mb-0.5 ${roles[defaultRole].bg.replace('-50', '-400')}`}></span>
                                                     )}
                                                 </div>
-                                                {!isLocked && (<button onClick={() => togglePlayerActiveStatus(p.id, p.name, isDisabled)} className={`p-1 opacity-0 group-hover/row:opacity-100 transition-opacity ${isDisabled ? 'text-green-500 hover:text-green-700' : 'text-slate-300 hover:text-red-500'}`}><span dangerouslySetInnerHTML={{ __html: `<i data-lucide="${isDisabled ? 'rotate-ccw' : 'ban'}" class="w-3 h-3"></i>` }}></span></button>)}
+                                                {!isLocked && (<button onClick={() => removePlayerFromMatch(p.id, p.name)} className="p-1 opacity-0 group-hover/row:opacity-100 transition-opacity text-slate-300 hover:text-red-500" title="Quitar de convocatoria"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="user-minus" class="w-3 h-3"></i>' }}></span></button>)}
                                             </td>
                                             {periodsArray.map(period => {
                                                 const status = getPeriodStatus(period);
