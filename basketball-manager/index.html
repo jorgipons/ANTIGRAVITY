@@ -2400,11 +2400,11 @@
                                         <tr key={p.id} className={`border-b last:border-0 mobile-landscape-compact-nav group/row transition-all ${viewType === 'compact' ? 'h-6' : 'h-10'} ${isDisabled ? 'bg-slate-100 text-slate-400' : (hasError ? 'bg-red-100 border-red-200' : (isPlayingNow ? 'bg-blue-50/30' : 'hover:bg-slate-50'))}`}>
                                             <td className={`mobile-landscape-compact-p border-r sticky left-0 z-10 font-medium whitespace-nowrap flex items-center transition-all ${viewType === 'compact' ? 'justify-start text-[8px] p-0 w-14' : 'justify-between text-xs md:text-sm p-2 w-32'} ${isDisabled ? 'bg-slate-100 text-slate-400' : (hasError ? 'bg-red-100 text-red-900 font-bold' : (isPlayingNow ? 'bg-blue-50 text-blue-900 font-extrabold' : 'bg-white text-slate-800 group-hover/row:bg-slate-50'))}`}>
                                                 <div className={`flex items-center ${viewType === 'compact' ? 'gap-0.5' : 'gap-2'} ${isDisabled ? 'line-through decoration-slate-400' : ''}`}>
-                                                    <span className={`inline-block opacity-70 ${viewType === 'compact' ? 'w-3' : 'w-5'}`}>#{p.number}</span>
-                                                    <span className={`truncate ${viewType === 'compact' ? 'max-w-[55px]' : 'max-w-[120px] md:max-w-none'}`}>{p.name}</span>
                                                     {match.attendance?.[p.id] && (
                                                         <span className={`rounded-full inline-block ${viewType === 'compact' ? 'w-1 h-1' : 'w-1.5 h-1.5'} ${match.attendance[p.id].status === 'available' ? 'bg-green-500' : 'bg-red-500'}`}></span>
                                                     )}
+                                                    <span className={`inline-block opacity-70 ${viewType === 'compact' ? 'w-3' : 'w-5'}`}>#{p.number}</span>
+                                                    <span className={`truncate ${viewType === 'compact' ? 'max-w-[55px]' : 'max-w-[120px] md:max-w-none'}`}>{p.name}</span>
                                                     {!isDisabled && defaultRole && roles[defaultRole] && (
                                                         <span className={`rounded-full inline-block ${viewType === 'compact' ? 'w-1 h-1' : 'w-1.5 h-1.5'} ${roles[defaultRole].bg.replace('-50', '-400')}`}></span>
                                                     )}
