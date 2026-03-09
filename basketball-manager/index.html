@@ -4516,15 +4516,20 @@
             );
         };
 
-        const PublicMatchView = ({ matchId, db, doc, onSnapshot, updateDoc, collection, query, where, getDocs }) => {
+        const PublicMatchView = ({ matchId, user, navigate, db, doc, onSnapshot, updateDoc, collection, query, where, getDocs }) => {
             const [match, setMatch] = useState(null);
             const [team, setTeam] = useState(null);
             const [loading, setLoading] = useState(true);
+            const [error, setLoadError] = useState(null);
             const [selectedPlayerId, setSelectedPlayerId] = useState('');
             const [status, setStatus] = useState('available');
             const [submitted, setSubmitted] = useState(false);
 
             useEffect(() => {
+                if (!matchId) return;
+                console.log("🔍 [PublicMatchView] Loading match:", matchId);
+
+                let unsubTeam = () => { };
                 const matchRef = doc(db, 'matches', matchId);
                 const unsubMatch = onSnapshot(matchRef, async (snap) => {
                     if (snap.exists()) {
@@ -4532,31 +4537,40 @@
                         setMatch(mData);
 
                         // Fetch team
+                        unsubTeam(); // Unsubscribe previous if data changed
                         const teamRef = doc(db, 'teams', mData.teamId);
-                        const unsubTeam = onSnapshot(teamRef, (tSnap) => {
+                        unsubTeam = onSnapshot(teamRef, (tSnap) => {
                             if (tSnap.exists()) {
                                 setTeam({ id: tSnap.id, ...tSnap.data() });
+                                setLoadError(null);
+                            } else {
+                                setLoadError("Equipo no encontrado");
                             }
                             setLoading(false);
                         }, (err) => {
-                            console.error("Error loading team:", err);
+                            console.error("❌ Error loading team:", err);
+                            setLoadError("Error de permisos al cargar el equipo");
                             setLoading(false);
                         });
-                        return () => unsubTeam();
                     } else {
-                        console.error("Match not found:", matchId);
+                        console.error("❌ Match not found:", matchId);
+                        setLoadError("Partido no encontrado");
                         setLoading(false);
                     }
                 }, (err) => {
-                    console.error("Error loading match:", err);
+                    console.error("❌ Error loading match:", err);
+                    setLoadError("Error de permisos al cargar el partido");
                     setLoading(false);
                 });
-                return () => unsubMatch();
+
+                return () => {
+                    unsubMatch();
+                    unsubTeam();
+                };
             }, [matchId, db]);
 
             useEffect(() => {
-                if (window.lucide) {
-                    // Small delay to ensure React finished patching the DOM
+                if (window.lucide && !loading) {
                     const timeout = setTimeout(() => lucide.createIcons(), 50);
                     return () => clearTimeout(timeout);
                 }
@@ -4589,14 +4603,18 @@
                 </div>
             );
 
-            if (!match || !team) return (
+            if (error || !match || !team) return (
                 <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
                     <div className="bg-white p-8 rounded-3xl shadow-xl border border-slate-100 text-center max-w-sm">
                         <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="alert-circle" class="w-8 h-8"></i>' }}></span>
+                            <span dangerouslySetInnerHTML={{ __html: `<i data-lucide="${error?.includes('permisos') ? 'lock' : 'alert-circle'}" class="w-8 h-8"></i>` }}></span>
                         </div>
-                        <h2 className="text-xl font-bold text-slate-800 mb-2">Partido no encontrado</h2>
-                        <p className="text-slate-500 text-sm">El enlace puede haber expirado o ser incorrecto.</p>
+                        <h2 className="text-xl font-bold text-slate-800 mb-2">{error || "Partido no encontrado"}</h2>
+                        <p className="text-slate-500 text-sm">
+                            {error?.includes('permisos')
+                                ? "Inicia sesión para ver este partido o contacta con el administrador del equipo."
+                                : "El enlace puede haber expirado o ser incorrecto."}
+                        </p>
                     </div>
                 </div>
             );
@@ -4626,23 +4644,18 @@
                         </button>
                     )}
                     <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="bg-[#002D62] p-6 text-white">
-                            <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <p className="text-blue-200 text-[10px] font-bold uppercase tracking-widest mb-1">{team.name}</p>
-                                    <h1 className="text-2xl font-bold">vs {match.opponent}</h1>
-                                </div>
-                                <div className="p-2 bg-white/10 rounded-xl backdrop-blur-sm border border-white/10">
-                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="calendar" class="w-5 h-5 text-blue-200"></i>' }}></span>
-                                </div>
+                        <div className="bg-[#002D62] p-6 text-white text-center">
+                            <div className="mb-4">
+                                <p className="text-blue-200 text-[10px] font-bold uppercase tracking-widest mb-1">{team.name}</p>
+                                <h1 className="text-xl font-bold truncate">{match.opponent}</h1>
                             </div>
-                            <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-blue-100">
+                            <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm text-blue-100">
                                 <div className="flex items-center gap-1.5"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="calendar" class="w-4 h-4 text-blue-300"></i>' }}></span> {match.date}</div>
-                                <div className="flex items-center gap-1.5 font-bold"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="clock" class="w-4 h-4 text-blue-300"></i>' }}></span> Inicio: {match.time}</div>
+                                <div className="flex items-center gap-1.5 font-bold"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="clock" class="w-4 h-4 text-blue-300"></i>' }}></span> {match.time}</div>
                                 {match.callTime && (
                                     <div className="flex items-center gap-1.5 bg-white/20 px-2 py-0.5 rounded text-white font-black"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="megaphone" class="w-3.5 h-3.5"></i>' }}></span> Cita: {match.callTime}</div>
                                 )}
-                                <div className="flex items-center gap-1.5 w-full mt-1 border-t border-white/10 pt-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="map-pin" class="w-4 h-4 text-blue-300"></i>' }}></span> {match.location}</div>
+                                <div className="flex items-center justify-center gap-1.5 w-full mt-1 border-t border-white/10 pt-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="map-pin" class="w-4 h-4 text-blue-300"></i>' }}></span> {match.location}</div>
                             </div>
 
                             {/* Displacement info for away matches */}
@@ -4932,10 +4945,12 @@
 
             useEffect(() => {
                 const tutorialCompleted = localStorage.getItem('tutorial_completed');
-                if (!tutorialCompleted) {
+                if (!tutorialCompleted && view !== 'public-match') {
                     setShowTutorial(true);
+                } else if (view === 'public-match') {
+                    setShowTutorial(false);
                 }
-            }, []);
+            }, [view]);
 
             const handleNextTutorial = () => {
                 if (tutorialStep < currentTutorialSteps.length - 1) {
@@ -4981,7 +4996,9 @@
             };
 
             useEffect(() => {
-                window.history.replaceState({ view: 'teams-list', teamId: null, matchId: null }, '', '#teams-list');
+                if (!publicMatchId) {
+                    window.history.replaceState({ view: 'teams-list', teamId: null, matchId: null }, '', '#teams-list');
+                }
 
                 const handlePopState = (event) => {
                     if (event.state && event.state.view) {
@@ -5164,7 +5181,7 @@
                         )}
 
                         <div className="flex-grow">
-                            {view === 'public-match' && <PublicMatchView matchId={activeMatchId} db={db} doc={doc} onSnapshot={onSnapshot} updateDoc={updateDoc} collection={collection} query={query} where={where} getDocs={getDocs} />}
+                            {view === 'public-match' && <PublicMatchView matchId={activeMatchId} user={user} navigate={navigate} db={db} doc={doc} onSnapshot={onSnapshot} updateDoc={updateDoc} collection={collection} query={query} where={where} getDocs={getDocs} />}
                             {view === 'teams-list' && <TeamsListView teams={teams} matches={matches} navigate={navigate} addDoc={addDoc} collection={collection} db={db} deleteDoc={deleteDoc} doc={doc} subscription={subscription} startCheckout={startCheckout} />}
                             {view === 'admin-dashboard' && isAdmin && <AdminDashboardView navigate={navigate} db={db} collection={collection} getDocs={getDocs} query={query} where={where} />}
                             {view === 'all-matches-calendar' && <AllMatchesCalendarView teams={teams} matches={matches} navigate={navigate} />}
