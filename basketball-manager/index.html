@@ -57,6 +57,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, orderBy, where, enableIndexedDbPersistence, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-auth.js";
+        import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-messaging.js";
 
         // Your web app's Firebase configuration
         const firebaseConfig = {
@@ -72,6 +73,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
+        const messaging = getMessaging(app);
 
         // Enable Offline Persistence
         enableIndexedDbPersistence(db)
@@ -86,10 +88,12 @@
         // Expose DB and Auth to window for React component to use
         window.db = db;
         window.auth = auth;
+        window.messaging = messaging;
         window.firebaseMethods = {
             collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, orderBy, where, getDocs, setDoc,
             signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
-            GoogleAuthProvider, signInWithPopup
+            GoogleAuthProvider, signInWithPopup,
+            getToken
         };
     </script>
 
@@ -5062,9 +5066,39 @@
                                 }
                             });
 
-                            // Cleanup logic for this listener is tricky inside onAuthStateChanged... 
-                            // For simplicity in this structure, we'll just let it run. In a real app we'd manage the subscription better.
-                            // But user only changes once usually.
+                            // Request Notification Permission and Store Token
+                            const requestNotificationPermission = async () => {
+                                try {
+                                    const { getToken } = window.firebaseMethods;
+                                    const messaging = window.messaging;
+
+                                    // Public VAPID Key from Firebase Console
+                                    // User will need to provide this, or we use a placeholder for now
+                                    // Let's use a common pattern: check if permission is granted
+                                    const permission = await Notification.requestPermission();
+                                    if (permission === 'granted') {
+                                        const token = await getToken(messaging, {
+                                            vapidKey: 'BFy1qzbzp-a3EF_FMlPSPwFuFC6Deg6fk6ZI6gkBCR4boNjzxx2AWG1-9YHTbdm7jkHpUN2IR-nxd0tiCcHpRWM'
+                                        });
+                                        if (token) {
+                                            console.log('FCM Token:', token);
+                                            // Store token in user document
+                                            const userData = snapshot ? snapshot.data() : {}; // Snapshot might be async
+                                            const currentTokens = (await getDocs(query(collection(db, 'users'), where('id', '==', u.uid)))).docs[0]?.data()?.fcmTokens || [];
+
+                                            if (!currentTokens.includes(token)) {
+                                                await setDoc(userRef, {
+                                                    fcmTokens: [...currentTokens, token]
+                                                }, { merge: true });
+                                            }
+                                        }
+                                    }
+                                } catch (err) {
+                                    console.error('Error requesting notification permission:', err);
+                                }
+                            };
+
+                            requestNotificationPermission();
 
                         } catch (e) {
                             console.error("Error syncing user:", e);
