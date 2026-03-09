@@ -4538,14 +4538,21 @@
                                 setTeam({ id: tSnap.id, ...tSnap.data() });
                             }
                             setLoading(false);
+                        }, (err) => {
+                            console.error("Error loading team:", err);
+                            setLoading(false);
                         });
                         return () => unsubTeam();
                     } else {
+                        console.error("Match not found:", matchId);
                         setLoading(false);
                     }
+                }, (err) => {
+                    console.error("Error loading match:", err);
+                    setLoading(false);
                 });
                 return () => unsubMatch();
-            }, [matchId, db]); // Added db to dependencies
+            }, [matchId, db]);
 
             useEffect(() => {
                 if (window.lucide) {
@@ -4609,9 +4616,9 @@
 
             return (
                 <div className="min-h-screen bg-slate-50 p-4 md:p-8 flex flex-col items-center justify-center gap-4">
-                    {window.auth.currentUser && (
+                    {user && (
                         <button
-                            onClick={() => window.location.href = window.location.origin + window.location.pathname}
+                            onClick={() => navigate('teams-list')}
                             className="bg-white px-4 py-2 rounded-full shadow-sm border border-slate-200 text-xs font-bold text-blue-600 flex items-center gap-2 hover:bg-slate-50 transition-all animate-in slide-in-from-top-4 duration-500"
                         >
                             <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>' }}></span>
@@ -4868,8 +4875,20 @@
 
         const App = () => {
             const { onAuthStateChanged, collection, query, where, onSnapshot, addDoc, updateDoc, doc, deleteDoc, signOut, orderBy, setDoc, getDocs } = window.firebaseMethods;
-            const urlParams = new URL(window.location.href).searchParams;
-            const publicMatchId = urlParams.get('matchId');
+
+            // Extract matchId from URL (query param or hash-query param)
+            const getMatchIdFromURL = () => {
+                const urlObj = new URL(window.location.href);
+                let mid = urlObj.searchParams.get('matchId');
+                if (!mid && urlObj.hash.includes('?')) {
+                    const hashPart = urlObj.hash.split('?')[1];
+                    const hashParams = new URLSearchParams(hashPart);
+                    mid = hashParams.get('matchId');
+                }
+                return mid;
+            };
+
+            const publicMatchId = getMatchIdFromURL();
 
             const [user, setUser] = useState(null);
             const [isAdmin, setIsAdmin] = useState(false);
@@ -5122,7 +5141,8 @@
                 </div>
             );
 
-            if (!user && view !== 'public-match') return <AuthView />;
+            // Access bypass: if publicMatchId exists, allow viewing public-match without login
+            if (!user && view !== 'public-match' && !publicMatchId) return <AuthView />;
 
             return (
                 <div className="min-h-screen flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden bg-slate-50">
