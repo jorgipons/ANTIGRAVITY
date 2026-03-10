@@ -4342,18 +4342,35 @@
                                         const matchesSnap = await getDocs(query(collection(db, 'matches'), where('teamId', '==', team.id)));
                                         if (matchesSnap.empty) return alert('No hay partidos para este equipo para probar.');
 
+                                        const matchData = matchesSnap.docs[0].data();
+                                        console.log("🔍 [Test] Match found:", matchesSnap.docs[0].id, "OwnerId:", matchData.ownerId);
+
+                                        if (!matchData.ownerId) {
+                                            return alert('Este partido no tiene ownerId (fue creado antes de activar las notificaciones). Por favor, crea un partido nuevo para probar.');
+                                        }
+
+                                        // Check user tokens
+                                        const userSnap = await getDocs(query(collection(db, 'users'), where('id', '==', matchData.ownerId)));
+                                        if (userSnap.empty) {
+                                            console.warn("⚠️ [Test] No user document found for ID:", matchData.ownerId);
+                                            return alert('No hay datos de usuario para notificaciones. Pulsa "Activar Avisos" primero.');
+                                        }
+
+                                        const userData = userSnap.docs[0].data();
+                                        console.log("🔍 [Test] User data found. Tokens:", userData.fcmTokens?.length || 0);
+
+                                        if (!userData.fcmTokens || userData.fcmTokens.length === 0) {
+                                            return alert('Tu usuario no tiene tokens de notificación. Pulsa "Activar Avisos" y acepta los permisos.');
+                                        }
+
                                         const matchRef = doc(db, 'matches', matchesSnap.docs[0].id);
-                                        // Trigger the function by updating a dummy field
                                         await updateDoc(matchRef, {
                                             lastTestNotification: new Date().toISOString(),
-                                            // We simulate a change in attendance to trigger the cloud function's onUpdate logic
-                                            // but without actually changing the player list if possible, or just triggering on any update if the function is loose.
-                                            // Actually the function checks for attendance changes specifically.
-                                            // Let's add a dummy attendance update if there's at least one player
                                             'attendance.test_trigger': { status: 'available', updatedAt: new Date().toISOString(), isTest: true }
                                         });
-                                        if (window.showToast) window.showToast('🚀 Test enviado. Espera unos segundos...');
+                                        if (window.showToast) window.showToast('🚀 Test enviado. Abre la consola (F12) para ver el progreso.');
                                     } catch (e) {
+                                        console.error("❌ Notification Test Error:", e);
                                         alert('Error: ' + e.message);
                                     }
                                 }}

@@ -48,16 +48,16 @@ exports.onAttendanceUpdate = functions.firestore
                     title: 'Confirmación de Asistencia',
                     body: `${playerName} ${status} al partido contra ${opponent}`,
                     icon: 'https://cdn-icons-png.flaticon.com/512/889/889442.png',
-                    clickAction: `https://basketmanager-ed370.web.app/#attendance-status?matchId=${context.params.matchId}`
+                    click_action: `https://basketmanager-ed370.web.app/#attendance-status?matchId=${context.params.matchId}`
                 }
             };
 
-            console.log(`Sending notification for player ${playerName} to user ${ownerId}`);
+            console.log(`Sending notification to ${tokens.length} devices for player ${playerName} (match: ${opponent})`);
             try {
                 const response = await admin.messaging().sendToDevice(tokens, payload);
-                console.log('Notification sent successfully:', response);
+                console.log('FCM Response:', JSON.stringify(response));
             } catch (error) {
-                console.error('Error sending notification:', error);
+                console.error('FCM Error:', error);
             }
         }
 
