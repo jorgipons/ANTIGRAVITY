@@ -345,7 +345,7 @@
         const { useState, useEffect, useMemo } = React;
 
         // --- Logic & Types ---
-        const APP_VERSION = '1.11.7';
+        const APP_VERSION = '1.12.0';
         const RULESETS = {
             'fbcv_8p': {
                 id: 'fbcv_8p',
@@ -3215,7 +3215,8 @@
                     }
 
                     if (shouldNavigate) {
-                        navigate('active-match', team.id, currentId);
+                        // Use replace: true to avoid going back to save screen
+                        navigate('active-match', team.id, currentId, false, true);
                     } else {
                         setSaveStatus('Guardado ✅');
                         setTimeout(() => setSaveStatus(''), 3000);
@@ -4959,15 +4960,32 @@
                 return mid;
             };
 
-            const publicMatchId = getMatchIdFromURL();
+            // Persistence Recovery
+            const getInitialState = () => {
+                const mid = getMatchIdFromURL();
+                if (mid) return { view: 'public-match', teamId: null, matchId: mid };
+
+                const savedState = localStorage.getItem('app_state');
+                if (savedState) {
+                    try {
+                        const parsed = JSON.parse(savedState);
+                        // Validate view
+                        if (parsed.view) return parsed;
+                    } catch (e) { console.error("Error parsing saved state", e); }
+                }
+
+                return { view: 'teams-list', teamId: null, matchId: null };
+            };
+
+            const initialState = getInitialState();
 
             const [user, setUser] = useState(null);
             const [isAdmin, setIsAdmin] = useState(false);
-            const [view, setView] = useState(publicMatchId ? 'public-match' : 'teams-list');
+            const [view, setView] = useState(initialState.view);
             const [teams, setTeams] = useState([]);
             const [matches, setMatches] = useState([]);
-            const [selectedTeamId, setSelectedTeamId] = useState(null);
-            const [activeMatchId, setActiveMatchId] = useState(publicMatchId || null);
+            const [selectedTeamId, setSelectedTeamId] = useState(initialState.teamId);
+            const [activeMatchId, setActiveMatchId] = useState(initialState.matchId);
             const [authLoading, setAuthLoading] = useState(true);
             const [subscription, setSubscription] = useState(undefined); // undefined = loading, null = free, 'active' = premium
             const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -5054,16 +5072,30 @@
                 };
             }, []);
 
-            const navigate = (newView, teamId = null, matchId = null, isBack = false) => {
+            const navigate = (newView, teamId = null, matchId = null, isBack = false, replace = false) => {
                 setView(newView);
+                const tId = (teamId !== undefined && teamId !== null) ? teamId : (isBack ? teamId : selectedTeamId);
+                const mId = (matchId !== undefined && matchId !== null) ? matchId : (isBack ? matchId : activeMatchId);
+
                 if (teamId !== undefined && teamId !== null) setSelectedTeamId(teamId);
                 if (matchId !== undefined && matchId !== null) setActiveMatchId(matchId);
+
                 window.scrollTo(0, 0);
                 setShowTutorial(false);
                 setTutorialStep(0);
 
+                // Persist state
+                if (newView !== 'public-match') {
+                    localStorage.setItem('app_state', JSON.stringify({ view: newView, teamId: tId, matchId: mId }));
+                }
+
                 if (!isBack) {
-                    window.history.pushState({ view: newView, teamId, matchId }, '', `#${newView}`);
+                    const stateObj = { view: newView, teamId: tId, matchId: mId };
+                    if (replace) {
+                        window.history.replaceState(stateObj, '', `#${newView}`);
+                    } else {
+                        window.history.pushState(stateObj, '', `#${newView}`);
+                    }
                 }
             };
 
@@ -5180,6 +5212,7 @@
                         setTeams([]);
                         setMatches([]);
                         setIsAdmin(false);
+                        localStorage.removeItem('app_state');
                     }
                     setAuthLoading(false);
                 });
@@ -5329,7 +5362,7 @@
                                         doc={doc}
                                         deleteDoc={deleteDoc}
                                         onBack={() => navigate('team-detail', selectedTeamId)}
-                                        onSave={async (updates) => { await updateMatchInDb(activeMatchId, updates); navigate('team-detail', selectedTeamId); }}
+                                        onSave={async (updates) => { await updateMatchInDb(activeMatchId, updates); navigate('team-detail', selectedTeamId, null, false, true); }}
                                     />
                                 </div>
                             )}
