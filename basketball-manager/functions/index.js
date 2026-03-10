@@ -48,14 +48,14 @@ exports.onAttendanceUpdate = functions.firestore
         for (const playerId of updatedPlayerIds) {
             const player = players.find(p => p.id === playerId);
             const playerName = player ? player.name : 'Jugador';
-            const shortStatus = newAttendance[playerId].status === 'available' ? 'SÍ' : 'NO';
+            const statusLabel = newAttendance[playerId].status === 'available' ? 'ASISTIRÁ' : 'NO ASISTIRÁ';
 
             tokens.forEach(token => {
                 messages.push({
                     token: token,
                     notification: {
-                        title: `vs ${opponent}`,
-                        body: `${playerName}: ${shortStatus}`
+                        title: `Confirmación vs ${opponent}`,
+                        body: `${playerName} ha confirmado: ${statusLabel}`
                     },
                     webpush: {
                         fcm_options: {
