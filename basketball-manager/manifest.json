@@ -1,6 +1,7 @@
 {
     "name": "Gestor Basket Pasarela",
     "short_name": "BasketManager",
+    "gcm_sender_id": "103953800507",
     "description": "Gestor de equipos para normativa Pasarela con guardado en la nube",
     "start_url": "./index.html",
     "scope": "./",

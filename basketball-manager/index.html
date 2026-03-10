@@ -5207,55 +5207,70 @@
                                 }
                             });
 
+                            // Foreground listener
+                            const { onMessage } = window.firebaseMethods;
+                            onMessage(window.messaging, (payload) => {
+                                console.log('📬 Foreground message received:', payload);
+                                if (window.showToast) {
+                                    const body = payload.notification?.body || 'Nueva actualización';
+                                    const title = payload.notification?.title || 'Notificación';
+                                    window.showToast(`${title}: ${body}`);
+                                }
+                            });
+
                             // Request Notification Permission and Store Token
                             const requestNotificationPermission = async (registration) => {
                                 try {
-                                    const { getToken, onMessage } = window.firebaseMethods;
+                                    const { getToken, onMessage, getDoc } = window.firebaseMethods;
                                     const messaging = window.messaging;
 
-                                    // Foreground listener
-                                    onMessage(messaging, (payload) => {
-                                        console.log('📬 Foreground message received:', payload);
-                                        if (window.showToast) {
-                                            const body = payload.notification?.body || 'Nueva actualización';
-                                            const title = payload.notification?.title || 'Notificación';
-                                            window.showToast(`${title}: ${body}`);
-                                        }
-                                    });
+                                    if (!('pushManager' in registration)) {
+                                        alert('❌ El navegador no soporta Push Manager. Prueba con otro navegador.');
+                                        return;
+                                    }
 
                                     console.log('🔔 Requesting notification permission...');
                                     const permission = await Notification.requestPermission();
                                     console.log('🔔 Permission status:', permission);
 
                                     if (permission === 'granted') {
+                                        console.log('🚀 Obteniendo token de FCM...');
                                         const token = await getToken(messaging, {
                                             vapidKey: 'BFy1qzbzp-a3EF_FMlPSPwFuFC6Deg6fk6ZI6gkBCR4boNjzxx2AWG1-9YHTbdm7jkHpUN2IR-nxd0tiCcHpRWM',
                                             serviceWorkerRegistration: registration
                                         });
+
                                         if (token) {
                                             console.log('✅ FCM Token:', token);
+                                            alert('✅ Token de aviso generado correctamente.');
+
                                             // Store token in user document
-                                            const { getDoc } = window.firebaseMethods;
                                             const userDataSnap = await getDoc(userRef);
                                             const userData = userDataSnap.exists() ? userDataSnap.data() : {};
                                             const currentTokens = userData.fcmTokens || [];
 
                                             if (!currentTokens.includes(token)) {
                                                 await setDoc(userRef, {
-                                                    id: u.uid, // Ensure ID is present for queries
+                                                    id: u.uid,
                                                     fcmTokens: [...currentTokens, token],
                                                     updatedAt: new Date().toISOString()
                                                 }, { merge: true });
                                                 console.log('✅ Token saved to DB');
+                                                alert('💾 ¡Configuración guardada en la base de datos!');
+                                            } else {
+                                                alert('ℹ️ El dispositivo ya estaba registrado.');
                                             }
                                         } else {
                                             console.warn('⚠️ No token received');
+                                            alert('⚠️ No se ha podido generar el token. Verifica que tu navegador permite notificaciones de Firebase.');
                                         }
                                     } else {
                                         console.warn('❌ Notification permission denied');
+                                        alert('❌ Permiso de notificaciones denegado. Cámbialo en los ajustes del navegador (icono del candado).');
                                     }
                                 } catch (err) {
                                     console.error('❌ Error requesting notification permission:', err);
+                                    alert('❌ Error crítico: ' + err.message);
                                 }
                             };
                             window.requestNotificationPermission = requestNotificationPermission;
