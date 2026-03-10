@@ -3064,7 +3064,7 @@
                                                 className="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all cursor-pointer overflow-hidden transform hover:-translate-y-1 relative"
                                             >
                                                 <div className="p-5">
-                                                    <div className="flex justify-between items-start mb-4">
+                                                    <div className="flex flex-col gap-4">
                                                         <div className="flex-1">
                                                             <h3 className="text-xl font-extrabold text-slate-800 tracking-tight group-hover:text-blue-600 transition-colors">
                                                                 {team.name}
@@ -3076,7 +3076,7 @@
                                                         </div>
 
                                                         {nextMatch ? (
-                                                            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 group-hover:border-blue-100 transition-colors flex-1 max-w-[200px]">
+                                                            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 group-hover:border-blue-100 transition-colors w-full">
                                                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                                                                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
                                                                     Próximo Partido
@@ -5409,11 +5409,6 @@
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
-    </script>
-    // SW registration moved inside auth logic for FCM coordination
-    .catch(err => console.log('Error SW', err));
-    });
-    }
     </script>
 </body>
 
