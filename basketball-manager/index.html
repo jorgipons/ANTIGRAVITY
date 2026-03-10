@@ -4997,7 +4997,7 @@
         };
 
         const App = () => {
-            const { onAuthStateChanged, collection, query, where, onSnapshot, addDoc, updateDoc, doc, deleteDoc, signOut, orderBy, setDoc, getDocs } = window.firebaseMethods;
+            const { onAuthStateChanged, collection, query, where, onSnapshot, addDoc, updateDoc, doc, deleteDoc, signOut, orderBy, setDoc, getDocs, getDoc } = window.firebaseMethods;
 
             // Extract matchId from URL (query param or hash-query param)
             const getMatchIdFromURL = () => {
@@ -5221,7 +5221,7 @@
                             // Request Notification Permission and Store Token
                             const requestNotificationPermission = async (registration) => {
                                 try {
-                                    const { getToken, onMessage, getDoc } = window.firebaseMethods;
+                                    const { getToken, onMessage, getDoc, setDoc } = window.firebaseMethods;
                                     const messaging = window.messaging;
 
                                     if (!('pushManager' in registration)) {
@@ -5244,20 +5244,23 @@
                                             console.log('✅ FCM Token:', token);
                                             alert('✅ Token de aviso generado correctamente.');
 
-                                            // Store token in user document
+                                            console.log('🔍 [Sync] Checking user document for UID:', u.uid);
                                             const userDataSnap = await getDoc(userRef);
                                             const userData = userDataSnap.exists() ? userDataSnap.data() : {};
                                             const currentTokens = userData.fcmTokens || [];
+                                            console.log('🔍 [Sync] Current tokens in DB:', currentTokens.length);
 
                                             if (!currentTokens.includes(token)) {
+                                                console.log('🚀 [Sync] Saving new token to Firestore...');
                                                 await setDoc(userRef, {
                                                     id: u.uid,
                                                     fcmTokens: [...currentTokens, token],
                                                     updatedAt: new Date().toISOString()
                                                 }, { merge: true });
-                                                console.log('✅ Token saved to DB');
+                                                console.log('✅ [Sync] Token saved to DB successfully');
                                                 alert('💾 ¡Configuración guardada en la base de datos!');
                                             } else {
+                                                console.log('ℹ️ [Sync] Token already registered');
                                                 alert('ℹ️ El dispositivo ya estaba registrado.');
                                             }
                                         } else {
