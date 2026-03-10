@@ -4387,17 +4387,17 @@
                                 Probar Test
                             </button>
                         </div>
-                    </div>
 
-                    {/* Zona de Peligro */}
-                    <div className="bg-red-50 p-4 rounded-xl border border-red-100">
-                        <h3 className="font-bold text-red-900 mb-2 flex items-center gap-2">
-                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="alert-triangle" class="w-4 h-4"></i>' }}></span> Zona de Peligro
-                        </h3>
-                        <p className="text-xs text-red-700/70 mb-4">Eliminar el equipo borrará permanentemente todos sus partidos y estadísticas.</p>
-                        <button onClick={deleteTeam} className="w-full py-3 bg-white border border-red-200 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-all">Eliminar Equipo</button>
+                        {/* Zona de Peligro */}
+                        <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+                            <h3 className="font-bold text-red-900 mb-2 flex items-center gap-2">
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="alert-triangle" class="w-4 h-4"></i>' }}></span> Zona de Peligro
+                            </h3>
+                            <p className="text-xs text-red-700/70 mb-4">Eliminar el equipo borrará permanentemente todos sus partidos y estadísticas.</p>
+                            <button onClick={deleteTeam} className="w-full py-3 bg-white border border-red-200 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-all">Eliminar Equipo</button>
+                        </div>
                     </div>
-                </div>
+                </div >
             );
         };
 
@@ -5263,10 +5263,31 @@
                             // SW registration moved inside auth logic for FCM coordination
                             if ('serviceWorker' in navigator) {
                                 navigator.serviceWorker.register('./firebase-messaging-sw.js')
-                                    .then(reg => {
+                                    .then(async reg => {
+                                        console.log('✅ Service Worker registered');
+
+                                        // Wait for the service worker to be active
+                                        const waitForActive = (registration) => {
+                                            if (registration.active) return Promise.resolve(registration.active);
+                                            return new Promise((resolve) => {
+                                                const serviceWorker = registration.installing || registration.waiting;
+                                                const handler = () => {
+                                                    if (serviceWorker.state === 'activated') {
+                                                        serviceWorker.removeEventListener('statechange', handler);
+                                                        resolve(serviceWorker);
+                                                    }
+                                                };
+                                                if (serviceWorker) {
+                                                    serviceWorker.addEventListener('statechange', handler);
+                                                }
+                                            });
+                                        };
+
+                                        await waitForActive(reg);
+                                        console.log('🚀 Service Worker is active, requesting FCM token...');
                                         requestNotificationPermission(reg);
                                     })
-                                    .catch(err => console.log('Error SW', err));
+                                    .catch(err => console.error('❌ Error SW:', err));
                             }
 
                         } catch (e) {

@@ -17,7 +17,23 @@ const urlsToCache = [
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then(cache => cache.addAll(urlsToCache))
+            .then(async cache => {
+                console.log('[SW] Caching app shell...');
+                // Cache critical local files first
+                const criticalUrls = urlsToCache.filter(url => url.startsWith('./'));
+                await cache.addAll(criticalUrls);
+
+                // Attempt to cache external files individually to avoid total failure on CORS
+                const externalUrls = urlsToCache.filter(url => !url.startsWith('./'));
+                for (const url of externalUrls) {
+                    try {
+                        await cache.add(new Request(url, { mode: 'no-cors' }));
+                    } catch (e) {
+                        console.warn(`[SW] Failed to cache external resource: ${url}`, e);
+                    }
+                }
+            })
+            .then(() => self.skipWaiting())
     );
 });
 
