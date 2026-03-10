@@ -55,7 +55,7 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, orderBy, where, enableIndexedDbPersistence, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, orderBy, where, enableIndexedDbPersistence, getDocs, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-auth.js";
         import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-messaging.js";
 
@@ -90,7 +90,7 @@
         window.auth = auth;
         window.messaging = messaging;
         window.firebaseMethods = {
-            collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, orderBy, where, getDocs, setDoc,
+            collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, orderBy, where, getDocs, setDoc, getDoc,
             signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
             GoogleAuthProvider, signInWithPopup,
             getToken, onMessage
@@ -4338,7 +4338,7 @@
                                 onClick={async () => {
                                     if (!confirm('¿Enviar notificación de prueba? Necesitas un partido creado para este equipo.')) return;
                                     try {
-                                        const { query, collection, where, getDocs, updateDoc, doc } = window.firebaseMethods;
+                                        const { query, collection, where, getDocs, updateDoc, doc, getDoc } = window.firebaseMethods;
                                         const matchesSnap = await getDocs(query(collection(db, 'matches'), where('teamId', '==', team.id)));
                                         if (matchesSnap.empty) return alert('No hay partidos para este equipo para probar.');
 
@@ -4346,17 +4346,19 @@
                                         console.log("🔍 [Test] Match found:", matchesSnap.docs[0].id, "OwnerId:", matchData.ownerId);
 
                                         if (!matchData.ownerId) {
-                                            return alert('Este partido no tiene ownerId (fue creado antes de activar las notificaciones). Por favor, crea un partido nuevo para probar.');
+                                            return alert('Este partido no tiene ownerId. Crea un partido nuevo para probar.');
                                         }
 
-                                        // Check user tokens
-                                        const userSnap = await getDocs(query(collection(db, 'users'), where('id', '==', matchData.ownerId)));
-                                        if (userSnap.empty) {
+                                        // Check user tokens using direct getDoc
+                                        const userRef = doc(db, 'users', matchData.ownerId);
+                                        const userSnap = await getDoc(userRef);
+
+                                        if (!userSnap.exists()) {
                                             console.warn("⚠️ [Test] No user document found for ID:", matchData.ownerId);
-                                            return alert('No hay datos de usuario para notificaciones. Pulsa "Activar Avisos" primero.');
+                                            return alert('Tu usuario no está registrado en la base de datos de avisos. Pulsa "Activar Avisos" primero.');
                                         }
 
-                                        const userData = userSnap.docs[0].data();
+                                        const userData = userSnap.data();
                                         console.log("🔍 [Test] User data found. Tokens:", userData.fcmTokens?.length || 0);
 
                                         if (!userData.fcmTokens || userData.fcmTokens.length === 0) {
