@@ -4977,6 +4977,7 @@
                 return { view: 'teams-list', teamId: null, matchId: null };
             };
 
+            const publicMatchId = getMatchIdFromURL();
             const initialState = getInitialState();
 
             const [user, setUser] = useState(null);
