@@ -5221,9 +5221,9 @@
                             onMessage(window.messaging, (payload) => {
                                 console.log('📬 Foreground message received:', payload);
                                 if (window.showToast) {
+                                    const title = payload.notification?.title || '';
                                     const body = payload.notification?.body || 'Nueva actualización';
-                                    const title = payload.notification?.title || 'Notificación';
-                                    window.showToast(`${title}: ${body}`);
+                                    window.showToast(title ? `${title}: ${body}` : body);
                                 }
                             });
 
