@@ -16,10 +16,15 @@ exports.onAttendanceUpdate = functions.firestore
         const newAttendance = newValue.attendance || {};
         const oldAttendance = previousValue.attendance || {};
 
-        // Find the newly added/updated attendance entry
-        const newPlayerIds = Object.keys(newAttendance).filter(id => !oldAttendance[id] || oldAttendance[id].status !== newAttendance[id].status);
+        // Find the IDs that were updated or added
+        const updatedPlayerIds = Object.keys(newAttendance).filter(id => {
+            const newItem = newAttendance[id];
+            const oldItem = oldAttendance[id];
+            // Trigger if newly added OR if ANY field within the player's attendance object changed (like a nonce)
+            return !oldItem || JSON.stringify(newItem) !== JSON.stringify(oldItem);
+        });
 
-        if (newPlayerIds.length === 0) return null;
+        if (updatedPlayerIds.length === 0) return null;
 
         const teamId = newValue.teamId;
         const opponent = newValue.opponent;
@@ -34,31 +39,44 @@ exports.onAttendanceUpdate = functions.firestore
             return null;
         }
 
-        // Fetch player name for the notification
+        // Fetch player names from the team document
         const teamDoc = await admin.firestore().collection('teams').doc(teamId).get();
         const players = teamDoc.exists ? (teamDoc.data().players || []) : [];
 
-        for (const playerId of newPlayerIds) {
+        // Prepare messages for Multicast (FCM v1)
+        const messages = [];
+        for (const playerId of updatedPlayerIds) {
             const player = players.find(p => p.id === playerId);
             const playerName = player ? player.name : 'Un jugador';
-            const status = newAttendance[playerId].status === 'available' ? 'ASISTIRÁ' : 'NO ASISTIRÁ';
+            const statusLabel = newAttendance[playerId].status === 'available' ? 'ASISTIRÁ' : 'NO ASISTIRÁ';
 
-            const payload = {
-                notification: {
-                    title: 'Confirmación de Asistencia',
-                    body: `${playerName} ${status} al partido contra ${opponent}`,
-                    icon: 'https://cdn-icons-png.flaticon.com/512/889/889442.png',
-                    click_action: `https://basketmanager-ed370.web.app/#attendance-status?matchId=${context.params.matchId}`
-                }
-            };
+            tokens.forEach(token => {
+                messages.push({
+                    token: token,
+                    notification: {
+                        title: 'Confirmación de Asistencia',
+                        body: `${playerName} ${statusLabel} al partido contra ${opponent}`
+                    },
+                    webpush: {
+                        fcm_options: {
+                            link: `https://basketmanager-ed370.web.app/#attendance-status?matchId=${context.params.matchId}`
+                        },
+                        notification: {
+                            icon: 'https://cdn-icons-png.flaticon.com/512/889/889442.png'
+                        }
+                    }
+                });
+            });
+        }
 
-            console.log(`Sending notification to ${tokens.length} devices for player ${playerName} (match: ${opponent})`);
-            try {
-                const response = await admin.messaging().sendToDevice(tokens, payload);
-                console.log('FCM Response:', JSON.stringify(response));
-            } catch (error) {
-                console.error('FCM Error:', error);
-            }
+        if (messages.length === 0) return null;
+
+        console.log(`Sending ${messages.length} individual messages via Multicast API...`);
+        try {
+            const response = await admin.messaging().sendEach(messages);
+            console.log('FCM Multicast Response:', JSON.stringify(response));
+        } catch (error) {
+            console.error('FCM Multicast Error:', error);
         }
 
         return null;
