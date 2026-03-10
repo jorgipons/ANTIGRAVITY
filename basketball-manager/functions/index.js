@@ -54,8 +54,8 @@ exports.onAttendanceUpdate = functions.firestore
                 messages.push({
                     token: token,
                     notification: {
-                        title: `${playerName} ${statusLabel}`,
-                        body: `al partido vs ${opponent}`
+                        title: 'Confirmación de Asistencia',
+                        body: `${playerName} ${statusLabel}`
                     },
                     webpush: {
                         fcm_options: {
