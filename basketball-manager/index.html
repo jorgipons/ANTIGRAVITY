@@ -4321,8 +4321,13 @@
                             <button
                                 onClick={async () => {
                                     try {
+                                        console.log('🔘 Button "Activar Avisos" clicked');
                                         const reg = await navigator.serviceWorker.ready;
-                                        await requestNotificationPermission(reg);
+                                        if (window.requestNotificationPermission) {
+                                            await window.requestNotificationPermission(reg);
+                                        } else {
+                                            throw new Error('Función de activación no inicializada. Por favor, espera un momento.');
+                                        }
                                         alert('🔔 Proceso de activación finalizado. Verifica la consola para confirmación.');
                                     } catch (e) {
                                         if (window.showToast) window.showToast('Error al activar: ' + e.message);
@@ -5229,8 +5234,10 @@
                                         });
                                         if (token) {
                                             console.log('✅ FCM Token:', token);
-                                            // Store token in user document using current snapshot data to avoid extra fetch
-                                            const userData = snapshot.data() || {};
+                                            // Store token in user document
+                                            const { getDoc } = window.firebaseMethods;
+                                            const userDataSnap = await getDoc(userRef);
+                                            const userData = userDataSnap.exists() ? userDataSnap.data() : {};
                                             const currentTokens = userData.fcmTokens || [];
 
                                             if (!currentTokens.includes(token)) {
@@ -5251,6 +5258,7 @@
                                     console.error('❌ Error requesting notification permission:', err);
                                 }
                             };
+                            window.requestNotificationPermission = requestNotificationPermission;
 
                             // SW registration moved inside auth logic for FCM coordination
                             if ('serviceWorker' in navigator) {
