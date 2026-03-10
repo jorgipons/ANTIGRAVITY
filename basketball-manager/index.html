@@ -5196,14 +5196,13 @@
                                 }
                             };
 
-                            // Register SW and then request permission
+                            // SW registration moved inside auth logic for FCM coordination
                             if ('serviceWorker' in navigator) {
                                 navigator.serviceWorker.register('./firebase-messaging-sw.js')
                                     .then(reg => {
-                                        console.log('✅ SW Registrado:', reg.scope);
                                         requestNotificationPermission(reg);
                                     })
-                                    .catch(err => console.error('❌ Error registrando SW:', err));
+                                    .catch(err => console.log('Error SW', err));
                             }
 
                         } catch (e) {
