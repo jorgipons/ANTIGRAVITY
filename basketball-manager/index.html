@@ -5246,7 +5246,6 @@
 
                                         if (token) {
                                             console.log('✅ FCM Token:', token);
-                                            alert('✅ Token de aviso generado correctamente.');
 
                                             console.log('🔍 [Sync] Checking user document for UID:', u.uid);
                                             const userDataSnap = await getDoc(userRef);
@@ -5262,10 +5261,8 @@
                                                     updatedAt: new Date().toISOString()
                                                 }, { merge: true });
                                                 console.log('✅ [Sync] Token saved to DB successfully');
-                                                alert('💾 ¡Configuración guardada en la base de datos!');
                                             } else {
                                                 console.log('ℹ️ [Sync] Token already registered');
-                                                alert('ℹ️ El dispositivo ya estaba registrado.');
                                             }
                                         } else {
                                             console.warn('⚠️ No token received');
