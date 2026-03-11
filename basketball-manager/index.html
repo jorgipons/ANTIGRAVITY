@@ -4135,10 +4135,52 @@
             const [editTeamName, setEditTeamName] = useState(team.name || '');
             const [editFederationId, setEditFederationId] = useState(team.federationId || '');
             const [editRuleset, setEditRuleset] = useState(team.rulesetId || DEFAULT_RULESET);
+            const [notificationsEnabled, setNotificationsEnabled] = useState(
+                ('Notification' in window) && Notification.permission === 'granted' && localStorage.getItem('notifications_disabled') !== 'true'
+            );
+
+            const toggleNotifications = async () => {
+                const nextState = !notificationsEnabled;
+                setNotificationsEnabled(nextState);
+                if (nextState) {
+                    localStorage.removeItem('notifications_disabled');
+                    try {
+                        const reg = await navigator.serviceWorker.ready;
+                        if (window.requestNotificationPermission) {
+                            await window.requestNotificationPermission(reg);
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        if (window.showToast) window.showToast('Error: ' + e.message);
+                    }
+                } else {
+                    localStorage.setItem('notifications_disabled', 'true');
+                    try {
+                        const reg = await navigator.serviceWorker.ready;
+                        const token = await window.firebaseMethods.getToken(window.messaging, {
+                            vapidKey: 'BFy1qzbzp-a3EF_FMlPSPwFuFC6Deg6fk6ZI6gkBCR4boNjzxx2AWG1-9YHTbdm7jkHpUN2IR-nxd0tiCcHpRWM',
+                            serviceWorkerRegistration: reg
+                        });
+                        if (token && window.auth.currentUser) {
+                            const { getDoc, updateDoc, doc } = window.firebaseMethods;
+                            const userRef = doc(db, 'users', window.auth.currentUser.uid);
+                            const userSnap = await getDoc(userRef);
+                            if (userSnap.exists()) {
+                                const currentTokens = userSnap.data().fcmTokens || [];
+                                const newTokens = currentTokens.filter(t => t !== token);
+                                await updateDoc(userRef, { fcmTokens: newTokens });
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Error al desactivar notificaciones:", e);
+                    }
+                    if (window.showToast) window.showToast('Notificaciones desactivadas en este dispositivo.');
+                }
+            };
 
             useEffect(() => {
                 lucide.createIcons();
-            }, []);
+            }, [notificationsEnabled]);
 
             const saveSettings = async (e) => {
                 e.preventDefault();
@@ -4313,63 +4355,17 @@
 
                         {/* Notificaciones */}
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                            <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="bell" class="w-5 h-5 text-emerald-600"></i>' }}></span>
-                                Notificaciones Web
+                            <h2 className="font-bold text-slate-800 mb-4 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="bell" class="w-5 h-5 text-emerald-600"></i>' }}></span>
+                                    Notificaciones Web
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" className="sr-only peer" checked={notificationsEnabled} onChange={toggleNotifications} />
+                                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                                </label>
                             </h2>
-                            <p className="text-sm text-slate-500 mb-4">Si no recibes avisos, asegúrate de activar las notificaciones en este dispositivo.</p>
-                            <div className="grid grid-cols-2 gap-2">
-                                <button
-                                    onClick={async () => {
-                                        try {
-                                            console.log('🔘 Button "Activar Avisos" clicked');
-                                            const reg = await navigator.serviceWorker.ready;
-                                            if (window.requestNotificationPermission) {
-                                                await window.requestNotificationPermission(reg);
-                                            } else {
-                                                throw new Error('Función de activación no inicializada.');
-                                            }
-                                        } catch (e) {
-                                            if (window.showToast) window.showToast('Error: ' + e.message);
-                                            else alert('Error: ' + e.message);
-                                        }
-                                    }}
-                                    className="py-4 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl font-bold hover:bg-emerald-100 transition-all flex items-center justify-center gap-2"
-                                >
-                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="bell-ring" class="w-4 h-4"></i>' }}></span>
-                                    Activar Avisos
-                                </button>
-                                <button
-                                    onClick={async () => {
-                                        if (!confirm('¿Enviar notificación de prueba?')) return;
-                                        try {
-                                            const { query, collection, where, getDocs, updateDoc, doc } = window.firebaseMethods;
-                                            const matchesSnap = await getDocs(query(collection(db, 'matches'), where('teamId', '==', team.id)));
-                                            if (matchesSnap.empty) return alert('No hay partidos para probar.');
-
-                                            const matchDoc = matchesSnap.docs[0];
-                                            const matchRef = doc(db, 'matches', matchDoc.id);
-
-                                            const nonce = Math.random().toString(36).substring(7);
-                                            await updateDoc(matchRef, {
-                                                'attendance.test_trigger': {
-                                                    status: 'available',
-                                                    updatedAt: new Date().toISOString(),
-                                                    nonce: nonce,
-                                                    isTest: true
-                                                }
-                                            });
-                                            if (window.showToast) window.showToast('🚀 Test enviado.');
-                                        } catch (e) {
-                                            alert('Error: ' + e.message);
-                                        }
-                                    }}
-                                    className="py-4 bg-blue-50 text-blue-700 border border-blue-100 rounded-xl font-bold hover:bg-blue-100 transition-all flex items-center justify-center gap-2"
-                                >
-                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="send" class="w-4 h-4"></i>' }}></span>
-                                    Probar Test
-                                </button>
-                            </div>
+                            <p className="text-sm text-slate-500 mb-4">Activa para recibir avisos de asistencia y recordatorios en este dispositivo.</p>
 
                             <button
                                 onClick={async () => {
