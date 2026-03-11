@@ -349,6 +349,39 @@
 
         // --- Logic & Types ---
         const APP_VERSION = '1.12.0';
+        
+        // Anti-Caché Automático (Cache Busting)
+        try {
+            const cachedVersion = localStorage.getItem('app_version');
+            if (cachedVersion !== APP_VERSION) {
+                console.log(`Versión actualizada de ${cachedVersion} a ${APP_VERSION}. Limpiando caché...`);
+                localStorage.setItem('app_version', APP_VERSION);
+                
+                // Limpiar cachés del navegador (Service Workers etc)
+                if ('caches' in window) {
+                    caches.keys().then((names) => {
+                        for (let name of names) {
+                            caches.delete(name);
+                        }
+                    });
+                }
+                
+                // Desregistrar Service Workers antiguos
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                        for(let registration of registrations) {
+                            registration.unregister();
+                        }
+                    });
+                }
+
+                // Recargar forzosamente la página (bypass cache)
+                window.location.reload(true);
+            }
+        } catch (e) {
+            console.error('Error durante la limpieza de caché:', e);
+        }
+
         const RULESETS = {
             'fbcv_8p': {
                 id: 'fbcv_8p',
