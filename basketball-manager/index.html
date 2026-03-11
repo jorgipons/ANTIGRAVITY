@@ -2192,7 +2192,25 @@
             const removePlayerFromMatch = async (playerId, playerName) => {
                 if (!confirm(`¿Deseas quitar a ${playerName} de la convocatoria para este partido? Podrás añadirlo de nuevo después si quieres.`)) return;
                 const updatedPlayers = (match.players || []).filter(p => p.id !== playerId);
-                await updateMatchInDb(match.id, { players: updatedPlayers });
+                
+                // Remove player from history
+                const updatedHistory = { ...localHistory };
+                let historyChanged = false;
+                Object.keys(updatedHistory).forEach(period => {
+                    if (updatedHistory[period] && updatedHistory[period][playerId]) {
+                        delete updatedHistory[period][playerId];
+                        historyChanged = true;
+                    }
+                });
+                
+                // Remove player from injuries
+                const updatedInjuries = matchInjuries.filter(inj => inj.playerIn !== playerId && inj.playerOut !== playerId);
+
+                const updates = { players: updatedPlayers };
+                if (historyChanged) updates.history = updatedHistory;
+                if (updatedInjuries.length !== matchInjuries.length) updates.injuries = updatedInjuries;
+
+                await updateMatchInDb(match.id, updates);
             };
 
             const handleSubstitution = async (playerOutId, playerInId) => {
@@ -2393,14 +2411,24 @@
                                             <button onClick={() => setSortBy(sortBy === 'role' ? 'number' : 'role')} className="p-0.5 hover:bg-slate-200 rounded transition-colors text-slate-400" title={`Ordenar por ${sortBy === 'role' ? 'Número' : 'Rol'}`}><span dangerouslySetInnerHTML={{ __html: `<i data-lucide="${sortBy === 'role' ? 'users' : 'hash'}" class="w-2.5 h-2.5"></i>` }}></span></button>
                                         </div>
                                     </th>
-                                    {periodsArray.map(p => (
-                                        <th
-                                            key={p}
-                                            className={`mobile-landscape-compact-p text-center transition-all border-b ${p === currentP ? 'bg-blue-100/50 text-blue-800 border-blue-200 font-bold ring-2 ring-inset ring-blue-300' : 'opacity-60'} ${viewType === 'compact' ? (p === currentP ? 'w-12' : 'w-5 text-[8px] p-0') : 'min-w-[40px] p-2'}`}
-                                        >
-                                            P{p}
-                                        </th>
-                                    ))}
+                                    {periodsArray.map(p => {
+                                        const playersInPeriod = Object.keys(localHistory[p] || {}).length;
+                                        let headerColorClass = 'text-slate-500 bg-slate-100'; // 0 players (grey)
+                                        if (playersInPeriod === 5) {
+                                            headerColorClass = 'text-green-700 bg-green-100 border-green-200'; // 5 players (green)
+                                        } else if (playersInPeriod > 0) {
+                                            headerColorClass = 'text-red-700 bg-red-100 border-red-200'; // 1-4 or >5 players (red)
+                                        }
+
+                                        return (
+                                            <th
+                                                key={p}
+                                                className={`mobile-landscape-compact-p text-center transition-all border-b ${p === currentP ? 'ring-2 ring-inset ring-blue-400 font-extrabold shadow-sm z-10 relative' : 'opacity-90'} ${headerColorClass} ${viewType === 'compact' ? (p === currentP ? 'w-12 text-[10px]' : 'w-5 text-[8px] p-0') : 'min-w-[40px] p-2'}`}
+                                            >
+                                                P{p}
+                                            </th>
+                                        );
+                                    })}
                                     <th className={`mobile-landscape-compact-p text-center border-b bg-slate-50 font-bold transition-all ${viewType === 'compact' ? 'p-0 w-8 text-[8px]' : 'p-2 w-12 text-xs'}`}>Tot</th>
                                 </tr>
                             </thead>
@@ -2412,18 +2440,18 @@
                                     const defaultRole = (team.players || []).find(tp => tp.id === p.id)?.role;
                                     return (
                                         <tr key={p.id} className={`border-b last:border-0 mobile-landscape-compact-nav group/row transition-all ${viewType === 'compact' ? 'h-6' : 'h-10'} ${isDisabled ? 'bg-slate-100 text-slate-400' : (hasError ? 'bg-red-100 border-red-200' : (isPlayingNow ? 'bg-blue-50/30' : 'hover:bg-slate-50'))}`}>
-                                            <td className={`mobile-landscape-compact-p border-r sticky left-0 z-10 font-medium whitespace-nowrap flex items-center transition-all ${viewType === 'compact' ? 'justify-start text-[8px] p-0 w-14' : 'justify-between text-xs md:text-sm p-2 w-32'} ${isDisabled ? 'bg-slate-100 text-slate-400' : (hasError ? 'bg-red-100 text-red-900 font-bold' : (isPlayingNow ? 'bg-blue-50 text-blue-900 font-extrabold' : 'bg-white text-slate-800 group-hover/row:bg-slate-50'))}`}>
-                                                <div className={`flex items-center ${viewType === 'compact' ? 'gap-0.5' : 'gap-2'} ${isDisabled ? 'line-through decoration-slate-400' : ''}`}>
+                                            <td className={`mobile-landscape-compact-p border-r sticky left-0 z-10 font-medium whitespace-nowrap transition-all ${viewType === 'compact' ? 'justify-start text-[8px] p-0 w-14' : 'justify-start text-xs md:text-sm p-1.5 w-[140px] md:w-40'} ${isDisabled ? 'bg-slate-100 text-slate-400' : (hasError ? 'bg-red-100 text-red-900 font-bold' : (isPlayingNow ? 'bg-blue-50 text-blue-900 font-extrabold' : 'bg-white text-slate-800 group-hover/row:bg-slate-50'))}`}>
+                                                <div className={`flex items-center h-full ${viewType === 'compact' ? 'gap-0.5' : 'gap-1.5'} ${isDisabled ? 'line-through decoration-slate-400' : ''} w-full`}>
+                                                    {!isLocked && (<button onClick={() => removePlayerFromMatch(p.id, p.name)} className={`shrink-0 p-0.5 transition-opacity text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full ${viewType === 'compact' ? 'scale-75' : ''}`} title="Quitar de convocatoria"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="23" y2="8"></line></svg></button>)}
                                                     {match.attendance?.[p.id] && (
-                                                        <span className={`rounded-full inline-block ${viewType === 'compact' ? 'w-1 h-1' : 'w-1.5 h-1.5'} ${match.attendance[p.id].status === 'available' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                                        <span className={`shrink-0 rounded-full inline-block ${viewType === 'compact' ? 'w-1 h-1' : 'w-1.5 h-1.5'} ${match.attendance[p.id].status === 'available' ? 'bg-green-500' : 'bg-red-500'}`}></span>
                                                     )}
-                                                    <span className={`inline-block opacity-70 ${viewType === 'compact' ? 'w-3' : 'w-5'}`}>#{p.number}</span>
-                                                    <span className={`truncate ${viewType === 'compact' ? 'max-w-[55px]' : 'max-w-[120px] md:max-w-none'}`}>{p.name}</span>
+                                                    <span className={`shrink-0 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 font-bold ${viewType === 'compact' ? 'w-4 h-4 text-[8px]' : 'w-6 h-6 text-[10px]'}`}>{p.number}</span>
+                                                    <span className={`truncate ${viewType === 'compact' ? 'max-w-[40px]' : 'max-w-[60px] md:max-w-[90px]'}`}>{p.name}</span>
                                                     {!isDisabled && defaultRole && roles[defaultRole] && (
-                                                        <span className={`rounded-full inline-block ${viewType === 'compact' ? 'w-1 h-1' : 'w-1.5 h-1.5'} ${roles[defaultRole].bg.replace('-50', '-400')}`}></span>
+                                                        <span className={`shrink-0 rounded-full inline-block ${viewType === 'compact' ? 'w-1 h-1' : 'w-1.5 h-1.5'} ${roles[defaultRole].bg.replace('-50', '-400')}`}></span>
                                                     )}
                                                 </div>
-                                                {!isLocked && (<button onClick={() => removePlayerFromMatch(p.id, p.name)} className={`p-0 transition-opacity text-slate-300 hover:text-red-500 ${viewType === 'compact' ? 'scale-50' : ''}`} title="Quitar de convocatoria"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="user-minus" class="w-2.5 h-2.5"></i>' }}></span></button>)}
                                             </td>
                                             {periodsArray.map(period => {
                                                 const status = getPeriodStatus(period);
@@ -4360,10 +4388,13 @@
                                     <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="bell" class="w-5 h-5 text-emerald-600"></i>' }}></span>
                                     Notificaciones Web
                                 </div>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" className="sr-only peer" checked={notificationsEnabled} onChange={toggleNotifications} />
-                                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                                </label>
+                                <button 
+                                    type="button"
+                                    onClick={toggleNotifications}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${notificationsEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                                >
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${notificationsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                                </button>
                             </h2>
                             <p className="text-sm text-slate-500 mb-4">Activa para recibir avisos de asistencia y recordatorios en este dispositivo.</p>
 
