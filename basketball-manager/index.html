@@ -4388,18 +4388,18 @@
                                 className="w-full mt-2 py-3 bg-slate-50 text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
                             >
                                 <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="refresh-cw" class="w-4 h-4"></i>' }}></span>
-                                Reset SW (Herramienta de rescate)
+                                Reiniciar permisos y avisos
                             </button>
                         </div>
-                    </div>
 
-                    {/* Zona de Peligro */}
-                    <div className="bg-red-50 p-4 rounded-xl border border-red-100">
-                        <h3 className="font-bold text-red-900 mb-2 flex items-center gap-2">
-                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="alert-triangle" class="w-4 h-4"></i>' }}></span> Zona de Peligro
-                        </h3>
-                        <p className="text-xs text-red-700/70 mb-4">Eliminar el equipo borrará permanentemente todos sus partidos y estadísticas.</p>
-                        <button onClick={deleteTeam} className="w-full py-3 bg-white border border-red-200 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-all">Eliminar Equipo</button>
+                        {/* Zona de Peligro */}
+                        <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+                            <h3 className="font-bold text-red-900 mb-2 flex items-center gap-2">
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="alert-triangle" class="w-4 h-4"></i>' }}></span> Zona de Peligro
+                            </h3>
+                            <p className="text-xs text-red-700/70 mb-4">Eliminar el equipo borrará permanentemente todos sus partidos y estadísticas.</p>
+                            <button onClick={deleteTeam} className="w-full py-3 bg-white border border-red-200 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-all">Eliminar Equipo</button>
+                        </div>
                     </div>
                 </div>
             );
