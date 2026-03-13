@@ -12,6 +12,7 @@ import TeamDetailScreen from '../screens/TeamDetailScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import MatchListScreen from '../screens/MatchListScreen';
 import MatchMatrixScreen from '../screens/MatchMatrixScreen';
+import MatchAttendanceScreen from '../screens/MatchAttendanceScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -48,23 +49,40 @@ function AppNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {user ? (
         // Authenticated Stack
-        <>
+        <Stack.Group>
           <Stack.Screen name="MainTabs" component={MainTabs} />
           <Stack.Screen name="TeamDetail" component={TeamDetailScreen} />
           <Stack.Screen name="MatchList" component={MatchListScreen} />
           <Stack.Screen name="MatchMatrix" component={MatchMatrixScreen} />
-        </>
+        </Stack.Group>
       ) : (
         // Unauthenticated Stack
         <Stack.Screen name="Login" component={LoginScreen} />
       )}
+      
+      {/* Publicly accessible routes (Deep Linking targets) */}
+      <Stack.Screen 
+        name="MatchAttendance" 
+        component={MatchAttendanceScreen} 
+        options={{ presentation: 'fullScreenModal' }}
+      />
     </Stack.Navigator>
   );
 }
 
+// Configure deep linking
+const linking = {
+  prefixes: ['basketballmanager://', 'https://tu-dominio.com'], // Ajustar dominio en despliegue
+  config: {
+    screens: {
+      MatchAttendance: 'match/:teamId/:matchId',
+    },
+  },
+};
+
 export default function RootNavigation() {
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <AppNavigator />
     </NavigationContainer>
   );

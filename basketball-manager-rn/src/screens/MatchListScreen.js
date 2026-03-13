@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput, Switch, SafeAreaView } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ChevronLeft, Plus, Calendar, Clock, MapPin, ChevronRight, Activity } from 'lucide-react-native';
+import { ChevronLeft, Plus, Calendar, Clock, MapPin, ChevronRight, Activity, Users } from 'lucide-react-native';
 import { COLORS } from '../constants/colors';
 import { useMatches } from '../hooks/useMatches';
 import { useTeams } from '../hooks/useTeams'; // To get team name/players if needed
@@ -95,16 +95,28 @@ export default function MatchListScreen() {
           ) : null}
         </View>
         
-        <View style={styles.matchScoreArea}>
-          {isFinished && item.score ? (
-            <View style={styles.scoreBox}>
-              <Text style={[styles.scoreText, item.result === 'won' ? styles.scoreWon : item.result === 'lost' ? styles.scoreLost : null]}>
-                {item.score.local} - {item.score.visitor}
-              </Text>
-            </View>
-          ) : (
-            <ChevronRight color={COLORS.slate300} size={24} />
-          )}
+        <View style={styles.matchActionsRight}>
+          <TouchableOpacity 
+            style={styles.attendanceBtn}
+            onPress={(e) => {
+              e.stopPropagation(); // Prevent opening the matrix when clicking the icon
+              navigation.navigate('MatchAttendance', { matchId: item.id, teamId });
+            }}
+          >
+            <Users color={COLORS.primary} size={20} />
+          </TouchableOpacity>
+
+          <View style={styles.matchScoreArea}>
+            {isFinished && item.score ? (
+              <View style={styles.scoreBox}>
+                <Text style={[styles.scoreText, item.result === 'won' ? styles.scoreWon : item.result === 'lost' ? styles.scoreLost : null]}>
+                  {item.score.local} - {item.score.visitor}
+                </Text>
+              </View>
+            ) : (
+              <ChevronRight color={COLORS.slate300} size={24} />
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -261,7 +273,9 @@ const styles = StyleSheet.create({
   detailsRow: { flexDirection: 'row', gap: 16 },
   detailItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   detailText: { fontSize: 13, color: COLORS.slate600 },
-  matchScoreArea: { justifyContent: 'center', alignItems: 'flex-end', marginLeft: 16, minWidth: 60 },
+  matchActionsRight: { flexDirection: 'row', alignItems: 'center' },
+  attendanceBtn: { padding: 8, backgroundColor: COLORS.primaryLight, borderRadius: 8, marginRight: 8 },
+  matchScoreArea: { justifyContent: 'center', alignItems: 'flex-end', minWidth: 40 },
   scoreBox: { backgroundColor: COLORS.slate100, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
   scoreText: { fontSize: 16, fontWeight: 'bold', color: COLORS.slate700 },
   scoreWon: { color: COLORS.success },
