@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../hooks/useAuth';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 import { COLORS } from '../constants/colors';
 
 // Screens
@@ -39,6 +40,9 @@ function MainTabs() {
 // Main Stack Navigator
 function AppNavigator() {
   const { user, loading } = useAuth();
+  
+  // Register for push notifications if user is logged in
+  usePushNotifications(user);
 
   if (loading) {
     // Optionally return a splash screen here while checking auth state
