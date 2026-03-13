@@ -2,19 +2,21 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../hooks/useAuth';
+import { COLORS } from '../constants/colors';
 
-// Screens (placeholders for Phase 2+)
+// Screens
 import LoginScreen from '../screens/LoginScreen';
 import TeamsListScreen from '../screens/TeamsListScreen';
 import TeamDetailScreen from '../screens/TeamDetailScreen';
 import SettingsScreen from '../screens/SettingsScreen';
-import { COLORS } from '../constants/colors';
+import MatchListScreen from '../screens/MatchListScreen';
+import MatchMatrixScreen from '../screens/MatchMatrixScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
+// Bottom Tabs for authenticated users
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -23,44 +25,37 @@ function MainTabs() {
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.slate400,
         tabBarStyle: {
-          backgroundColor: COLORS.white,
           borderTopColor: COLORS.slate200,
-        },
+        }
       }}
     >
-      <Tab.Screen
-        name="Teams"
-        component={TeamsListScreen}
-        options={{ title: 'Equipos' }}
-      />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{ title: 'Ajustes' }}
-      />
+      <Tab.Screen name="TeamsTab" component={TeamsListScreen} options={{ title: 'Mis Equipos' }} />
+      <Tab.Screen name="SettingsTab" component={SettingsScreen} options={{ title: 'Ajustes' }} />
     </Tab.Navigator>
   );
 }
 
+// Main Stack Navigator
 function AppNavigator() {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
+    // Optionally return a splash screen here while checking auth state
+    return null; 
   }
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {user ? (
+        // Authenticated Stack
         <>
           <Stack.Screen name="MainTabs" component={MainTabs} />
           <Stack.Screen name="TeamDetail" component={TeamDetailScreen} />
+          <Stack.Screen name="MatchList" component={MatchListScreen} />
+          <Stack.Screen name="MatchMatrix" component={MatchMatrixScreen} />
         </>
       ) : (
+        // Unauthenticated Stack
         <Stack.Screen name="Login" component={LoginScreen} />
       )}
     </Stack.Navigator>

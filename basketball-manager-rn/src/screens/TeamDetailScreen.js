@@ -132,9 +132,12 @@ export default function TeamDetailScreen() {
       </View>
 
       <View style={styles.actionsRow}>
-        <TouchableOpacity style={styles.primaryActionBtn}>
+        <TouchableOpacity 
+          style={styles.primaryActionBtn}
+          onPress={() => navigation.navigate('MatchList', { teamId })}
+        >
           <Play color={COLORS.primary} size={20} />
-          <Text style={styles.actionBtnTextPrimary}>Nuevo Partido</Text>
+          <Text style={styles.actionBtnTextPrimary}>Partidos</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.secondaryActionBtn}
