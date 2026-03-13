@@ -1,38 +1,53 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
-import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert, Platform } from 'react-native';
+import { GoogleAuthProvider, signInWithCredential, signInWithPopup } from 'firebase/auth';
 import { auth } from '../constants/firebase';
 import { COLORS } from '../constants/colors';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
-// Ensure the web browser resolves after auth
-WebBrowser.maybeCompleteAuthSession();
+// We configure GoogleSignin only for native (Android/iOS)
+if (Platform.OS !== 'web') {
+  GoogleSignin.configure({
+    // We MUST use the WEB Client ID here. Firebase uses the Web Client ID to verify the token.
+    // The native Android SHA-1 is verified by Google Play Services automatically.
+    webClientId: '177594386006-h5j431e2d42tqovb2j60v4r2o3tjsj44.apps.googleusercontent.com', 
+    offlineAccess: false,
+  });
+}
 
 export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
-  // Configure Google Auth correctly for Firebase
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: '177594386006-h5j431e2d42tqovb2j60v4r2o3tjsj44.apps.googleusercontent.com', // Web Client ID
-    androidClientId: '177594386006-ka9dcils2879chn1mmdpd4d0fjngviu3.apps.googleusercontent.com', // Android Client ID for EAS standalone
-  });
-
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const { id_token } = response.params;
-      const credential = GoogleAuthProvider.credential(id_token);
-      
-      setLoading(true);
-      signInWithCredential(auth, credential)
-        .catch((error) => {
-          Alert.alert("Error", error.message);
-          setLoading(false);
-        });
-    } else if (response?.type === 'cancel' || response?.type === 'error') {
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      if (Platform.OS === 'web') {
+        // Web uses standard Firebase popup
+        const provider = new GoogleAuthProvider();
+        await signInWithPopup(auth, provider);
+      } else {
+        // Native uses Google Sign-In via Google Play Services
+        await GoogleSignin.hasPlayServices();
+        const userInfo = await GoogleSignin.signIn();
+        
+        // V16 of @react-native-google-signin usually returns data in userInfo.data
+        const idToken = userInfo.idToken || userInfo?.data?.idToken;
+        
+        if (idToken) {
+          const credential = GoogleAuthProvider.credential(idToken);
+          await signInWithCredential(auth, credential);
+        } else {
+          throw new Error('No idToken from Google Sign In');
+        }
+      }
+    } catch (error) {
+      console.log('Login Error: ', error);
+      if (error.code !== 'SIGN_IN_CANCELLED' && error.code !== 12501) {
+        Alert.alert("Error de Inicio de Sesión", error.message || "Ocurrió un error al conectar con Google.");
+      }
       setLoading(false);
     }
-  }, [response]);
+  };
 
   return (
     <View style={styles.container}>
@@ -48,18 +63,14 @@ export default function LoginScreen() {
         </Text>
 
         <TouchableOpacity 
-          style={[styles.googleButton, loading || !request ? styles.buttonDisabled : null]}
-          disabled={loading || !request}
-          onPress={() => {
-            setLoading(true);
-            promptAsync();
-          }}
+          style={[styles.googleButton, loading ? styles.buttonDisabled : null]}
+          disabled={loading}
+          onPress={handleGoogleSignIn}
         >
           {loading ? (
             <ActivityIndicator color={COLORS.white} />
           ) : (
             <>
-              {/* Google logo placeholder or icon */}
               <View style={styles.iconPlaceholder}>
                 <Text style={styles.googleG}>G</Text>
               </View>
