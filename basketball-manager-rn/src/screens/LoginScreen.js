@@ -10,7 +10,7 @@ if (Platform.OS !== 'web') {
   GoogleSignin.configure({
     // We MUST use the WEB Client ID here. Firebase uses the Web Client ID to verify the token.
     // The native Android SHA-1 is verified by Google Play Services automatically.
-    webClientId: '177594386006-h5j431e2d42tqovb2j60v4r2o3tjsj44.apps.googleusercontent.com', 
+    webClientId: '177594386006-7969dbqtjmp5uun0d9rk7du66mel9vaj.apps.googleusercontent.com', 
     offlineAccess: false,
   });
 }
