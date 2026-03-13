@@ -14,10 +14,8 @@ export default function LoginScreen() {
 
   // Configure Google Auth correctly for Firebase
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: '177594386006-h5j431e2d42tqovb2j60v4r2o3tjsj44.apps.googleusercontent.com', // Replace with your actual Web Client ID from Firebase Console / Google Cloud
-    // If you add Android/iOS client IDs later, put them here:
-    // androidClientId: '...',
-    // iosClientId: '...',
+    clientId: '177594386006-h5j431e2d42tqovb2j60v4r2o3tjsj44.apps.googleusercontent.com', // Web Client ID
+    androidClientId: '177594386006-ka9dcils2879chn1mmdpd4d0fjngviu3.apps.googleusercontent.com', // Android Client ID for EAS standalone
   });
 
   useEffect(() => {
