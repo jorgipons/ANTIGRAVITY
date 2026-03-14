@@ -2499,6 +2499,28 @@
                                                 const isOut = injuryData?.playerOut === p.id;
                                                 const isIn = injuryData?.playerIn === p.id;
 
+                                                // Sugerencias de Pasarela (solo hasta checkPeriod)
+                                                let suggestion = null;
+                                                if (!isSelected && !isOut && !isIn && !isDisabled && period <= ruleset.checkPeriod) {
+                                                    let playedBefore = 0;
+                                                    for (let i = 1; i < period; i++) {
+                                                        const hist = localHistory[i];
+                                                        const wasInjured = matchInjuries.some(inj => inj.period === i && (inj.playerOut === p.id || inj.playerIn === p.id));
+                                                        if (!wasInjured && ((Array.isArray(hist) && hist.includes(p.id)) || (hist && hist[p.id]))) {
+                                                            playedBefore++;
+                                                        }
+                                                    }
+
+                                                    const remainingPeriodsToCheck = ruleset.checkPeriod - period + 1;
+                                                    const neededToMin = ruleset.minPlay - playedBefore;
+
+                                                    if (neededToMin >= remainingPeriodsToCheck) {
+                                                        suggestion = { icon: 'alert-circle', color: 'text-orange-500', bg: 'bg-orange-50/30' };
+                                                    } else if (playedBefore >= ruleset.maxPlay) {
+                                                        suggestion = { icon: 'x', color: 'text-red-400', bg: 'bg-red-50/30' };
+                                                    }
+                                                }
+
                                                 const shouldShowCell = isSelected || isOut;
                                                 const isCompact = viewType === 'compact';
                                                 const isCurrent = period === currentP;
@@ -2507,9 +2529,9 @@
                                                         key={period}
                                                         onClick={() => { if (!isLocked && isEditable && !isDisabled) togglePlay(period, p.id); }}
                                                         onContextMenu={(e) => clearPlay(e, period, p.id)}
-                                                        className={`text-center border-r last:border-r-0 transition-all select-none relative ${viewType === 'compact' ? 'p-0' : 'p-1'} ${viewType === 'compact' ? (period === currentP ? 'w-12' : 'w-5') : (period === currentP ? 'w-16' : 'min-w-[40px]')} ${shouldShowCell ? (isDisabled ? 'bg-slate-400' : (role && roles[role] ? roles[role].bg : (isOut ? 'bg-red-50' : 'bg-blue-500'))) : (isEditable && !isDisabled && !isLocked ? 'hover:bg-slate-100 cursor-pointer' : '')} ${!isEditable || isLocked ? 'opacity-80' : ''} ${period === currentP && !shouldShowCell && !isDisabled ? 'bg-blue-50/50' : ''} ${(isOut || isIn) ? '!bg-slate-200' : ''}`}
+                                                        className={`text-center border-r last:border-r-0 transition-all select-none relative ${viewType === 'compact' ? 'p-0' : 'p-1'} ${viewType === 'compact' ? (period === currentP ? 'w-12' : 'w-5') : (period === currentP ? 'w-16' : 'min-w-[40px]')} ${shouldShowCell ? (isDisabled ? 'bg-slate-400' : (role && roles[role] ? roles[role].bg : (isOut ? 'bg-red-50' : 'bg-blue-500'))) : (isEditable && !isDisabled && !isLocked ? (suggestion ? suggestion.bg : 'hover:bg-slate-100 cursor-pointer') : '')} ${!isEditable || isLocked ? 'opacity-80' : ''} ${period === currentP && !shouldShowCell && !isDisabled && !suggestion ? 'bg-blue-50/50' : ''} ${(isOut || isIn) ? '!bg-slate-200' : ''}`}
                                                     >
-                                                        {shouldShowCell && (
+                                                        {shouldShowCell ? (
                                                             <div className={`w-full h-full flex items-center justify-center font-bold text-xs ${isDisabled ? 'text-white' : (role && roles[role] ? roles[role].color : 'text-white')} ${(isOut || isIn) ? '!text-slate-500' : ''}`}>
                                                                 {isCompact && !isCurrent ? (
                                                                     <div className={`w-1.5 h-1.5 rounded-full ${isDisabled ? 'bg-white' : (role && roles[role] ? roles[role].bg.replace('-50', '-500') : 'bg-blue-600')}`}></div>
@@ -2523,6 +2545,12 @@
                                                                     )))
                                                                 )}
                                                             </div>
+                                                        ) : (
+                                                            suggestion && (
+                                                                <div className={`w-full h-full flex items-center justify-center animate-pulse ${suggestion.color}`}>
+                                                                    <span dangerouslySetInnerHTML={{ __html: `<i data-lucide="${suggestion.icon}" class="w-3.5 h-3.5 opacity-60"></i>` }}></span>
+                                                                </div>
+                                                            )
                                                         )}
                                                     </td>
                                                 );
