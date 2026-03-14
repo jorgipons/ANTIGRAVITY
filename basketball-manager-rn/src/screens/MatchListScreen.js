@@ -1,21 +1,26 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput, Switch, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput, Switch, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ChevronLeft, Plus, Calendar, Clock, MapPin, ChevronRight, Activity, Users } from 'lucide-react-native';
+import { ChevronLeft, Plus, Calendar, Clock, MapPin, ChevronRight, Activity, Users, RefreshCw, Trash2 } from 'lucide-react-native';
+
 import { COLORS } from '../constants/colors';
 import { useMatches } from '../hooks/useMatches';
-import { useTeams } from '../hooks/useTeams'; // To get team name/players if needed
+import { useTeams } from '../hooks/useTeams';
+import { importFederationMatches } from '../utils/federation';
 
 export default function MatchListScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { teamId } = route.params;
-  const { matches, loading, addMatch } = useMatches(teamId);
+  const { matches, loading, addMatch, updateMatch, deleteMatch } = useMatches(teamId);
+
   const { teams } = useTeams();
   const team = teams.find(t => t.id === teamId);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [form, setForm] = useState({
     opponent: '',
     date: new Date().toISOString().split('T')[0],
@@ -32,18 +37,16 @@ export default function MatchListScreen() {
 
     setSubmitting(true);
     try {
-      // By default, copy the whole team roster to the match players array for the convocatoria
       const initialPlayers = team?.players ? [...team.players] : [];
       
       const newMatchId = await addMatch({
         ...form,
-        players: initialPlayers, // Convocatoria inicial = toda la plantilla
+        players: initialPlayers,
       });
       
       setModalVisible(false);
       setForm({ opponent: '', date: new Date().toISOString().split('T')[0], time: '10:00', location: '', isHome: true });
       
-      // Navigate to the newly created match matrix
       navigation.navigate('MatchMatrix', { matchId: newMatchId, teamId });
       
     } catch (e) {
@@ -53,16 +56,108 @@ export default function MatchListScreen() {
     }
   };
 
+  const handleSyncFederation = async () => {
+    if (!team?.federationId) {
+      Alert.alert('Info', 'Configura el ID de Federación en el detalle del equipo primero.');
+      return;
+    }
+    
+    setSyncing(true);
+    try {
+      const res = await importFederationMatches(team.federationId, 'smart');
+      if (!res.success) {
+        Alert.alert('Error', res.error || 'No se pudieron sincronizar los partidos.');
+        return;
+      }
+
+      let added = 0;
+      let updated = 0;
+      const initialPlayers = team?.players ? [...team.players] : [];
+      
+      // Iterate over imported matches and check if they already exist
+      for (const m of res.matches) {
+        const exists = matches.find(existing => existing.federationMatchId === m.federationMatchId);
+        if (!exists) {
+          await addMatch({
+            ...m,
+            players: initialPlayers
+          });
+          added++;
+        } else {
+          // Si el partido existe, verificamos si hay algún cambio importante (resultado, hora, estado)
+          if (
+            exists.state !== m.state ||
+            exists.date !== m.date ||
+            exists.time !== m.time ||
+            JSON.stringify(exists.score) !== JSON.stringify(m.score)
+          ) {
+            await updateMatch(exists.id, {
+              state: m.state,
+              date: m.date,
+              time: m.time,
+              score: m.score,
+              result: m.result,
+              location: m.location
+            });
+            updated++;
+          }
+        }
+      }
+      
+      if (added > 0 || updated > 0) {
+        Alert.alert('Éxito', `Sincronización completada.\nNuevos: ${added}\nActualizados: ${updated}`);
+      } else {
+        Alert.alert('Éxito', 'Sincronización completada. Ya estaba todo al día.');
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Fallo general al sincronizar con la federación.');
+    } finally {
+      setSyncing(false);
+    }
+  };
+  
+  const handleDeleteMatch = (matchId, opponent) => {
+    const message = `¿Seguro que quieres eliminar el partido contra ${opponent}?`;
+    
+    if (Platform.OS === 'web') {
+      if (window.confirm(message)) {
+        deleteMatch(matchId).catch(e => Alert.alert('Error', 'No se pudo eliminar el partido'));
+      }
+      return;
+    }
+
+    Alert.alert(
+      'Eliminar Partido',
+      message,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Eliminar', 
+          style: 'destructive', 
+          onPress: async () => {
+            try {
+              await deleteMatch(matchId);
+            } catch (e) {
+              Alert.alert('Error', 'No se pudo eliminar el partido');
+            }
+          } 
+        }
+      ]
+    );
+  };
+
+
   const renderMatchCard = ({ item }) => {
     const isFinished = item.state === 'finished';
     const statusColor = isFinished ? COLORS.slate500 : COLORS.primary;
     
     return (
-      <TouchableOpacity
-        style={[styles.matchCard, isFinished && styles.matchCardFinished]}
-        onPress={() => navigation.navigate('MatchMatrix', { matchId: item.id, teamId })}
-      >
-        <View style={styles.matchMain}>
+      <View style={[styles.matchCard, isFinished && styles.matchCardFinished]}>
+        <TouchableOpacity 
+          activeOpacity={0.7}
+          style={styles.matchMain}
+          onPress={() => navigation.navigate('MatchMatrix', { matchId: item.id, teamId })}
+        >
           <View style={styles.matchHeader}>
             <View style={[styles.badge, { backgroundColor: item.isHome ? COLORS.primaryLight : COLORS.warningLight }]}>
               <Text style={[styles.badgeText, { color: item.isHome ? COLORS.primaryDark : COLORS.warning }]}>
@@ -93,17 +188,23 @@ export default function MatchListScreen() {
               <Text style={styles.detailText} numberOfLines={1}>{item.location}</Text>
             </View>
           ) : null}
-        </View>
+        </TouchableOpacity>
         
         <View style={styles.matchActionsRight}>
           <TouchableOpacity 
             style={styles.attendanceBtn}
-            onPress={(e) => {
-              e.stopPropagation(); // Prevent opening the matrix when clicking the icon
-              navigation.navigate('MatchAttendance', { matchId: item.id, teamId });
-            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            onPress={() => navigation.navigate('MatchAttendance', { matchId: item.id, teamId })}
           >
             <Users color={COLORS.primary} size={20} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.attendanceBtn, { backgroundColor: COLORS.dangerLight }]}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            onPress={() => handleDeleteMatch(item.id, item.opponent)}
+          >
+            <Trash2 color={COLORS.danger} size={20} />
           </TouchableOpacity>
 
           <View style={styles.matchScoreArea}>
@@ -118,9 +219,10 @@ export default function MatchListScreen() {
             )}
           </View>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
+
 
   if (loading) {
     return (
@@ -137,7 +239,13 @@ export default function MatchListScreen() {
           <ChevronLeft color={COLORS.slate600} size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Partidos</Text>
-        <View style={{ width: 40 }} /> {/* Spacer */}
+        {team?.federationId ? (
+          <TouchableOpacity onPress={handleSyncFederation} style={styles.syncBtn} disabled={syncing}>
+            {syncing ? <ActivityIndicator size="small" color={COLORS.primary} /> : <RefreshCw color={COLORS.primary} size={20} />}
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
       </View>
 
       {matches.length === 0 ? (
@@ -249,6 +357,7 @@ const styles = StyleSheet.create({
   },
   backButton: { padding: 8, marginLeft: -8 },
   headerTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.slate900 },
+  syncBtn: { padding: 8, marginRight: -8, backgroundColor: COLORS.primaryLight, borderRadius: 8 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },

@@ -17,8 +17,7 @@ export function useMatches(teamId) {
 
     const q = query(
       collection(db, 'matches'), 
-      where('teamId', '==', teamId),
-      orderBy('date', 'desc') // Assuming dates are sorted YYYY-MM-DD
+      where('teamId', '==', teamId)
     );
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -26,6 +25,9 @@ export function useMatches(teamId) {
       snapshot.forEach((doc) => {
         matchesData.push({ id: doc.id, ...doc.data() });
       });
+      // Sort matches in memory descending by date
+      matchesData.sort((a, b) => new Date(b.date) - new Date(a.date));
+      
       setMatches(matchesData);
       setLoading(false);
     }, (error) => {
@@ -46,6 +48,14 @@ export function useMatches(teamId) {
         currentPeriod: 1,
         history: {},
         injuries: [],
+        attendance: {},
+        callTime: '',
+        matchDay: '',
+        departureTime: '',
+        transportType: 'car',
+        departureLocation: '',
+        returnTime: '',
+        observations: '',
         createdAt: new Date().toISOString()
       };
       

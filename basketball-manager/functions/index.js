@@ -30,12 +30,16 @@ exports.onAttendanceUpdate = functions.firestore
         const opponent = newValue.opponent;
         const ownerId = newValue.ownerId;
 
-        // Fetch user (coach) tokens
+        // Fetch user (coach) FCM tokens for PWA
         const userDoc = await admin.firestore().collection('users').doc(ownerId).get();
-        const tokens = userDoc.exists ? (userDoc.data().fcmTokens || []) : [];
+        const fcmTokens = userDoc.exists ? (userDoc.data().fcmTokens || []) : [];
 
-        if (tokens.length === 0) {
-            console.log('No FCM tokens found for user:', ownerId);
+        // Fetch user Expo Push Token for Native App
+        const userTokenDoc = await admin.firestore().collection('userTokens').doc(ownerId).get();
+        const expoToken = userTokenDoc.exists ? userTokenDoc.data().token : null;
+
+        if (fcmTokens.length === 0 && !expoToken) {
+            console.log('No FCM or Expo tokens found for user:', ownerId);
             return null;
         }
 
@@ -44,19 +48,20 @@ exports.onAttendanceUpdate = functions.firestore
         const players = teamDoc.exists ? (teamDoc.data().players || []) : [];
 
         // Prepare messages for Multicast (FCM v1)
-        const messages = [];
+        const fcmMessages = [];
+        const expoMessages = [];
+
         for (const playerId of updatedPlayerIds) {
             const player = players.find(p => p.id === playerId);
             const playerName = player ? player.name : 'Jugador';
             const statusLabel = newAttendance[playerId].status === 'available' ? '✅ ASISTIRÁ' : '❌ NO ASISTIRÁ';
+            const title = `${opponent}`;
+            const body = `${playerName} ${statusLabel}`;
 
-            tokens.forEach(token => {
-                messages.push({
+            fcmTokens.forEach(token => {
+                fcmMessages.push({
                     token: token,
-                    notification: {
-                        title: `${opponent}`,
-                        body: `${playerName} ${statusLabel}`
-                    },
+                    notification: { title, body },
                     webpush: {
                         fcm_options: {
                             link: `https://basketmanager-ed370.web.app/#attendance-status?matchId=${context.params.matchId}`
@@ -67,16 +72,47 @@ exports.onAttendanceUpdate = functions.firestore
                     }
                 });
             });
+
+            if (expoToken && expoToken.startsWith('ExponentPushToken[')) {
+                expoMessages.push({
+                    to: expoToken,
+                    title: title,
+                    body: body,
+                    sound: 'default',
+                    data: { matchId: context.params.matchId, teamId: teamId }
+                });
+            }
         }
 
-        if (messages.length === 0) return null;
+        if (fcmMessages.length > 0) {
+            console.log(`Sending ${fcmMessages.length} FCM messages...`);
+            try {
+                const response = await admin.messaging().sendEach(fcmMessages);
+                console.log('FCM Multicast Response:', JSON.stringify(response));
+            } catch (error) {
+                console.error('FCM Multicast Error:', error);
+            }
+        }
 
-        console.log(`Sending ${messages.length} individual messages via Multicast API...`);
-        try {
-            const response = await admin.messaging().sendEach(messages);
-            console.log('FCM Multicast Response:', JSON.stringify(response));
-        } catch (error) {
-            console.error('FCM Multicast Error:', error);
+        if (expoMessages.length > 0) {
+            console.log(`Sending ${expoMessages.length} Expo messages...`);
+            try {
+                // To send Expo pushes we do an HTTP POST to exp.host
+                // Node 22 has global fetch
+                const response = await fetch('https://exp.host/--/api/v2/push/send', {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Accept-encoding': 'gzip, deflate',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(expoMessages)
+                });
+                const data = await response.json();
+                console.log('Expo Push Response:', JSON.stringify(data));
+            } catch (error) {
+                console.error('Expo Push Error:', error);
+            }
         }
 
         return null;

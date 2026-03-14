@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Linking, Modal } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ChevronLeft, Info, Share2, CheckCircle2, XCircle, HelpCircle } from 'lucide-react-native';
+import { ChevronLeft, Info, Share2, CheckCircle2, XCircle, HelpCircle, Activity } from 'lucide-react-native';
 import { COLORS } from '../constants/colors';
-import { ROLES } from '../constants/roles';
+import { getRoleConfig } from '../constants/roles';
 import { db } from '../constants/firebase';
 import { doc, onSnapshot, getDoc, updateDoc } from 'firebase/firestore';
+import * as Clipboard from 'expo-clipboard';
+import { generateInfoPartido, generateInfoConvo, getAttendanceLink } from '../utils/sharing';
+
 
 export default function MatchAttendanceScreen() {
   const navigation = useNavigation();
@@ -67,12 +71,30 @@ export default function MatchAttendanceScreen() {
     }
   };
 
-  const shareLink = async () => {
-    // Implement standard React Native Share or clipboard copy here.
-    // For now, simple alert.
-    const url = `https://your-domain.com/match/${teamId}/${matchId}`;
-    Alert.alert('Enlace copiado', `El enlace para compartir es:\n\n${url}`);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  
+
+
+  const copyMatchInfo = async (lang) => {
+    await Clipboard.setStringAsync(generateInfoPartido(match, team, lang));
+    setShareModalVisible(false);
+    Alert.alert('Copiado', 'Información del partido copiada.');
   };
+
+  const copyRoster = async (lang) => {
+    const playersList = match.players || team.players || [];
+    await Clipboard.setStringAsync(generateInfoConvo(match, team, playersList, lang));
+    setShareModalVisible(false);
+    Alert.alert('Copiado', 'Convocatoria copiada.');
+  };
+
+  const copyWebLink = async (viewType) => {
+    const url = getAttendanceLink(teamId, matchId, viewType === 'padres');
+    await Clipboard.setStringAsync(url);
+    setShareModalVisible(false);
+    Alert.alert('Enlace copiado', url);
+  };
+
 
   if (loading) {
     return (
@@ -95,7 +117,7 @@ export default function MatchAttendanceScreen() {
     );
   }
 
-  const players = match.players || [];
+  const players = team?.players || match.players || [];
   const attendance = match.attendance || {};
 
   const confirmedPlayers = players.filter(p => attendance[p.id]?.status === 'available');
@@ -103,7 +125,7 @@ export default function MatchAttendanceScreen() {
   const pendingPlayers = players.filter(p => !attendance[p.id]?.status || attendance[p.id]?.status === 'pending');
 
   const renderPlayerRow = (p, status) => {
-    const roleConf = ROLES[p.role || 'receptor'];
+    const roleConf = getRoleConfig(team, p.role || 'receptor');
     return (
       <View key={p.id} style={styles.playerRow}>
         <View style={styles.playerInfoBox}>
@@ -152,7 +174,7 @@ export default function MatchAttendanceScreen() {
           <Text style={styles.headerSubtitle}>{match.date}{match.time ? ` • ${match.time}h` : ''}</Text>
         </View>
         {!isPublic && (
-          <TouchableOpacity onPress={shareLink} style={styles.infoButton}>
+          <TouchableOpacity onPress={() => setShareModalVisible(true)} style={styles.infoButton}>
             <Share2 color={COLORS.primary} size={20} />
           </TouchableOpacity>
         )}
@@ -209,8 +231,68 @@ export default function MatchAttendanceScreen() {
           </View>
         )}
 
-        <View style={{height: 40}} />
       </ScrollView>
+
+      {!isPublic && (
+        <View style={{ padding: 16, backgroundColor: COLORS.white, borderTopWidth: 1, borderTopColor: COLORS.slate200 }}>
+          <TouchableOpacity 
+            style={{ backgroundColor: COLORS.slate900, padding: 14, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+            onPress={() => navigation.navigate('MatchMatrix', { matchId: match.id, teamId })}
+          >
+            <Activity color={COLORS.white} size={18} />
+            <Text style={{ color: COLORS.white, fontWeight: 'bold', fontSize: 14 }}>Matriz de Minutos</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Share Actions Modal */}
+      <Modal visible={shareModalVisible} transparent animationType="slide" onRequestClose={() => setShareModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Compartir y Copiar</Text>
+            
+            <View style={styles.shareSection}>
+              <Text style={styles.shareSectionTitle}>Convocatoria (Info + Convocados)</Text>
+              <View style={styles.shareRow}>
+                <TouchableOpacity style={styles.shareBtnPrimary} onPress={() => copyRoster('val')}>
+                  <Text style={styles.shareBtnPrimaryText}>Valencià</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.shareBtnPrimary} onPress={() => copyRoster('es')}>
+                  <Text style={styles.shareBtnPrimaryText}>Castellano</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.shareSection}>
+              <Text style={styles.shareSectionTitle}>Solo Información del Partido</Text>
+              <View style={styles.shareRow}>
+                <TouchableOpacity style={styles.shareBtnSecondary} onPress={() => copyMatchInfo('val')}>
+                  <Text style={styles.shareBtnSecondaryText}>Valencià</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.shareBtnSecondary} onPress={() => copyMatchInfo('es')}>
+                  <Text style={styles.shareBtnSecondaryText}>Castellano</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.shareSection}>
+              <Text style={styles.shareSectionTitle}>Enlaces Web</Text>
+              <View style={styles.shareRow}>
+                <TouchableOpacity style={styles.shareBtnOutline} onPress={() => copyWebLink('padres')}>
+                  <Text style={styles.shareBtnOutlineText}>Link Padres (Confirmar)</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.shareBtnOutline} onPress={() => copyWebLink('entrenador')}>
+                  <Text style={styles.shareBtnOutlineText}>Link Entrenador</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.modalBtnCancel} onPress={() => setShareModalVisible(false)}>
+              <Text style={styles.modalBtnTextCancel}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

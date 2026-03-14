@@ -34,13 +34,16 @@ export const usePushNotifications = (user) => {
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
       console.log('User interacted with notification:', response);
-      // Here you can handle navigation based on the notification data
       // const data = response.notification.request.content.data;
     });
 
     return () => {
-      Notifications.removeNotificationSubscription(notificationListener.current);
-      Notifications.removeNotificationSubscription(responseListener.current);
+      if (notificationListener.current) {
+        notificationListener.current.remove();
+      }
+      if (responseListener.current) {
+        responseListener.current.remove();
+      }
     };
   }, [user]);
 

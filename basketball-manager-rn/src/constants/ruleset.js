@@ -10,7 +10,13 @@ export const DEFAULT_RULESET = {
 export const getPlayerPeriods = (playerId, periodsState, totalPeriods) => {
   let played = 0;
   for (let i = 1; i <= totalPeriods; i++) {
-    if (periodsState[i]?.includes(playerId)) played++;
+    const pData = periodsState[i];
+    if (Array.isArray(pData)) {
+      if (pData.includes(playerId)) played++;
+    } else if (pData && pData[playerId]) {
+      // Soporte para partidos antiguos que guardaban en formato { playerId: 'role' }
+      played++;
+    }
   }
   return played;
 };
