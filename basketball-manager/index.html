@@ -1916,9 +1916,8 @@
             );
         };
 
-        const ActiveMatchView = ({ match, teams, updateMatchInDb, navigate, getRoles }) => {
+        const ActiveMatchView = ({ match, teams, updateMatchInDb, navigate, getRoles, mode, setMode }) => {
             const [localHistory, setLocalHistory] = useState(match?.history || {});
-            const [mode, setMode] = useState('matrix');
             const [matchInjuries, setMatchInjuries] = useState(match?.injuries || []);
             const [sortBy, setSortBy] = useState('role');
             const [editAllMode, setEditAllMode] = useState(false);
@@ -5140,6 +5139,7 @@
             const [checkoutLoading, setCheckoutLoading] = useState(false);
             const [isOnline, setIsOnline] = useState(navigator.onLine);
             const [toast, setToast] = useState(null);
+            const [activeMatchMode, setActiveMatchMode] = useState('matrix');
 
             // Tutorial State
             const [showTutorial, setShowTutorial] = useState(false);
@@ -5236,6 +5236,11 @@
                 // Persist state
                 if (newView !== 'public-match') {
                     localStorage.setItem('app_state', JSON.stringify({ view: newView, teamId: tId, matchId: mId }));
+                }
+
+                // Reset mode when changing match or view
+                if (newView !== view || (matchId && matchId !== activeMatchId)) {
+                    setActiveMatchMode('matrix');
                 }
 
                 if (!isBack) {
@@ -5554,7 +5559,7 @@
                             {view === 'all-matches-calendar' && <AllMatchesCalendarView teams={teams} matches={matches} navigate={navigate} />}
                             {view === 'team-detail' && <TeamDetailView team={getSelectedTeam()} matches={matches} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} addDoc={addDoc} collection={collection} db={db} />}
                             {view === 'match-setup' && <MatchSetupView team={getSelectedTeam()} navigate={navigate} addDoc={addDoc} collection={collection} db={db} updateDoc={updateDoc} doc={doc} />}
-                            {view === 'active-match' && <ActiveMatchView match={getActiveMatch()} teams={teams} updateMatchInDb={updateMatchInDb} navigate={navigate} getRoles={getRoles} />}
+                            {view === 'active-match' && <ActiveMatchView match={getActiveMatch()} teams={teams} updateMatchInDb={updateMatchInDb} navigate={navigate} getRoles={getRoles} mode={activeMatchMode} setMode={setActiveMatchMode} />}
                             {view === 'calendar' && <CalendarView team={getSelectedTeam()} matches={matches} navigate={navigate} />}
                             {view === 'edit-match' && (
                                 <div className="p-4 max-w-md lg:max-w-4xl mx-auto">
