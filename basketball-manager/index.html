@@ -2222,7 +2222,6 @@
             const confirmAddPlayer = async (player) => {
                 const updatedPlayers = [...(match.players || []), player];
                 await updateMatchInDb(match.id, { players: updatedPlayers });
-                setMode('matrix');
             };
 
             const removePlayerFromMatch = async (playerId, playerName) => {
@@ -2327,7 +2326,6 @@
                                     if (confirm(`¿Añadir a TODOS (${availablePlayers.length}) los jugadores disponibles?`)) {
                                         const updatedPlayers = [...(match.players || []), ...availablePlayers];
                                         await updateMatchInDb(match.id, { players: updatedPlayers });
-                                        setMode('matrix');
                                     }
                                 }}
                                 disabled={availablePlayers.length === 0}
@@ -2354,7 +2352,7 @@
                                 </button>
                             ))}
                         </div>
-                        <button onClick={() => setMode('matrix')} className="mt-4 w-full py-3 text-slate-500 font-bold border border-slate-200 rounded-xl hover:bg-slate-50">Cancelar</button>
+                        <button onClick={() => setMode('matrix')} className="mt-4 w-full py-3 text-slate-500 font-bold border border-slate-200 rounded-xl hover:bg-slate-50">Volver a la Matriz</button>
                     </div>
                 );
             }
