@@ -57,12 +57,16 @@ exports.onAttendanceUpdate = functions.firestore
                         title: `${opponent}`,
                         body: `${playerName} ${statusLabel}`
                     },
+                    data: {
+                        tag: `attendance-${context.params.matchId}-${playerId}`
+                    },
                     webpush: {
                         fcm_options: {
                             link: `https://basketmanager-ed370.web.app/#attendance-status?matchId=${context.params.matchId}`
                         },
                         notification: {
-                            icon: 'https://cdn-icons-png.flaticon.com/512/889/889442.png'
+                            icon: 'https://cdn-icons-png.flaticon.com/512/889/889442.png',
+                            tag: `attendance-${context.params.matchId}-${playerId}`
                         }
                     }
                 });

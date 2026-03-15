@@ -65,7 +65,8 @@ messaging.onBackgroundMessage((payload) => {
     const notificationTitle = payload.notification.title;
     const notificationOptions = {
         body: payload.notification.body,
-        icon: './icon2.png'
+        icon: './icon2.png',
+        tag: payload.data?.tag || payload.notification?.tag // Use tag to collapse duplicates
     };
 
     self.registration.showNotification(notificationTitle, notificationOptions);
