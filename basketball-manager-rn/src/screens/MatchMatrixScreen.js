@@ -650,7 +650,7 @@ export default function MatchMatrixScreen() {
                 <TouchableOpacity onPress={() => setConfigModalVisible(false)}><ChevronLeft color={COLORS.slate600} size={28} /></TouchableOpacity>
                 <View style={{ marginLeft: 16 }}>
                   <Text style={{ fontSize: 24, fontWeight: 'bold' }}>Editar Partido</Text>
-                  <Text style={{ fontSize: 10, color: COLORS.slate300 }}>v1.1</Text>
+                  <Text style={{ fontSize: 10, color: COLORS.slate300 }}>v1.2</Text>
                 </View>
               </View>
               <ScrollView showsVerticalScrollIndicator={false}>
