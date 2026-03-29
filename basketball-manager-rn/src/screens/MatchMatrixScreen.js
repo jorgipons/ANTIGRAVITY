@@ -158,8 +158,10 @@ export default function MatchMatrixScreen() {
       }));
 
       const matchRef = doc(db, 'matches', match.id);
+      const dbHistoryArray = newPeriodArray.map(e => typeof e === 'object' ? e.id : e);
+      
       await updateDoc(matchRef, { 
-        [`history.${period}`]: newPeriodArray,
+        [`history.${period}`]: dbHistoryArray,
         [`history_roles.${period}`]: newPeriodRoles 
       });
     } catch (error) { 
