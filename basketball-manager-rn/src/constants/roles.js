@@ -2,38 +2,38 @@
 export const ROLES = {
   base: {
     label: 'Base',
-    color: '#1d4ed8',
-    bg: '#dbeafe',
+    color: '#3B82F6', // blue-500
+    bg: '#EFF6FF',    // blue-50
     order: 1,
   },
   escolta: {
     label: 'Escolta',
-    color: '#7c3aed',
-    bg: '#ede9fe',
+    color: '#8B5CF6', // violet-500
+    bg: '#F5F3FF',    // violet-50
     order: 2,
   },
   alero: {
     label: 'Alero',
-    color: '#0369a1',
-    bg: '#e0f2fe',
+    color: '#0EA5E9', // sky-500
+    bg: '#F0F9FF',    // sky-50
     order: 3,
   },
   alapivot: {
     label: 'Ala-Pívot',
-    color: '#065f46',
-    bg: '#d1fae5',
+    color: '#10B981', // emerald-500
+    bg: '#ECFDF5',    // emerald-50
     order: 4,
   },
   pivot: {
     label: 'Pívot',
-    color: '#92400e',
-    bg: '#fef3c7',
+    color: '#F59E0B', // amber-500
+    bg: '#FFFBEB',    // amber-50
     order: 5,
   },
   receptor: {
     label: 'Receptor',
-    color: '#374151',
-    bg: '#f3f4f6',
+    color: '#64748B', // slate-500
+    bg: '#F8FAFB',    // slate-50
     order: 6,
   },
 };

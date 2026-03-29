@@ -2063,7 +2063,7 @@
 
                 const newHistory = { ...localHistory, [period]: newPeriodState };
                 setLocalHistory(newHistory);
-                await updateMatchInDb(match.id, { history: newHistory });
+                await updateMatchInDb(match.id, { [`history.${period}`]: newPeriodState });
             };
 
             const clearPlay = async (e, period, playerId) => {
@@ -2101,7 +2101,7 @@
                 const newHistory = { ...localHistory, [period]: newPeriodState };
                 setLocalHistory(newHistory);
 
-                const updates = { history: newHistory };
+                const updates = { [`history.${period}`]: newPeriodState };
                 if (newInjuries) updates.injuries = newInjuries;
 
                 await updateMatchInDb(match.id, updates);
@@ -2195,7 +2195,6 @@
                 }
                 await updateMatchInDb(match.id, {
                     currentPeriod: currentP + 1,
-                    history: localHistory,
                     state: 'active'
                 });
             };
@@ -2260,7 +2259,7 @@
                 const playerIn = team.players?.find(p => p.id === playerInId);
                 currentPeriodData[playerInId] = outgoingRole || playerIn?.role || 'receptor';
                 updatedHistory[currentP] = currentPeriodData;
-                await updateMatchInDb(match.id, { injuries: updatedInjuries, history: updatedHistory });
+                await updateMatchInDb(match.id, { injuries: updatedInjuries, [`history.${currentP}`]: currentPeriodData });
                 setMode('matrix');
             };
 
@@ -2269,14 +2268,14 @@
 
                 // Clear History
                 const newHistory = { ...localHistory };
-                delete newHistory[period];
+                newHistory[period] = {};
                 setLocalHistory(newHistory);
 
                 // Clear Injuries for this period
                 const newInjuries = matchInjuries.filter(inj => inj.period !== period);
                 setMatchInjuries(newInjuries);
 
-                await updateMatchInDb(match.id, { history: newHistory, injuries: newInjuries });
+                await updateMatchInDb(match.id, { [`history.${period}`]: {}, injuries: newInjuries });
             };
 
             const clearFuturePeriods = async () => {
@@ -2290,16 +2289,19 @@
 
                 // Clear History
                 const newHistory = { ...localHistory };
+                const updates = {};
                 for (let p = nextP; p <= ruleset.totalPeriods; p++) {
-                    delete newHistory[p];
+                    newHistory[p] = {};
+                    updates[`history.${p}`] = {};
                 }
                 setLocalHistory(newHistory);
 
                 // Clear Injuries
                 const newInjuries = matchInjuries.filter(inj => inj.period < nextP);
                 setMatchInjuries(newInjuries);
+                updates.injuries = newInjuries;
 
-                await updateMatchInDb(match.id, { history: newHistory, injuries: newInjuries });
+                await updateMatchInDb(match.id, updates);
             };
 
             const clearAll = async () => {
@@ -2634,10 +2636,10 @@
                                             const they = match.isHome !== false ? score.visitor : score.local;
                                             result = we > they ? 'won' : (we < they ? 'lost' : 'draw');
                                         }
-                                        await updateMatchInDb(match.id, { state: 'finished', history: localHistory, score, result });
+                                        await updateMatchInDb(match.id, { state: 'finished', score, result });
                                         setMode('summary'); setShowFinishModal(false);
                                     }} className="w-full p-4 bg-green-600 text-white font-bold rounded-xl flex items-center justify-center gap-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="check-circle"></i>' }}></span> Finalizar Partido</button>
-                                    <button onClick={async () => { await updateMatchInDb(match.id, { currentPeriod: currentP + 1, history: localHistory }); setShowFinishModal(false); }} className="w-full p-4 bg-blue-50 text-blue-700 font-bold rounded-xl flex items-center justify-center gap-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="plus-circle"></i>' }}></span> Añadir Prórroga (P{currentP + 1})</button>
+                                    <button onClick={async () => { await updateMatchInDb(match.id, { currentPeriod: currentP + 1 }); setShowFinishModal(false); }} className="w-full p-4 bg-blue-50 text-blue-700 font-bold rounded-xl flex items-center justify-center gap-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="plus-circle"></i>' }}></span> Añadir Prórroga (P{currentP + 1})</button>
                                     <button onClick={() => setShowFinishModal(false)} className="w-full p-2 text-slate-400 font-medium mt-2">Cancelar</button>
                                 </div>
                             </div>

@@ -353,5 +353,26 @@ const styles = StyleSheet.create({
   btnUnavailableActive: { borderColor: COLORS.danger, backgroundColor: COLORS.danger },
 
   publicFooter: { marginTop: 32, alignItems: 'center' },
-  publicFooterText: { fontSize: 12, color: COLORS.slate400, fontWeight: '500' }
+  publicFooterText: { fontSize: 12, color: COLORS.slate400, fontWeight: '500' },
+
+  // Modal Styles
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: COLORS.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  modalTitle: { fontSize: 22, fontWeight: 'bold', color: COLORS.slate900, marginBottom: 20 },
+  
+  shareSection: { marginBottom: 24 },
+  shareSectionTitle: { fontSize: 13, fontWeight: 'bold', color: COLORS.slate500, textTransform: 'uppercase', marginBottom: 12, marginLeft: 4 },
+  shareRow: { flexDirection: 'row', gap: 12 },
+  
+  shareBtnPrimary: { flex: 1, backgroundColor: COLORS.primary, padding: 14, borderRadius: 12, alignItems: 'center' },
+  shareBtnPrimaryText: { color: COLORS.white, fontWeight: 'bold', fontSize: 14 },
+  
+  shareBtnSecondary: { flex: 1, backgroundColor: COLORS.primaryLight, padding: 14, borderRadius: 12, alignItems: 'center' },
+  shareBtnSecondaryText: { color: COLORS.primary, fontWeight: 'bold', fontSize: 14 },
+  
+  shareBtnOutline: { flex: 1, backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.slate200, padding: 14, borderRadius: 12, alignItems: 'center' },
+  shareBtnOutlineText: { color: COLORS.slate700, fontWeight: '600', fontSize: 14 },
+  
+  modalBtnCancel: { marginTop: 8, padding: 16, backgroundColor: COLORS.slate50, borderRadius: 12, alignItems: 'center' },
+  modalBtnTextCancel: { color: COLORS.slate500, fontWeight: 'bold', fontSize: 15 },
 });

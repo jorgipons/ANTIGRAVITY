@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Modal, TextInput, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { 
@@ -14,10 +14,18 @@ import { DEFAULT_RULESET, validatePlayerSelection, getPlayerStatusClasses } from
 import { db } from '../constants/firebase';
 import { doc, onSnapshot, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
 
+
 export default function MatchMatrixScreen() {
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
+  const IS_TABLET = SCREEN_WIDTH > 600;
+  const COLUMN_WIDTH = IS_TABLET ? 54 : 44;
+  const NAME_COLUMN_WIDTH = IS_TABLET ? 180 : 140;
+
+  const styles = useMemo(() => createStyles(COLUMN_WIDTH, NAME_COLUMN_WIDTH), [COLUMN_WIDTH, NAME_COLUMN_WIDTH]);
+
   const navigation = useNavigation();
   const route = useRoute();
-  const { matchId, teamId } = route.params;
+  const { matchId, teamId } = route.params || {};
 
   const [match, setMatch] = useState(null);
   const [team, setTeam] = useState(null);
@@ -587,7 +595,10 @@ export default function MatchMatrixScreen() {
           <View style={styles.periodDivider} />
 
           <TouchableOpacity style={styles.injuryIconLarge} onPress={() => setSubstitutionModalVisible(true)}>
-            <Activity color={COLORS.danger} size={24} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 2 }}>
+              <ArrowUp color={COLORS.success} size={20} />
+              <ArrowDown color={COLORS.danger} size={20} style={{ marginLeft: -8 }} />
+            </View>
             <Text style={styles.injuryText}>Sust.</Text>
           </TouchableOpacity>
 
@@ -611,14 +622,14 @@ export default function MatchMatrixScreen() {
             <Text style={styles.modalTitle}>Sustitución por Lesión (P{match.currentPeriod})</Text>
             <Text style={styles.modalSubtitle}>Sale (Lesionado)</Text>
             <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16}}>
-              {sortedPlayers.filter(p => (match.history[match.currentPeriod] || []).some(e => e.id === p.id)).map(p => (
+              {sortedPlayers.filter(p => (match.history[match.currentPeriod] || []).some(e => (typeof e === 'object' ? e.id === p.id : e === p.id))).map(p => (
                 <TouchableOpacity key={p.id} style={[styles.modalBtn, selectedOut === p.id && styles.modalBtnSelectedOut]} onPress={() => setSelectedOut(p.id)}><Text style={styles.modalBtnText}>{p.number} - {p.name}</Text></TouchableOpacity>
               ))}
             </View>
             <View style={{alignItems: 'center', marginVertical: 10}}><ArrowDown color={COLORS.slate300} size={24} /></View>
             <Text style={styles.modalSubtitle}>Entra (Sustituto)</Text>
             <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16}}>
-              {sortedPlayers.filter(p => !(match.history[match.currentPeriod] || []).some(e => e.id === p.id)).map(p => (
+              {sortedPlayers.filter(p => !(match.history[match.currentPeriod] || []).some(e => (typeof e === 'object' ? e.id === p.id : e === p.id))).map(p => (
                 <TouchableOpacity key={p.id} style={[styles.modalBtn, selectedIn === p.id && styles.modalBtnSelectedIn]} onPress={() => setSelectedIn(p.id)}><Text style={styles.modalBtnText}>{p.number} - {p.name}</Text></TouchableOpacity>
               ))}
             </View>
@@ -743,7 +754,7 @@ export default function MatchMatrixScreen() {
                   >
                     <Users color={COLORS.primary} size={18} /><Text style={{color: COLORS.primary, fontWeight: 'bold'}}>Ver Estado Convocatoria</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.shareBtn, {backgroundColor: COLORS.primaryDark, marginTop: 10}]} onPress={() => copyToClipboard('https://antigravity-app.com/attendance/'+matchId)}><ExternalLink color={COLORS.white} size={18} /><Text style={{color: COLORS.white, fontWeight: 'bold'}}>Copiar Enlace de Asistencia</Text></TouchableOpacity>
+                  <TouchableOpacity style={[styles.shareBtn, {backgroundColor: COLORS.primaryDark, marginTop: 10}]} onPress={() => copyToClipboard('https://jorgipons.github.io/ANTIGRAVITY/basketball-manager/?matchId='+matchId)}><ExternalLink color={COLORS.white} size={18} /><Text style={{color: COLORS.white, fontWeight: 'bold'}}>Copiar Enlace de Asistencia</Text></TouchableOpacity>
                 </View>
                 <View style={{height: 50}} />
               </ScrollView>
@@ -782,7 +793,7 @@ export default function MatchMatrixScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (COLUMN_WIDTH, NAME_COLUMN_WIDTH) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.slate50 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.slate200, zIndex: 10 },
@@ -795,32 +806,32 @@ const styles = StyleSheet.create({
   headerIconBtnActive: { backgroundColor: COLORS.primaryLight },
   matrixWrapper: { flex: 1, backgroundColor: COLORS.white },
   tableHeaderSection: { flexDirection: 'row', height: 44, backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.slate200, zIndex: 20 },
-  jugadorHeader: { width: 140, height: 44, justifyContent: 'center', paddingHorizontal: 12, backgroundColor: COLORS.white, borderRightWidth: 1, borderRightColor: COLORS.slate200 },
+  jugadorHeader: { width: NAME_COLUMN_WIDTH, height: 44, justifyContent: 'center', paddingHorizontal: 12, backgroundColor: COLORS.white, borderRightWidth: 1, borderRightColor: COLORS.slate200 },
   periodsHeaderScroll: { flex: 1 },
   periodsHeaderContainer: { flexDirection: 'row' },
-  periodHeaderCell: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center', borderRightWidth: 1, borderRightColor: COLORS.slate100 },
+  periodHeaderCell: { width: COLUMN_WIDTH, height: 44, justifyContent: 'center', alignItems: 'center', borderRightWidth: 1, borderRightColor: COLORS.slate100 },
   periodHeaderCellActive: { backgroundColor: COLORS.primaryLight, borderBottomWidth: 2, borderBottomColor: COLORS.primary },
   periodHeaderText: { fontSize: 13, fontWeight: 'bold', color: COLORS.slate400 },
   periodHeaderTextActive: { color: COLORS.primaryDark },
-  totalHeaderCell: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.slate50 },
+  totalHeaderCell: { width: COLUMN_WIDTH, height: 44, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.slate50 },
   colHeaderText: { fontSize: 11, fontWeight: 'bold', color: COLORS.slate400, textTransform: 'uppercase' },
   tableBodyScroll: { flex: 1 },
   tableBodyRowContainer: { flexDirection: 'row' },
-  namesColumnContainer: { width: 140, backgroundColor: COLORS.white, borderRightWidth: 1, borderRightColor: COLORS.slate200 },
+  namesColumnContainer: { width: NAME_COLUMN_WIDTH, backgroundColor: COLORS.white, borderRightWidth: 1, borderRightColor: COLORS.slate200 },
   playerNameRow: { height: 52, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: COLORS.slate100, backgroundColor: COLORS.white, gap: 6 },
   playerNameRowActive: { backgroundColor: COLORS.primaryLight + '30' },
   playerNameText: { flex: 1, fontSize: 13, color: COLORS.slate800, fontWeight: '500' },
   playerNameTextActive: { fontWeight: 'bold', color: COLORS.slate900 },
   cellsHorizontalScroll: { flex: 1 },
   playerCellsRow: { height: 52, flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: COLORS.slate50 },
-  periodCell: { width: 44, height: 52, justifyContent: 'center', alignItems: 'center', borderRightWidth: 1, borderRightColor: COLORS.slate50 },
+  periodCell: { width: COLUMN_WIDTH, height: 52, justifyContent: 'center', alignItems: 'center', borderRightWidth: 1, borderRightColor: COLORS.slate50 },
   periodCellCurrent: { backgroundColor: COLORS.primaryLight + '20' },
   periodCellReadOnly: { opacity: 0.6 },
-  roleCellText: { fontSize: 14, fontWeight: '900' },
-  totalCell: { width: 44, height: 52, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.slate50 },
+  roleCellText: { fontSize: 13, fontWeight: '700' },
+  totalCell: { width: COLUMN_WIDTH, height: 52, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.slate50 },
   totalText: { fontSize: 13, fontWeight: 'bold', color: COLORS.slate600 },
   trashRow: { flexDirection: 'row', height: 48, borderTopWidth: 1, borderTopColor: COLORS.slate100, backgroundColor: '#FEF2F240' },
-  trashCell: { width: 44, height: 48, justifyContent: 'center', alignItems: 'center', borderRightWidth: 1, borderRightColor: COLORS.slate50 },
+  trashCell: { width: COLUMN_WIDTH, height: 48, justifyContent: 'center', alignItems: 'center', borderRightWidth: 1, borderRightColor: COLORS.slate50 },
   emptyHeaderPlaceholder: { height: 40, backgroundColor: COLORS.white },
   enPistaContainer: { margin: 16, backgroundColor: '#F8FAFC', borderRadius: 20, padding: 16, borderWidth: 1, borderColor: COLORS.slate200 },
   enPistaHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },

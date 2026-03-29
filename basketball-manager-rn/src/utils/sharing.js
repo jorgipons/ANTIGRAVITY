@@ -44,6 +44,5 @@ export const generateInfoConvo = (match, team, players, lang = 'val') => {
 };
 
 export const getAttendanceLink = (teamId, matchId, isPublic = true) => {
-  const isPublicParam = isPublic ? '?public=true' : '';
-  return `https://app.pasarelamanager.com/match/${teamId}/${matchId}${isPublicParam}`;
+  return `https://jorgipons.github.io/ANTIGRAVITY/basketball-manager/?matchId=${matchId}`;
 };
