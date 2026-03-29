@@ -17,9 +17,13 @@ const SubstitutionView = ({ players, currentP, localHistory, onCancel, onConfirm
     }, []);
 
     return (
-        <div className="p-4 max-w-md mx-auto">
+        <div className="p-4 max-w-md md:max-w-3xl mx-auto">
             <h2 className="font-bold text-lg mb-4 text-red-600 flex items-center gap-2">
-                <i data-lucide="activity" className="w-5 h-5"></i> Sustitución por Lesión (P{currentP})
+                <span className="flex items-center -space-x-1">
+                    <i data-lucide="arrow-up" className="w-5 h-5 text-green-600"></i>
+                    <i data-lucide="arrow-down" className="w-5 h-5 text-red-600"></i>
+                </span>
+                Sustitución por Lesión (P{currentP})
             </h2>
             <p className="text-sm text-slate-500 mb-4">Selecciona quién sale y quién entra. Este periodo no contará como jugado completo para ninguno de los dos.</p>
 
