@@ -348,7 +348,7 @@
         const { useState, useEffect, useMemo } = React;
 
         // --- Logic & Types ---
-        const APP_VERSION = '1.12.1';
+        const APP_VERSION = '1.12.2';
         
         // Anti-Caché Automático (Cache Busting)
         try {
@@ -1479,7 +1479,7 @@
             const teamMatches = matches.filter(m => m.teamId === team.id);
 
             return (
-                <div className="p-4 max-w-md md:max-w-4xl lg:max-w-6xl mx-auto pb-24">
+                <div className="p-4 max-w-md lg:max-w-6xl mx-auto pb-24">
                     <header className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-2 flex-1">
                             <button onClick={() => navigate('teams-list')} className="p-2 -ml-2 text-slate-400 hover:text-slate-800 transition-colors"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
@@ -1865,11 +1865,8 @@
             }, []);
 
             return (
-                <div className="p-4 max-w-md md:max-w-3xl lg:max-w-4xl mx-auto">
-                    <h2 className="font-bold text-lg mb-4 text-red-600 flex items-center gap-2">
-                        <span className="flex items-center -space-x-1" dangerouslySetInnerHTML={{ __html: '<i data-lucide="arrow-up" class="w-5 h-5 text-green-600"></i><i data-lucide="arrow-down" class="w-5 h-5 text-red-600"></i>' }}></span>
-                        Sustitución por Lesión (P{currentP})
-                    </h2>
+                <div className="p-4 max-w-md lg:max-w-4xl mx-auto">
+                    <h2 className="font-bold text-lg mb-4 text-red-600 flex items-center gap-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="activity" class="w-5 h-5"></i>' }}></span> Sustitución por Lesión (P{currentP})</h2>
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-2">Sale (Lesionado)</label>
@@ -1919,8 +1916,9 @@
             );
         };
 
-        const ActiveMatchView = ({ match, teams, updateMatchInDb, navigate, getRoles, mode, setMode }) => {
+        const ActiveMatchView = ({ match, teams, updateMatchInDb, navigate, getRoles }) => {
             const [localHistory, setLocalHistory] = useState(match?.history || {});
+            const [mode, setMode] = useState('matrix');
             const [matchInjuries, setMatchInjuries] = useState(match?.injuries || []);
             const [sortBy, setSortBy] = useState('role');
             const [editAllMode, setEditAllMode] = useState(false);
@@ -2065,7 +2063,7 @@
 
                 const newHistory = { ...localHistory, [period]: newPeriodState };
                 setLocalHistory(newHistory);
-                await updateMatchInDb(match.id, { history: newHistory });
+                await updateMatchInDb(match.id, { [`history.${period}`]: newPeriodState });
             };
 
             const clearPlay = async (e, period, playerId) => {
@@ -2103,7 +2101,7 @@
                 const newHistory = { ...localHistory, [period]: newPeriodState };
                 setLocalHistory(newHistory);
 
-                const updates = { history: newHistory };
+                const updates = { [`history.${period}`]: newPeriodState };
                 if (newInjuries) updates.injuries = newInjuries;
 
                 await updateMatchInDb(match.id, updates);
@@ -2197,7 +2195,6 @@
                 }
                 await updateMatchInDb(match.id, {
                     currentPeriod: currentP + 1,
-                    history: localHistory,
                     state: 'active'
                 });
             };
@@ -2224,6 +2221,7 @@
             const confirmAddPlayer = async (player) => {
                 const updatedPlayers = [...(match.players || []), player];
                 await updateMatchInDb(match.id, { players: updatedPlayers });
+                setMode('matrix');
             };
 
             const removePlayerFromMatch = async (playerId, playerName) => {
@@ -2261,7 +2259,7 @@
                 const playerIn = team.players?.find(p => p.id === playerInId);
                 currentPeriodData[playerInId] = outgoingRole || playerIn?.role || 'receptor';
                 updatedHistory[currentP] = currentPeriodData;
-                await updateMatchInDb(match.id, { injuries: updatedInjuries, history: updatedHistory });
+                await updateMatchInDb(match.id, { injuries: updatedInjuries, [`history.${currentP}`]: currentPeriodData });
                 setMode('matrix');
             };
 
@@ -2270,14 +2268,14 @@
 
                 // Clear History
                 const newHistory = { ...localHistory };
-                delete newHistory[period];
+                newHistory[period] = {};
                 setLocalHistory(newHistory);
 
                 // Clear Injuries for this period
                 const newInjuries = matchInjuries.filter(inj => inj.period !== period);
                 setMatchInjuries(newInjuries);
 
-                await updateMatchInDb(match.id, { history: newHistory, injuries: newInjuries });
+                await updateMatchInDb(match.id, { [`history.${period}`]: {}, injuries: newInjuries });
             };
 
             const clearFuturePeriods = async () => {
@@ -2291,16 +2289,19 @@
 
                 // Clear History
                 const newHistory = { ...localHistory };
+                const updates = {};
                 for (let p = nextP; p <= ruleset.totalPeriods; p++) {
-                    delete newHistory[p];
+                    newHistory[p] = {};
+                    updates[`history.${p}`] = {};
                 }
                 setLocalHistory(newHistory);
 
                 // Clear Injuries
                 const newInjuries = matchInjuries.filter(inj => inj.period < nextP);
                 setMatchInjuries(newInjuries);
+                updates.injuries = newInjuries;
 
-                await updateMatchInDb(match.id, { history: newHistory, injuries: newInjuries });
+                await updateMatchInDb(match.id, updates);
             };
 
             const clearAll = async () => {
@@ -2319,7 +2320,7 @@
                 const currentIds = (match.players || []).map(p => p.id);
                 const availablePlayers = (team.players || []).filter(p => !currentIds.includes(p.id));
                 return (
-                    <div className="p-4 max-w-md md:max-w-3xl lg:max-w-4xl mx-auto">
+                    <div className="p-4 max-w-md lg:max-w-4xl mx-auto">
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="font-bold text-lg">Añadir Jugador Tardío</h2>
                             <button
@@ -2328,6 +2329,7 @@
                                     if (confirm(`¿Añadir a TODOS (${availablePlayers.length}) los jugadores disponibles?`)) {
                                         const updatedPlayers = [...(match.players || []), ...availablePlayers];
                                         await updateMatchInDb(match.id, { players: updatedPlayers });
+                                        setMode('matrix');
                                     }
                                 }}
                                 disabled={availablePlayers.length === 0}
@@ -2354,14 +2356,14 @@
                                 </button>
                             ))}
                         </div>
-                        <button onClick={() => setMode('matrix')} className="mt-4 w-full py-3 text-slate-500 font-bold border border-slate-200 rounded-xl hover:bg-slate-50">Volver a la Matriz</button>
+                        <button onClick={() => setMode('matrix')} className="mt-4 w-full py-3 text-slate-500 font-bold border border-slate-200 rounded-xl hover:bg-slate-50">Cancelar</button>
                     </div>
                 );
             }
 
             if (mode === 'summary') {
                 return (
-                    <div className="p-4 max-w-md md:max-w-3xl lg:max-w-4xl mx-auto">
+                    <div className="p-4 max-w-md lg:max-w-4xl mx-auto">
                         <header className="mb-6 flex items-center gap-2">
                             <button onClick={() => navigate('team-detail', match.teamId)} className="p-2 -ml-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
                             <h1 className="text-2xl font-bold">Resumen</h1>
@@ -2386,7 +2388,7 @@
 
             if (mode === 'edit-match') {
                 return (
-                    <div className="p-4 max-w-md md:max-w-3xl lg:max-w-4xl mx-auto">
+                    <div className="p-4 max-w-md lg:max-w-4xl mx-auto">
                         <EditMatchView
                             match={match}
                             team={team}
@@ -2413,7 +2415,7 @@
             }
 
             return (
-                <div className="p-4 max-w-md md:max-w-3xl lg:max-w-4xl mx-auto pb-24 mobile-landscape-stretch">
+                <div className="p-4 max-w-md lg:max-w-4xl mx-auto pb-24 mobile-landscape-stretch">
                     <header className="mb-4 mobile-landscape-compact-nav">
                         <div className="flex items-center justify-between mb-2">
                             <button onClick={() => navigate('team-detail', match.teamId)} className="p-2 -ml-2 text-slate-600 hover:text-slate-900"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left" class="w-6 h-6"></i>' }}></span></button>
@@ -2499,28 +2501,6 @@
                                                 const isOut = injuryData?.playerOut === p.id;
                                                 const isIn = injuryData?.playerIn === p.id;
 
-                                                // Sugerencias de Pasarela (solo hasta checkPeriod)
-                                                let suggestion = null;
-                                                if (!isSelected && !isOut && !isIn && !isDisabled && period <= ruleset.checkPeriod) {
-                                                    let playedBefore = 0;
-                                                    for (let i = 1; i < period; i++) {
-                                                        const hist = localHistory[i];
-                                                        const wasInjured = matchInjuries.some(inj => inj.period === i && (inj.playerOut === p.id || inj.playerIn === p.id));
-                                                        if (!wasInjured && ((Array.isArray(hist) && hist.includes(p.id)) || (hist && hist[p.id]))) {
-                                                            playedBefore++;
-                                                        }
-                                                    }
-
-                                                    const remainingPeriodsToCheck = ruleset.checkPeriod - period + 1;
-                                                    const neededToMin = ruleset.minPlay - playedBefore;
-
-                                                    if (neededToMin >= remainingPeriodsToCheck) {
-                                                        suggestion = { icon: 'alert-circle', color: 'text-orange-500', bg: 'bg-orange-50/30' };
-                                                    } else if (playedBefore >= ruleset.maxPlay) {
-                                                        suggestion = { icon: 'x', color: 'text-red-400', bg: 'bg-red-50/30' };
-                                                    }
-                                                }
-
                                                 const shouldShowCell = isSelected || isOut;
                                                 const isCompact = viewType === 'compact';
                                                 const isCurrent = period === currentP;
@@ -2529,9 +2509,9 @@
                                                         key={period}
                                                         onClick={() => { if (!isLocked && isEditable && !isDisabled) togglePlay(period, p.id); }}
                                                         onContextMenu={(e) => clearPlay(e, period, p.id)}
-                                                        className={`text-center border-r last:border-r-0 transition-all select-none relative ${viewType === 'compact' ? 'p-0' : 'p-1'} ${viewType === 'compact' ? (period === currentP ? 'w-12' : 'w-5') : (period === currentP ? 'w-16' : 'min-w-[40px]')} ${shouldShowCell ? (isDisabled ? 'bg-slate-400' : (role && roles[role] ? roles[role].bg : (isOut ? 'bg-red-50' : 'bg-blue-500'))) : (isEditable && !isDisabled && !isLocked ? (suggestion ? suggestion.bg : 'hover:bg-slate-100 cursor-pointer') : '')} ${!isEditable || isLocked ? 'opacity-80' : ''} ${period === currentP && !shouldShowCell && !isDisabled && !suggestion ? 'bg-blue-50/50' : ''} ${(isOut || isIn) ? '!bg-slate-200' : ''}`}
+                                                        className={`text-center border-r last:border-r-0 transition-all select-none relative ${viewType === 'compact' ? 'p-0' : 'p-1'} ${viewType === 'compact' ? (period === currentP ? 'w-12' : 'w-5') : (period === currentP ? 'w-16' : 'min-w-[40px]')} ${shouldShowCell ? (isDisabled ? 'bg-slate-400' : (role && roles[role] ? roles[role].bg : (isOut ? 'bg-red-50' : 'bg-blue-500'))) : (isEditable && !isDisabled && !isLocked ? 'hover:bg-slate-100 cursor-pointer' : '')} ${!isEditable || isLocked ? 'opacity-80' : ''} ${period === currentP && !shouldShowCell && !isDisabled ? 'bg-blue-50/50' : ''} ${(isOut || isIn) ? '!bg-slate-200' : ''}`}
                                                     >
-                                                        {shouldShowCell ? (
+                                                        {shouldShowCell && (
                                                             <div className={`w-full h-full flex items-center justify-center font-bold text-xs ${isDisabled ? 'text-white' : (role && roles[role] ? roles[role].color : 'text-white')} ${(isOut || isIn) ? '!text-slate-500' : ''}`}>
                                                                 {isCompact && !isCurrent ? (
                                                                     <div className={`w-1.5 h-1.5 rounded-full ${isDisabled ? 'bg-white' : (role && roles[role] ? roles[role].bg.replace('-50', '-500') : 'bg-blue-600')}`}></div>
@@ -2545,12 +2525,6 @@
                                                                     )))
                                                                 )}
                                                             </div>
-                                                        ) : (
-                                                            suggestion && (
-                                                                <div className={`w-full h-full flex items-center justify-center animate-pulse ${suggestion.color}`}>
-                                                                    <span dangerouslySetInnerHTML={{ __html: `<i data-lucide="${suggestion.icon}" class="w-3.5 h-3.5 opacity-60"></i>` }}></span>
-                                                                </div>
-                                                            )
                                                         )}
                                                     </td>
                                                 );
@@ -2630,14 +2604,12 @@
                     </div>
 
                     {!isLocked && (
-                        <div id="tutorial-period-nav" className="fixed bottom-4 left-4 right-4 max-w-md md:max-w-3xl mx-auto flex gap-2">
+                        <div id="tutorial-period-nav" className="fixed bottom-4 left-4 right-4 max-w-md mx-auto flex gap-2">
                             <div className="flex-1 bg-white border border-slate-200 p-2 rounded-xl shadow-lg flex items-center justify-between px-4">
                                 <div className="flex items-center gap-2">
                                     <button onClick={async () => { if (currentP > 1 && confirm("¿Volver al periodo anterior?")) await updateMatchInDb(match.id, { currentPeriod: currentP - 1 }); }} disabled={currentP <= 1} className="p-2 text-slate-400 hover:text-slate-700 disabled:opacity-30"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="arrow-left" class="w-5 h-5"></i>' }}></span></button>
                                     <span className="font-bold text-slate-700">P{currentP}</span>
-                                    <button id="tutorial-injury-btn" onClick={() => setMode('substitution')} className="bg-red-50 text-red-600 rounded-full p-1 hover:bg-red-100 ml-2">
-                                        <span className="flex items-center -space-x-1" dangerouslySetInnerHTML={{ __html: '<i data-lucide="arrow-up" class="w-3 h-3 text-green-600"></i><i data-lucide="arrow-down" class="w-3 h-3 text-red-600"></i>' }}></span>
-                                    </button>
+                                    <button id="tutorial-injury-btn" onClick={() => setMode('substitution')} className="bg-red-50 text-red-600 rounded-full p-1 hover:bg-red-100 ml-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="activity" class="w-4 h-4"></i>' }}></span></button>
                                 </div>
                                 <div className="text-xs text-slate-400 flex items-center gap-1"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="users" class="w-3 h-3"></i>' }}></span>{Object.keys(localHistory[currentP] || {}).length}/5</div>
                             </div>
@@ -2664,10 +2636,10 @@
                                             const they = match.isHome !== false ? score.visitor : score.local;
                                             result = we > they ? 'won' : (we < they ? 'lost' : 'draw');
                                         }
-                                        await updateMatchInDb(match.id, { state: 'finished', history: localHistory, score, result });
+                                        await updateMatchInDb(match.id, { state: 'finished', score, result });
                                         setMode('summary'); setShowFinishModal(false);
                                     }} className="w-full p-4 bg-green-600 text-white font-bold rounded-xl flex items-center justify-center gap-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="check-circle"></i>' }}></span> Finalizar Partido</button>
-                                    <button onClick={async () => { await updateMatchInDb(match.id, { currentPeriod: currentP + 1, history: localHistory }); setShowFinishModal(false); }} className="w-full p-4 bg-blue-50 text-blue-700 font-bold rounded-xl flex items-center justify-center gap-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="plus-circle"></i>' }}></span> Añadir Prórroga (P{currentP + 1})</button>
+                                    <button onClick={async () => { await updateMatchInDb(match.id, { currentPeriod: currentP + 1 }); setShowFinishModal(false); }} className="w-full p-4 bg-blue-50 text-blue-700 font-bold rounded-xl flex items-center justify-center gap-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="plus-circle"></i>' }}></span> Añadir Prórroga (P{currentP + 1})</button>
                                     <button onClick={() => setShowFinishModal(false)} className="w-full p-2 text-slate-400 font-medium mt-2">Cancelar</button>
                                 </div>
                             </div>
@@ -3037,7 +3009,7 @@
             }, [teams, showForm, subscription, showArchived]);
 
             return (
-                <div className="max-w-md md:max-w-3xl lg:max-w-4xl mx-auto">
+                <div className="max-w-md lg:max-w-4xl mx-auto">
                     <div className="px-4 pt-6">
                         <header className="flex justify-between items-center mb-8">
                             <div>
@@ -3335,7 +3307,7 @@
             }, []);
 
             return (
-                <div className="p-4 max-w-md md:max-w-3xl lg:max-w-4xl mx-auto">
+                <div className="p-4 max-w-md lg:max-w-4xl mx-auto">
                     <header className="flex items-center gap-2 mb-6">
                         <button onClick={() => navigate('team-detail', team.id)} className="p-2 -ml-2 text-slate-400 hover:text-slate-800 transition-colors"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
                         <h1 className="text-2xl font-bold text-slate-800">Nuevo Partido</h1>
@@ -5144,7 +5116,6 @@
             const [checkoutLoading, setCheckoutLoading] = useState(false);
             const [isOnline, setIsOnline] = useState(navigator.onLine);
             const [toast, setToast] = useState(null);
-            const [activeMatchMode, setActiveMatchMode] = useState('matrix');
 
             // Tutorial State
             const [showTutorial, setShowTutorial] = useState(false);
@@ -5241,11 +5212,6 @@
                 // Persist state
                 if (newView !== 'public-match') {
                     localStorage.setItem('app_state', JSON.stringify({ view: newView, teamId: tId, matchId: mId }));
-                }
-
-                // Reset mode when changing match or view
-                if (newView !== view || (matchId && matchId !== activeMatchId)) {
-                    setActiveMatchMode('matrix');
                 }
 
                 if (!isBack) {
@@ -5564,10 +5530,10 @@
                             {view === 'all-matches-calendar' && <AllMatchesCalendarView teams={teams} matches={matches} navigate={navigate} />}
                             {view === 'team-detail' && <TeamDetailView team={getSelectedTeam()} matches={matches} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} addDoc={addDoc} collection={collection} db={db} />}
                             {view === 'match-setup' && <MatchSetupView team={getSelectedTeam()} navigate={navigate} addDoc={addDoc} collection={collection} db={db} updateDoc={updateDoc} doc={doc} />}
-                            {view === 'active-match' && <ActiveMatchView match={getActiveMatch()} teams={teams} updateMatchInDb={updateMatchInDb} navigate={navigate} getRoles={getRoles} mode={activeMatchMode} setMode={setActiveMatchMode} />}
+                            {view === 'active-match' && <ActiveMatchView match={getActiveMatch()} teams={teams} updateMatchInDb={updateMatchInDb} navigate={navigate} getRoles={getRoles} />}
                             {view === 'calendar' && <CalendarView team={getSelectedTeam()} matches={matches} navigate={navigate} />}
                             {view === 'edit-match' && (
-                                <div className="p-4 max-w-md md:max-w-3xl lg:max-w-4xl mx-auto">
+                                <div className="p-4 max-w-md lg:max-w-4xl mx-auto">
                                     <EditMatchView
                                         match={getActiveMatch()}
                                         team={getSelectedTeam()}
