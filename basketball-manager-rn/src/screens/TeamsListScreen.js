@@ -108,7 +108,7 @@ export default function TeamsListScreen() {
             </View>
 
             <View style={[styles.nmBadge, nextMatch.isHome ? styles.nmBadgeHome : styles.nmBadgeAway]}>
-              <Text style={styles.nmBadgeText}>{nextMatch.isHome ? '🏠 CASA' : '🚌 FUERA'}</Text>
+              <Text style={styles.nmBadgeText}>{nextMatch.isHome ? '🏠 CASA' : (nextMatch.transportType === 'car' ? '🚗 COCHE' : '🚌 BUS')}</Text>
             </View>
           </View>
         </View>
@@ -181,7 +181,7 @@ export default function TeamsListScreen() {
             <Text style={styles.headerSubtitle}>Selecciona un equipo para gestionar</Text>
           </View>
           <View style={styles.headerRight}>
-            <TouchableOpacity onPress={() => {/* Navegar a calendario general si existiera */}} style={styles.headerBtn}>
+            <TouchableOpacity onPress={() => navigation.navigate('Calendar')} style={styles.headerBtn}>
               <Calendar color={COLORS.slate600} size={24} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.headerBtnPlus}>

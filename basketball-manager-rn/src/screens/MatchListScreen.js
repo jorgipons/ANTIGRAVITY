@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput, Switch, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput, Switch, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ChevronLeft, Plus, Calendar, Clock, MapPin, ChevronRight, Activity, Users, RefreshCw, Trash2 } from 'lucide-react-native';
+import { ChevronLeft, Plus, Calendar, Clock, MapPin, ChevronRight, Activity, Users, RefreshCw, Trash2, List } from 'lucide-react-native';
+import CalendarView from '../components/CalendarView';
 
 import { COLORS } from '../constants/colors';
 import { useMatches } from '../hooks/useMatches';
@@ -12,7 +13,7 @@ import { importFederationMatches } from '../utils/federation';
 export default function MatchListScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { teamId } = route.params;
+  const { teamId, initialViewMode } = route.params;
   const { matches, loading, addMatch, updateMatch, deleteMatch } = useMatches(teamId);
 
   const { teams } = useTeams();
@@ -28,6 +29,7 @@ export default function MatchListScreen() {
     location: '',
     isHome: true,
   });
+  const [viewMode, setViewMode] = useState(initialViewMode || 'list'); // 'list' or 'calendar'
 
   const handleCreateMatch = async () => {
     if (!form.opponent.trim() || !form.date.trim() || !form.time.trim()) {
@@ -239,13 +241,18 @@ export default function MatchListScreen() {
           <ChevronLeft color={COLORS.slate600} size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Partidos</Text>
-        {team?.federationId ? (
-          <TouchableOpacity onPress={handleSyncFederation} style={styles.syncBtn} disabled={syncing}>
-            {syncing ? <ActivityIndicator size="small" color={COLORS.primary} /> : <RefreshCw color={COLORS.primary} size={20} />}
+        <View style={styles.headerRightGroup}>
+          <TouchableOpacity onPress={() => setViewMode(viewMode === 'list' ? 'calendar' : 'list')} style={styles.syncBtn}>
+            {viewMode === 'list' ? <Calendar color={COLORS.primary} size={20} /> : <List color={COLORS.primary} size={20} />}
           </TouchableOpacity>
-        ) : (
-          <View style={{ width: 40 }} />
-        )}
+          {team?.federationId ? (
+            <TouchableOpacity onPress={handleSyncFederation} style={styles.syncBtn} disabled={syncing}>
+              {syncing ? <ActivityIndicator size="small" color={COLORS.primary} /> : <RefreshCw color={COLORS.primary} size={20} />}
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 10 }} />
+          )}
+        </View>
       </View>
 
       {matches.length === 0 ? (
@@ -261,12 +268,21 @@ export default function MatchListScreen() {
         </View>
       ) : (
         <>
-          <FlatList
-            data={matches}
-            keyExtractor={item => item.id}
-            renderItem={renderMatchCard}
-            contentContainerStyle={styles.listContainer}
-          />
+          {viewMode === 'list' ? (
+            <FlatList
+              data={matches}
+              keyExtractor={item => item.id}
+              renderItem={renderMatchCard}
+              contentContainerStyle={styles.listContainer}
+            />
+          ) : (
+            <ScrollView contentContainerStyle={styles.listContainer}>
+               <CalendarView 
+                 matches={matches} 
+                 onMatchPress={(m) => navigation.navigate('MatchMatrix', { matchId: m.id, teamId })} 
+               />
+            </ScrollView>
+          )}
           <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
             <Plus color={COLORS.white} size={24} />
           </TouchableOpacity>
@@ -357,7 +373,8 @@ const styles = StyleSheet.create({
   },
   backButton: { padding: 8, marginLeft: -8 },
   headerTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.slate900 },
-  syncBtn: { padding: 8, marginRight: -8, backgroundColor: COLORS.primaryLight, borderRadius: 8 },
+  syncBtn: { padding: 8, backgroundColor: COLORS.primaryLight, borderRadius: 8 },
+  headerRightGroup: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },

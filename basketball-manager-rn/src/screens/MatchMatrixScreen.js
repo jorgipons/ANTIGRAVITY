@@ -5,7 +5,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { 
   ChevronLeft, Info, CheckCircle2, AlertCircle, Users, Activity, 
   ArrowDown, ArrowUp, ChevronRight, Lock, Unlock, Settings, 
-  Trash2, Clipboard, ExternalLink, Maximize2, UserPlus, Calendar, Clock, MapPin, Search
+  Trash2, Clipboard, ExternalLink, Maximize2, UserPlus, Calendar, Clock, MapPin, Search, List, LayoutGrid, XCircle
 } from 'lucide-react-native';
 import * as ClipboardAPI from 'expo-clipboard';
 import { COLORS } from '../constants/colors';
@@ -16,12 +16,16 @@ import { doc, onSnapshot, updateDoc, getDoc, deleteDoc } from 'firebase/firestor
 
 
 export default function MatchMatrixScreen() {
-  const { width: SCREEN_WIDTH } = useWindowDimensions();
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
   const IS_TABLET = SCREEN_WIDTH > 600;
-  const COLUMN_WIDTH = IS_TABLET ? 54 : 44;
+  
+  // Stretch to fit perfectly including the Total column
   const NAME_COLUMN_WIDTH = IS_TABLET ? 180 : 140;
+  const COLUMN_WIDTH = IS_TABLET 
+    ? (SCREEN_WIDTH - NAME_COLUMN_WIDTH) / (DEFAULT_RULESET.totalPeriods + 1) 
+    : 44;
 
-  const styles = useMemo(() => createStyles(COLUMN_WIDTH, NAME_COLUMN_WIDTH), [COLUMN_WIDTH, NAME_COLUMN_WIDTH]);
+  const styles = useMemo(() => createStyles(COLUMN_WIDTH, NAME_COLUMN_WIDTH, IS_TABLET), [COLUMN_WIDTH, NAME_COLUMN_WIDTH, IS_TABLET]);
 
   const navigation = useNavigation();
   const route = useRoute();
@@ -41,8 +45,12 @@ export default function MatchMatrixScreen() {
 
   const [isFreeEdit, setIsFreeEdit] = useState(false);
   const [compactViewVisible, setCompactViewVisible] = useState(false);
+  const [listViewVisible, setListViewVisible] = useState(false); // New view
   const [configModalVisible, setConfigModalVisible] = useState(false);
   const [matchForm, setMatchForm] = useState(null);
+  const [sortBy, setSortBy] = useState('number'); // 'number' or 'role'
+  const [timePickerVisible, setTimePickerVisible] = useState(false);
+  const [activeTimeField, setActiveTimeField] = useState(null); // { label: '', value: '', key: '' }
 
   useEffect(() => {
     if (teamId) {
@@ -90,14 +98,59 @@ export default function MatchMatrixScreen() {
   const sortedPlayers = useMemo(() => {
     if (!match) return [];
     const sourcePlayers = team?.players || match.players || [];
-    const players = [...sourcePlayers].sort((a, b) => parseInt(a.number) - parseInt(b.number));
-    
-    // Al filtrar por los jugadores reales de la convocatoria, la matriz es más útil
+    let players = [...sourcePlayers];
+
+    if (sortBy === 'role') {
+      players.sort((a, b) => {
+        const roleA = a.role || 'receptor';
+        const roleB = b.role || 'receptor';
+        return (ROLES[roleA]?.order || 99) - (ROLES[roleB]?.order || 99) || parseInt(a.number) - parseInt(b.number);
+      });
+    } else {
+      players.sort((a, b) => parseInt(a.number) - parseInt(b.number));
+    }
+
     if (match.attendance) {
       return players.filter(p => match.attendance[p.id]?.status === 'available');
     }
     return players;
-  }, [match?.players, team?.players, match?.attendance]);
+  }, [match?.players, team?.players, match?.attendance, sortBy]);
+
+  const validationErrors = useMemo(() => {
+    if (!match?.history) return {};
+    const errors = {};
+    const ruleset = DEFAULT_RULESET;
+    const currentP = match.currentPeriod || 1;
+
+    sortedPlayers.forEach(p => {
+      let playedInCheckRange = 0;
+      let restedInCheckRange = 0;
+
+      for (let i = 1; i <= ruleset.checkPeriod; i++) {
+        const isInjured = (match.injuries || []).find(inj => inj.period === i && (inj.playerOut === p.id || inj.playerIn === p.id));
+        if (isInjured) continue;
+
+        if (i <= currentP) {
+          const periodArray = match.history[i] || [];
+          const isInPeriod = periodArray.some(e => e === p.id || (e && e.id === p.id));
+          if (isInPeriod) playedInCheckRange++;
+          else restedInCheckRange++;
+        }
+      }
+
+      const remainingPeriods = ruleset.checkPeriod - Math.min(ruleset.checkPeriod, currentP);
+      const maxPossiblePlayed = playedInCheckRange + remainingPeriods;
+      const maxPossibleRested = restedInCheckRange + remainingPeriods;
+
+      if (playedInCheckRange > ruleset.maxPlay) { errors[p.id] = true; return; }
+      if (maxPossiblePlayed < ruleset.minPlay) { errors[p.id] = true; return; }
+      if (playedInCheckRange < ruleset.minPlay && currentP >= ruleset.checkPeriod) { errors[p.id] = true; return; }
+      if (maxPossibleRested < ruleset.minRest) { errors[p.id] = true; return; }
+      if (restedInCheckRange < ruleset.minRest && currentP >= ruleset.checkPeriod) { errors[p.id] = true; return; }
+    });
+
+    return errors;
+  }, [match?.history, match?.currentPeriod, match?.injuries, sortedPlayers]);
 
 
   const togglePlayerInPeriod = async (playerId, period) => {
@@ -120,18 +173,18 @@ export default function MatchMatrixScreen() {
     let newPeriodRoles = { ...periodRoles };
 
     if (isCurrentlySelected) {
-      // Restore role cycling logic
-      const player = sortedPlayers.find(p => p.id === playerId);
       const availableRoles = getAvailableRoleKeys(team);
       const currentEntry = periodArray[entryIndex];
       const roleFromHistory = typeof currentEntry === 'object' ? currentEntry.role : periodRoles[playerId];
-      const currentRole = roleFromHistory || player?.role || 'receptor';
+      const currentRole = roleFromHistory || 'receptor';
       
       const currentIndex = availableRoles.indexOf(currentRole);
+      // Cycle to next role. If at the end, it wraps to availableRoles[0].
+      // We don't remove the player on click anymore, just cycle.
       const nextRole = availableRoles[(currentIndex + 1) % availableRoles.length];
       
       newPeriodRoles[playerId] = nextRole;
-      newPeriodArray = periodArray.map((e, idx) => idx === entryIndex ? playerId : e); // Convert to string ID if it was an object
+      newPeriodArray = periodArray.map((e, idx) => idx === entryIndex ? playerId : e);
     } else {
       // Only count active players in convocatoria
       const activeEntries = periodArray.filter(e => {
@@ -381,12 +434,13 @@ export default function MatchMatrixScreen() {
   const renderPlayerName = (player) => {
     const roleConf = getRoleConfig(team, player.role || 'receptor');
     const isInCurrentPeriod = (match.history[match.currentPeriod] || []).some(e => (typeof e === 'object' ? e.id === player.id : e === player.id));
-    
+    const hasError = validationErrors[player.id];
+
     return (
-      <View key={player.id} style={[styles.playerNameRow, isInCurrentPeriod && styles.playerNameRowActive]}>
+      <View key={player.id} style={[styles.playerNameRow, isInCurrentPeriod && styles.playerNameRowActive, hasError && { backgroundColor: '#FEE2E2' }]}>
         <View style={[styles.attendanceDot, { backgroundColor: match.attendance?.[player.id]?.status === 'available' ? COLORS.success : COLORS.danger }]} />
         <View style={styles.numberBadge}><Text style={styles.numberText}>{player.number}</Text></View>
-        <Text style={[styles.playerNameText, isInCurrentPeriod && styles.playerNameTextActive]} numberOfLines={1}>{player.name}</Text>
+        <Text style={[styles.playerNameText, isInCurrentPeriod && styles.playerNameTextActive, hasError && { color: '#991B1B', fontWeight: 'bold' }]} numberOfLines={1}>{player.name}</Text>
         <View style={[styles.roleDot, { backgroundColor: roleConf?.color || COLORS.slate400 }]} />
       </View>
     );
@@ -413,7 +467,7 @@ export default function MatchMatrixScreen() {
           let content = null;
 
           if (injury) {
-            cellStyle.push({ backgroundColor: injury.playerOut === player.id ? '#FEE2E2' : '#F0FDF4' });
+            cellStyle.push({ backgroundColor: injury.playerOut === player.id ? '#FEF2F2' : '#F0FDF4' });
             content = injury.playerOut === player.id ? <ArrowDown color={COLORS.danger} size={14} /> : <ArrowUp color={COLORS.success} size={14} />;
           } else if (isSelected) {
             const specificRoleConf = getRoleConfig(team, currentRole);
@@ -421,7 +475,7 @@ export default function MatchMatrixScreen() {
             const specificRoleColor = specificRoleConf?.color || COLORS.slate400;
             const specificRoleBg = specificRoleConf?.bg || '#F8FAFC';
 
-            cellStyle.push({ backgroundColor: specificRoleBg, borderWidth: 2, borderColor: specificRoleColor });
+            cellStyle.push({ backgroundColor: specificRoleBg }); // REMOVED BORDER
             content = <Text style={[styles.roleCellText, { color: specificRoleColor }]}>{specificRoleInitial}</Text>;
           } else if (isCurrentPeriod) {
             cellStyle.push(styles.periodCellCurrent);
@@ -444,7 +498,9 @@ export default function MatchMatrixScreen() {
             </TouchableOpacity>
           );
         })}
-        <View style={styles.totalCell}><Text style={styles.totalText}>{getPlayerPeriodsCount(player.id)}</Text></View>
+        <View style={[styles.totalCell, validationErrors[player.id] && { backgroundColor: '#FEE2E2' }]}>
+          <Text style={[styles.totalText, validationErrors[player.id] && { color: '#991B1B' }]}>{getPlayerPeriodsCount(player.id)}</Text>
+        </View>
       </View>
     );
   };
@@ -466,6 +522,18 @@ export default function MatchMatrixScreen() {
           <Text style={styles.headerSubtitle}>{match.date} • P{match.currentPeriod}</Text>
         </View>
         <View style={styles.headerRightIcons}>
+          <TouchableOpacity 
+            style={[styles.headerIconBtn, listViewVisible && styles.headerIconBtnActive]} 
+            onPress={() => setListViewVisible(true)}
+          >
+            <List color={listViewVisible ? COLORS.primary : COLORS.slate500} size={20} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.headerIconBtn, compactViewVisible && styles.headerIconBtnActive]} 
+            onPress={() => setCompactViewVisible(true)}
+          >
+            <LayoutGrid color={compactViewVisible ? COLORS.primary : COLORS.slate500} size={20} />
+          </TouchableOpacity>
           <TouchableOpacity style={[styles.headerIconBtn, isFreeEdit && styles.headerIconBtnActive]} onPress={() => setIsFreeEdit(!isFreeEdit)}>
             {isFreeEdit ? <Unlock color={COLORS.primary} size={20} /> : <Lock color={COLORS.slate400} size={20} />}
           </TouchableOpacity>
@@ -476,7 +544,10 @@ export default function MatchMatrixScreen() {
 
       <View style={styles.matrixWrapper}>
         <View style={styles.tableHeaderSection}>
-          <View style={styles.jugadorHeader}><Text style={styles.colHeaderText}>Jugador</Text></View>
+          <TouchableOpacity style={styles.jugadorHeader} onPress={() => setSortBy(sortBy === 'number' ? 'role' : 'number')}>
+            <Text style={styles.colHeaderText}>Jugador</Text>
+            {sortBy === 'role' ? <Activity size={10} color={COLORS.primary} /> : <Text style={{fontSize: 9, color: COLORS.primary, fontWeight: 'bold'}}>#</Text>}
+          </TouchableOpacity>
           <ScrollView horizontal ref={headerScrollRef} showsHorizontalScrollIndicator={false} scrollEnabled={false} style={styles.periodsHeaderScroll}>
             <View style={styles.periodsHeaderContainer}>
               {[...Array(DEFAULT_RULESET.totalPeriods)].map((_, i) => {
@@ -572,9 +643,14 @@ export default function MatchMatrixScreen() {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.compactViewBtn} onPress={() => setCompactViewVisible(true)}>
-             <Maximize2 color={COLORS.slate600} size={16} /><Text style={styles.compactViewBtnText}>VISTA COMPACTA</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 12, marginHorizontal: 16 }}>
+            <TouchableOpacity style={[styles.compactViewBtn, { flex: 1, marginHorizontal: 0 }]} onPress={() => setListViewVisible(true)}>
+              <List color={COLORS.slate600} size={16} /><Text style={styles.compactViewBtnText}>POR PERIODOS</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.compactViewBtn, { flex: 1, marginHorizontal: 0 }]} onPress={() => setCompactViewVisible(true)}>
+              <LayoutGrid color={COLORS.slate600} size={16} /><Text style={styles.compactViewBtnText}>COMPACTA</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.footerSpacingLower} />
         </ScrollView>
       </View>
@@ -659,10 +735,22 @@ export default function MatchMatrixScreen() {
                 <TextInput style={styles.input} value={matchForm?.opponent} onChangeText={t => setMatchForm({...matchForm, opponent: t})} placeholder="Rival" />
                 <View style={{flexDirection: 'row', gap: 12, marginTop: 12}}>
                   <View style={{flex: 1}}><Text style={styles.label}>Fecha</Text><TextInput style={styles.input} value={matchForm?.date} onChangeText={t => setMatchForm({...matchForm, date: t})} /></View>
-                  <View style={{flex: 1}}><Text style={styles.label}>Hora Inicio</Text><TextInput style={styles.input} value={matchForm?.time} onChangeText={t => setMatchForm({...matchForm, time: t})} /></View>
+                  <TouchableOpacity style={{flex: 1}} onPress={() => openTimePicker('time', 'Hora Inicio', matchForm?.time)}>
+                    <Text style={styles.label}>Hora Inicio</Text>
+                    <View style={styles.inputWithIcon}>
+                      <Text style={styles.input}>{matchForm?.time || '--:--'}</Text>
+                      <Clock color={COLORS.slate400} size={14} style={{ position: 'absolute', right: 12 }} />
+                    </View>
+                  </TouchableOpacity>
                 </View>
                 <View style={{flexDirection: 'row', gap: 12, marginTop: 12}}>
-                  <View style={{flex: 1}}><Text style={styles.label}>Convocatoria</Text><TextInput style={styles.input} value={matchForm?.callTime} onChangeText={t => setMatchForm({...matchForm, callTime: t})} /></View>
+                  <TouchableOpacity style={{flex: 1}} onPress={() => openTimePicker('callTime', 'Convocatoria', matchForm?.callTime)}>
+                    <Text style={styles.label}>Convocatoria</Text>
+                    <View style={styles.inputWithIcon}>
+                      <Text style={styles.input}>{matchForm?.callTime || '--:--'}</Text>
+                      <Clock color={COLORS.slate400} size={14} style={{ position: 'absolute', right: 12 }} />
+                    </View>
+                  </TouchableOpacity>
                   <View style={{flex: 1}}><Text style={styles.label}>Jornada</Text><TextInput style={styles.input} value={matchForm?.round} onChangeText={t => setMatchForm({...matchForm, round: t})} /></View>
                 </View>
                 <Text style={styles.label}>Ubicación</Text>
@@ -678,11 +766,13 @@ export default function MatchMatrixScreen() {
                   <View style={[styles.shareCard, { backgroundColor: '#F8FAFC', padding: 16, marginTop: 16 }]}>
                     <View style={{flexDirection: 'row', gap: 10}}>
                         <View style={{flex: 1}}>
-                            <Text style={styles.label}>HORA SALIDA</Text>
-                            <View style={{ position: 'relative', justifyContent: 'center' }}>
-                              <TextInput style={[styles.input, { paddingRight: 35 }]} value={matchForm?.departureTime} placeholder="--:--" onChangeText={t => setMatchForm({...matchForm, departureTime: t})} />
-                              <Clock color={COLORS.slate400} size={14} style={{ position: 'absolute', right: 12 }} />
-                            </View>
+                            <TouchableOpacity onPress={() => openTimePicker('departureTime', 'Hora Salida', matchForm?.departureTime)}>
+                              <Text style={styles.label}>HORA SALIDA</Text>
+                              <View style={styles.inputWithIcon}>
+                                <Text style={styles.input}>{matchForm?.departureTime || '--:--'}</Text>
+                                <Clock color={COLORS.slate400} size={14} style={{ position: 'absolute', right: 12 }} />
+                              </View>
+                            </TouchableOpacity>
                         </View>
                         <View style={{flex: 1}}>
                            <Text style={styles.label}>TRANSPORTE</Text>
@@ -709,11 +799,13 @@ export default function MatchMatrixScreen() {
                             <TextInput style={styles.input} value={matchForm?.departureLocation} placeholder="Pabellón..." onChangeText={t => setMatchForm({...matchForm, departureLocation: t})} />
                         </View>
                         <View style={{flex: 1}}>
-                            <Text style={styles.label}>HORA VUELTA</Text>
-                            <View style={{ position: 'relative', justifyContent: 'center' }}>
-                              <TextInput style={[styles.input, { paddingRight: 35 }]} value={matchForm?.returnTime} placeholder="--:--" onChangeText={t => setMatchForm({...matchForm, returnTime: t})} />
-                              <Clock color={COLORS.slate400} size={14} style={{ position: 'absolute', right: 12 }} />
-                            </View>
+                            <TouchableOpacity onPress={() => openTimePicker('returnTime', 'Hora Vuelta', matchForm?.returnTime)}>
+                              <Text style={styles.label}>HORA VUELTA</Text>
+                              <View style={styles.inputWithIcon}>
+                                <Text style={styles.input}>{matchForm?.returnTime || '--:--'}</Text>
+                                <Clock color={COLORS.slate400} size={14} style={{ position: 'absolute', right: 12 }} />
+                              </View>
+                            </TouchableOpacity>
                         </View>
                     </View>
                   </View>
@@ -765,6 +857,105 @@ export default function MatchMatrixScreen() {
         </View>
       </Modal>
 
+      {/* Time Picker Modal */}
+      <Modal visible={timePickerVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { padding: 0 }]}>
+            <View style={{ padding: 24, borderBottomWidth: 1, borderBottomColor: COLORS.slate100, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={styles.modalTitle}>{activeTimeField?.label || 'Seleccionar Hora'}</Text>
+              <TouchableOpacity onPress={() => setTimePickerVisible(false)}><XCircle color={COLORS.slate400} size={24} /></TouchableOpacity>
+            </View>
+            <View style={{ padding: 16 }}>
+              <Text style={styles.label}>HORA</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+                {[...Array(24)].map((_, h) => {
+                  const hourStr = h.toString().padStart(2, '0');
+                  const currentHour = activeTimeField?.value?.split(':')[0] || '10';
+                  return (
+                    <TouchableOpacity 
+                      key={h} 
+                      style={[styles.timeSlot, currentHour === hourStr && styles.timeSlotActive]}
+                      onPress={() => {
+                        const mins = activeTimeField?.value?.split(':')[1] || '00';
+                        setActiveTimeField({ ...activeTimeField, value: `${hourStr}:${mins}` });
+                      }}
+                    >
+                      <Text style={[styles.timeSlotText, currentHour === hourStr && styles.timeSlotTextActive]}>{hourStr}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              <Text style={styles.label}>MINUTOS</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map((m) => {
+                  const currentMins = activeTimeField?.value?.split(':')[1] || '00';
+                  return (
+                    <TouchableOpacity 
+                      key={m} 
+                      style={[styles.timeSlot, currentMins === m && styles.timeSlotActive]}
+                      onPress={() => {
+                        const hours = activeTimeField?.value?.split(':')[0] || '10';
+                        setActiveTimeField({ ...activeTimeField, value: `${hours}:${m}` });
+                      }}
+                    >
+                      <Text style={[styles.timeSlotText, currentMins === m && styles.timeSlotTextActive]}>{m}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              <TouchableOpacity 
+                style={[styles.btnSave, { marginTop: 32, marginBottom: 16 }]}
+                onPress={() => handleTimeConfirm(activeTimeField?.value)}
+              >
+                <Text style={{ color: COLORS.white, fontWeight: 'bold', fontSize: 16 }}>Confirmar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* List View Modal (By Period) */}
+      <Modal visible={listViewVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { height: '80%' }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <Text style={styles.modalTitle}>Jugadores por Periodo</Text>
+              <TouchableOpacity onPress={() => setListViewVisible(false)}><Text style={{ fontWeight: 'bold', color: COLORS.slate500 }}>Cerrar</Text></TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {[...Array(DEFAULT_RULESET.totalPeriods)].map((_, i) => {
+                const periodNum = i + 1;
+                const playersInPeriod = (match.history[periodNum] || []).map(e => {
+                  const pid = typeof e === 'object' ? e.id : e;
+                  return sortedPlayers.find(p => p.id === pid);
+                }).filter(Boolean);
+
+                return (
+                  <View key={periodNum} style={{ marginBottom: 16, backgroundColor: COLORS.slate50, padding: 12, borderRadius: 16, borderWidth: 1, borderColor: COLORS.slate100 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '900', color: COLORS.primary, marginBottom: 8 }}>PERIODO {periodNum}</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                      {playersInPeriod.length > 0 ? playersInPeriod.map(p => {
+                        const roleKey = match.history_roles?.[periodNum]?.[p.id] || p.role || 'receptor';
+                        const roleConf = getRoleConfig(team, roleKey);
+                        return (
+                          <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: COLORS.slate200, gap: 5 }}>
+                            <Text style={{ fontSize: 11, fontWeight: 'bold', color: COLORS.slate400 }}>{p.number}</Text>
+                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: COLORS.slate900 }}>{p.name}</Text>
+                            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: roleConf.color }} />
+                          </View>
+                        );
+                      }) : <Text style={{ fontSize: 11, color: COLORS.slate400, fontStyle: 'italic' }}>Sin jugadores</Text>}
+                    </View>
+                  </View>
+                );
+              })}
+              <View style={{ height: 40 }} />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* Compact View Modal */}
       <Modal visible={compactViewVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
@@ -780,9 +971,14 @@ export default function MatchMatrixScreen() {
                     <Text style={{ width: 30, fontWeight: 'bold' }}>{p.number}</Text>
                     <Text style={{ flex: 1 }}>{p.name}</Text>
                     <View style={{ flexDirection: 'row', gap: 4 }}>
-                      {[...Array(DEFAULT_RULESET.totalPeriods)].map((_, i) => (
-                        <View key={i} style={{ width: 14, height: 14, borderRadius: 3, backgroundColor: match.history[i+1]?.some(e => e.id === p.id) ? COLORS.primary : COLORS.slate200 }} />
-                      ))}
+                      {[...Array(DEFAULT_RULESET.totalPeriods)].map((_, i) => {
+                        const isSelected = match.history[i+1]?.some(e => (typeof e === 'object' ? e.id === p.id : e === p.id));
+                        return (
+                          <View key={i} style={{ width: 18, height: 18, borderRadius: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: isSelected ? COLORS.primary : COLORS.slate100 }}>
+                            {isSelected && <Text style={{ fontSize: 8, color: COLORS.white, fontWeight: 'bold' }}>{i+1}</Text>}
+                          </View>
+                        );
+                      })}
                     </View>
                   </View>
                 ))}
@@ -795,61 +991,59 @@ export default function MatchMatrixScreen() {
   );
 }
 
-const createStyles = (COLUMN_WIDTH, NAME_COLUMN_WIDTH) => StyleSheet.create({
+const createStyles = (COLUMN_WIDTH, NAME_COLUMN_WIDTH, IS_TABLET) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.slate50 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.slate200, zIndex: 10 },
   backButton: { padding: 8, marginLeft: -8 },
   headerTitleBox: { flex: 1, paddingHorizontal: 12 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.slate900 },
-  headerSubtitle: { fontSize: 12, color: COLORS.slate500 },
+  headerTitle: { fontSize: IS_TABLET ? 20 : 16, fontWeight: 'bold', color: COLORS.slate900 },
+  headerSubtitle: { fontSize: IS_TABLET ? 14 : 11, color: COLORS.slate500 },
   headerRightIcons: { flexDirection: 'row', gap: 6 },
   headerIconBtn: { padding: 8, borderRadius: 8, backgroundColor: COLORS.slate50 },
   headerIconBtnActive: { backgroundColor: COLORS.primaryLight },
   matrixWrapper: { flex: 1, backgroundColor: COLORS.white },
-  tableHeaderSection: { flexDirection: 'row', height: 44, backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.slate200, zIndex: 20 },
-  jugadorHeader: { width: NAME_COLUMN_WIDTH, height: 44, justifyContent: 'center', paddingHorizontal: 12, backgroundColor: COLORS.white, borderRightWidth: 1, borderRightColor: COLORS.slate200 },
+  tableHeaderSection: { flexDirection: 'row', height: IS_TABLET ? 48 : 44, backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.slate200, zIndex: 20 },
+  jugadorHeader: { width: NAME_COLUMN_WIDTH, height: IS_TABLET ? 48 : 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, backgroundColor: COLORS.white, borderRightWidth: 1, borderRightColor: COLORS.slate200 },
   periodsHeaderScroll: { flex: 1 },
   periodsHeaderContainer: { flexDirection: 'row' },
-  periodHeaderCell: { width: COLUMN_WIDTH, height: 44, justifyContent: 'center', alignItems: 'center', borderRightWidth: 1, borderRightColor: COLORS.slate100 },
-  periodHeaderCellActive: { backgroundColor: COLORS.primaryLight, borderBottomWidth: 2, borderBottomColor: COLORS.primary },
-  periodHeaderText: { fontSize: 13, fontWeight: 'bold', color: COLORS.slate400 },
-  periodHeaderTextActive: { color: COLORS.primaryDark },
-  totalHeaderCell: { width: COLUMN_WIDTH, height: 44, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.slate50 },
-  colHeaderText: { fontSize: 11, fontWeight: 'bold', color: COLORS.slate400, textTransform: 'uppercase' },
+  periodHeaderCell: { width: COLUMN_WIDTH, height: IS_TABLET ? 48 : 44, justifyContent: 'center', alignItems: 'center', borderRightWidth: 1, borderRightColor: COLORS.slate100 },
+  periodHeaderText: { fontSize: IS_TABLET ? 14 : 11, fontWeight: 'bold', color: COLORS.slate400 },
+  totalHeaderCell: { width: COLUMN_WIDTH, height: IS_TABLET ? 48 : 44, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.slate50 },
+  colHeaderText: { fontSize: IS_TABLET ? 12 : 10, fontWeight: 'bold', color: COLORS.slate400, textTransform: 'uppercase' },
   tableBodyScroll: { flex: 1 },
   tableBodyRowContainer: { flexDirection: 'row' },
   namesColumnContainer: { width: NAME_COLUMN_WIDTH, backgroundColor: COLORS.white, borderRightWidth: 1, borderRightColor: COLORS.slate200 },
-  playerNameRow: { height: 52, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: COLORS.slate100, backgroundColor: COLORS.white, gap: 6 },
-  playerNameRowActive: { backgroundColor: COLORS.primaryLight + '30' },
-  playerNameText: { flex: 1, fontSize: 13, color: COLORS.slate800, fontWeight: '500' },
+  playerNameRow: { height: IS_TABLET ? 56 : 48, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: COLORS.slate100, backgroundColor: COLORS.white, gap: 6 },
+  playerNameRowActive: { backgroundColor: COLORS.primaryLight + '15' },
+  playerNameText: { flex: 1, fontSize: IS_TABLET ? 14 : 11, color: COLORS.slate800, fontWeight: '500' },
   playerNameTextActive: { fontWeight: 'bold', color: COLORS.slate900 },
   cellsHorizontalScroll: { flex: 1 },
-  playerCellsRow: { height: 52, flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: COLORS.slate50 },
-  periodCell: { width: COLUMN_WIDTH, height: 52, justifyContent: 'center', alignItems: 'center', borderRightWidth: 1, borderRightColor: COLORS.slate50 },
-  periodCellCurrent: { backgroundColor: COLORS.primaryLight + '20' },
+  playerCellsRow: { height: IS_TABLET ? 56 : 48, flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: COLORS.slate50 },
+  periodCell: { width: COLUMN_WIDTH, height: IS_TABLET ? 56 : 48, justifyContent: 'center', alignItems: 'center', borderRightWidth: 1, borderRightColor: COLORS.slate50 },
+  periodCellCurrent: { backgroundColor: COLORS.primaryLight + '10' },
   periodCellReadOnly: { opacity: 0.6 },
-  roleCellText: { fontSize: 13, fontWeight: '700' },
-  totalCell: { width: COLUMN_WIDTH, height: 52, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.slate50 },
-  totalText: { fontSize: 13, fontWeight: 'bold', color: COLORS.slate600 },
-  trashRow: { flexDirection: 'row', height: 48, borderTopWidth: 1, borderTopColor: COLORS.slate100, backgroundColor: '#FEF2F240' },
+  roleCellText: { fontSize: IS_TABLET ? 15 : 12, fontWeight: '700' },
+  totalCell: { width: COLUMN_WIDTH, height: IS_TABLET ? 56 : 48, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.slate50 },
+  totalText: { fontSize: IS_TABLET ? 14 : 11, fontWeight: 'bold', color: COLORS.slate600 },
+  trashRow: { flexDirection: 'row', height: 48, borderTopWidth: 1, borderTopColor: COLORS.slate100, backgroundColor: '#FEF2F230' },
   trashCell: { width: COLUMN_WIDTH, height: 48, justifyContent: 'center', alignItems: 'center', borderRightWidth: 1, borderRightColor: COLORS.slate50 },
   emptyHeaderPlaceholder: { height: 40, backgroundColor: COLORS.white },
   enPistaContainer: { margin: 16, backgroundColor: '#F8FAFC', borderRadius: 20, padding: 16, borderWidth: 1, borderColor: COLORS.slate200 },
   enPistaHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  enPistaTitle: { fontSize: 11, fontWeight: '900', color: COLORS.slate500, letterSpacing: 1 },
-  enPistaList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  enPistaTitle: { fontSize: 10, fontWeight: '900', color: COLORS.slate500, letterSpacing: 1 },
+  enPistaList: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   pistaPlayerTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: COLORS.slate200, gap: 6 },
-  pistaNumber: { fontSize: 12, fontWeight: 'bold', color: COLORS.slate500 },
-  pistaName: { fontSize: 13, fontWeight: 'bold', color: COLORS.slate900 },
+  pistaNumber: { fontSize: 11, fontWeight: 'bold', color: COLORS.slate500 },
+  pistaName: { fontSize: IS_TABLET ? 14 : 12, fontWeight: 'bold', color: COLORS.slate900 },
   pistaRoleDot: { width: 6, height: 6, borderRadius: 3 },
   compactViewBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 16, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: COLORS.slate200, backgroundColor: COLORS.white },
-  compactViewBtnText: { fontSize: 11, fontWeight: 'bold', color: COLORS.slate600, letterSpacing: 1 },
-  footerSpacingLower: { height: 100 },
-  attendanceDot: { width: 6, height: 6, borderRadius: 3 },
-  numberBadge: { width: 24, height: 24, backgroundColor: COLORS.slate100, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  numberText: { fontSize: 10, fontWeight: 'bold', color: COLORS.slate600 },
-  roleDot: { width: 6, height: 6, borderRadius: 3 },
+  compactViewBtnText: { fontSize: 10, fontWeight: 'bold', color: COLORS.slate600, letterSpacing: 0.5 },
+  footerSpacingLower: { height: 120 },
+  attendanceDot: { width: 5, height: 5, borderRadius: 2.5 },
+  numberBadge: { width: 22, height: 22, backgroundColor: COLORS.slate100, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  numberText: { fontSize: 9, fontWeight: 'bold', color: COLORS.slate600 },
+  roleDot: { width: 5, height: 5, borderRadius: 2.5 },
   bottomBar: { 
     position: 'absolute', 
     bottom: 20, 
@@ -857,7 +1051,7 @@ const createStyles = (COLUMN_WIDTH, NAME_COLUMN_WIDTH) => StyleSheet.create({
     right: 16, 
     backgroundColor: COLORS.white, 
     borderRadius: 24,
-    height: 90, 
+    height: 85, 
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
@@ -871,39 +1065,43 @@ const createStyles = (COLUMN_WIDTH, NAME_COLUMN_WIDTH) => StyleSheet.create({
   periodNavBtn: { padding: 8, backgroundColor: COLORS.slate50, borderRadius: 12 },
   disabledBtn: { opacity: 0.3 },
   periodDisplayLarge: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  periodLabel: { fontSize: 10, fontWeight: 'bold', color: COLORS.slate400, letterSpacing: 1 },
-  periodTextLarge: { fontSize: 28, fontWeight: '900', color: COLORS.slate900 },
+  periodLabel: { fontSize: 9, fontWeight: 'bold', color: COLORS.slate400, letterSpacing: 1 },
+  periodTextLarge: { fontSize: 26, fontWeight: '900', color: COLORS.slate900 },
   periodDivider: { width: 1, height: 40, backgroundColor: COLORS.slate100, marginHorizontal: 8 },
-  injuryIconLarge: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
-  injuryText: { fontSize: 10, fontWeight: 'bold', color: COLORS.danger, marginTop: 2 },
+  injuryIconLarge: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, backgroundColor: '#FEF2F2', borderWidth: 1.5, borderColor: '#FECACA' },
+  injuryText: { fontSize: 8, fontWeight: '900', color: COLORS.danger, marginTop: 1, textTransform: 'uppercase' },
   periodPlayersBadge: { backgroundColor: COLORS.slate50, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  periodPlayersCount: { fontSize: 14, color: COLORS.slate500, fontWeight: 'bold' },
+  periodPlayersCount: { fontSize: 13, color: COLORS.slate500, fontWeight: 'bold' },
   attendanceBtn: { backgroundColor: COLORS.slate900, height: 48, borderRadius: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  attendanceBtnText: { color: COLORS.white, fontWeight: 'bold', fontSize: 14 },
+  attendanceBtnText: { color: COLORS.white, fontWeight: 'bold', fontSize: 13 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: COLORS.white, borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, maxHeight: '95%' },
-  modalTitle: { fontSize: 22, fontWeight: 'bold', color: COLORS.slate900, marginBottom: 20 },
-  modalSubtitle: { fontSize: 12, fontWeight: 'bold', color: COLORS.slate500, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12, marginTop: 16 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.slate900, marginBottom: 20 },
+  modalSubtitle: { fontSize: 11, fontWeight: 'bold', color: COLORS.slate500, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12, marginTop: 16 },
   modalList: { maxHeight: 200 },
   modalBtn: { margin: 4, paddingVertical: 10, paddingHorizontal: 14, borderWidth: 1, borderColor: COLORS.slate200, borderRadius: 14, backgroundColor: COLORS.white },
   modalBtnSelectedOut: { backgroundColor: '#fef2f2', borderColor: COLORS.danger, borderWidth: 2 },
   modalBtnSelectedIn: { backgroundColor: '#f0fdf4', borderColor: COLORS.success, borderWidth: 2 },
-  modalBtnText: { fontSize: 14, fontWeight: 'bold', color: COLORS.slate700 },
+  modalBtnText: { fontSize: 13, fontWeight: 'bold', color: COLORS.slate700 },
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 32 },
   modalCancel: { flex: 1, padding: 16, borderRadius: 16, backgroundColor: COLORS.slate100, alignItems: 'center' },
   modalCancelText: { fontWeight: 'bold', color: COLORS.slate600 },
   modalConfirm: { flex: 1, padding: 16, borderRadius: 16, backgroundColor: COLORS.danger, alignItems: 'center' },
   modalConfirmText: { fontWeight: 'bold', color: COLORS.white },
-  label: { fontSize: 11, fontWeight: 'bold', color: COLORS.slate500, textTransform: 'uppercase', marginBottom: 8, marginTop: 16 },
-  input: { backgroundColor: COLORS.slate50, borderWidth: 1, borderColor: COLORS.slate200, borderRadius: 12, padding: 14, fontSize: 15, color: COLORS.slate900 },
+  label: { fontSize: 10, fontWeight: 'bold', color: COLORS.slate500, textTransform: 'uppercase', marginBottom: 8, marginTop: 16, letterSpacing: 0.5 },
+  input: { backgroundColor: COLORS.slate50, borderWidth: 1, borderColor: COLORS.slate200, borderRadius: 12, padding: 12, fontSize: 14, color: COLORS.slate900 },
   shareCard: { backgroundColor: COLORS.slate50, borderRadius: 20, padding: 20, marginTop: 20, borderWidth: 1, borderColor: COLORS.slate200 },
-  shareTitle: { fontSize: 13, fontWeight: '900', color: COLORS.slate800, marginBottom: 4 },
-  shareDesc: { fontSize: 12, color: COLORS.slate500, marginBottom: 16 },
+  shareTitle: { fontSize: 12, fontWeight: '900', color: COLORS.slate800, marginBottom: 4 },
+  shareDesc: { fontSize: 11, color: COLORS.slate500, marginBottom: 16 },
   shareRow: { flexDirection: 'row', gap: 10 },
   shareBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12, borderRadius: 12, backgroundColor: COLORS.slate100 },
-  shareBtnText: { fontWeight: 'bold', fontSize: 13 },
+  shareBtnText: { fontWeight: 'bold', fontSize: 12 },
   btnSave: { flex: 1, padding: 16, backgroundColor: COLORS.slate900, borderRadius: 16, alignItems: 'center' },
   btnDelete: { padding: 16, borderRadius: 16, borderWidth: 1, borderColor: COLORS.dangerLight, alignItems: 'center', marginTop: 12 },
   emptyContainer: { padding: 40, alignItems: 'center' },
-  emptyText: { fontSize: 14, color: COLORS.slate400, textAlign: 'center' },
+  emptyText: { fontSize: 13, color: COLORS.slate400, textAlign: 'center' },
+  timeSlot: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: COLORS.slate50, marginRight: 8, borderWidth: 1, borderColor: COLORS.slate100 },
+  timeSlotActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  timeSlotText: { fontSize: 14, fontWeight: 'bold', color: COLORS.slate600 },
+  timeSlotTextActive: { color: COLORS.white },
 });

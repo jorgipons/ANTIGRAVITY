@@ -14,6 +14,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import MatchListScreen from '../screens/MatchListScreen';
 import MatchMatrixScreen from '../screens/MatchMatrixScreen';
 import MatchAttendanceScreen from '../screens/MatchAttendanceScreen';
+import CalendarScreen from '../screens/CalendarScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -58,6 +59,7 @@ function AppNavigator() {
           <Stack.Screen name="TeamDetail" component={TeamDetailScreen} />
           <Stack.Screen name="MatchList" component={MatchListScreen} />
           <Stack.Screen name="MatchMatrix" component={MatchMatrixScreen} />
+          <Stack.Screen name="Calendar" component={CalendarScreen} />
         </Stack.Group>
       ) : (
         // Unauthenticated Stack

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Modal, TextInput, ActivityIndicator, ScrollView, Platform } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,6 +36,15 @@ export default function TeamDetailScreen() {
   const [syncingAll, setSyncingAll] = useState(false);
   const [matchEditModalVisible, setMatchEditModalVisible] = useState(false);
   const [editingMatch, setEditingMatch] = useState(null);
+
+  const scrollRef = useRef(null);
+  const [playersSectionY, setPlayersSectionY] = useState(0);
+
+  const scrollToPlayers = () => {
+    if (scrollRef.current && playersSectionY > 0) {
+      scrollRef.current.scrollTo({ y: playersSectionY - 20, animated: true });
+    }
+  };
 
   const { matches, addMatch, updateMatch: updateMatchHook, deleteMatch } = useMatches(teamId);
 
@@ -430,7 +439,10 @@ export default function TeamDetailScreen() {
           <Text style={styles.headerTitle} numberOfLines={1}>{team.name}</Text>
         </View>
         <View style={styles.headerRightIcons}>
-          <TouchableOpacity onPress={() => navigation.navigate('MatchList', { teamId })} style={styles.headerIconBtn}>
+          <TouchableOpacity onPress={scrollToPlayers} style={styles.headerIconBtn}>
+            <Users color={COLORS.slate600} size={22} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('MatchList', { teamId, initialViewMode: 'calendar' })} style={styles.headerIconBtn}>
             <Calendar color={COLORS.slate600} size={22} />
           </TouchableOpacity>
           <TouchableOpacity onPress={openConfigModal} style={styles.headerIconBtn}>
@@ -439,7 +451,11 @@ export default function TeamDetailScreen() {
         </View>
       </View>
 
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        ref={scrollRef}
+        style={styles.container} 
+        showsVerticalScrollIndicator={false}
+      >
         {/* Federation Section */}
         {team.federationId ? (
           <View style={[styles.fedCard, syncMenuVisible && { zIndex: 1000, elevation: 10 }]}>
@@ -516,7 +532,7 @@ export default function TeamDetailScreen() {
                       <Text style={styles.nextMatchTitle}>PRÓXIMO PARTIDO</Text>
                   </View>
                   <View style={[styles.badge, nextMatch.isHome ? styles.badgeHome : styles.badgeAway]}>
-                    <Text style={styles.badgeText}>{nextMatch.isHome ? '🏠 CASA' : '🚌 FUERA'}</Text>
+                    <Text style={styles.badgeText}>{nextMatch.isHome ? '🏠 CASA' : (nextMatch.transportType === 'car' ? '🚗 COCHE' : '🚌 BUS')}</Text>
                   </View>
               </View>
               
@@ -612,7 +628,10 @@ export default function TeamDetailScreen() {
         </View>
 
         {/* Players Section (At the bottom) */}
-        <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
+        <View 
+          style={[styles.sectionHeaderRow, { marginTop: 24 }]}
+          onLayout={(e) => setPlayersSectionY(e.nativeEvent.layout.y)}
+        >
             <Text style={styles.sectionTitle}>Jugadores ({sortedPlayers.length})</Text>
             <TouchableOpacity onPress={() => openPlayerModal()} style={styles.addPlayerLink}>
                 <Plus color={COLORS.primary} size={18} />

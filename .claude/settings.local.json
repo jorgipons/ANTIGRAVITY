@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/jorgi/Documents/ANTIGRAVITY/basketball-manager-rn -type d -not -path */node_modules/* -not -path */.expo/*)",
+      "Bash(wc -l /c/Users/jorgi/Documents/ANTIGRAVITY/basketball-manager-rn/src/screens/*.js)",
+      "Bash(wc -l /c/Users/jorgi/Documents/ANTIGRAVITY/basketball-manager-rn/src/**/*.js)"
+    ]
+  }
+}

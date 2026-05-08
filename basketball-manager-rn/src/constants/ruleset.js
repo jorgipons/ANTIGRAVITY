@@ -12,7 +12,7 @@ export const getPlayerPeriods = (playerId, periodsState, totalPeriods) => {
   for (let i = 1; i <= totalPeriods; i++) {
     const pData = periodsState[i];
     if (Array.isArray(pData)) {
-      if (pData.includes(playerId)) played++;
+      if (pData.some(e => e === playerId || (e && e.id === playerId))) played++;
     } else if (pData && pData[playerId]) {
       // Soporte para partidos antiguos que guardaban en formato { playerId: 'role' }
       played++;
