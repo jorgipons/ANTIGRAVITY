@@ -824,7 +824,7 @@
             }
         };
 
-        const DesktopSidebar = ({ navigate, view, signOut, premium, isOnline, startTutorial, isAdmin, teams = [], matches = [] }) => {
+        const DesktopSidebar = ({ navigate, view, signOut, premium, isOnline, startTutorial, isAdmin, teams = [], matches = [], onManage }) => {
             const handleLogout = async () => {
                 if (confirm('¿Cerrar sesión?')) {
                     await signOut(window.auth);
@@ -907,9 +907,17 @@
                     {/* Bottom user area */}
                     <div className="px-3 py-4 border-t space-y-2" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
                         {premium.isPro && (
-                            <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ backgroundColor: 'rgba(255,215,0,0.12)' }}>
-                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="crown" class="w-4 h-4"></i>' }} style={{ color: '#FFD700' }}></span>
-                                <span className="text-xs font-bold" style={{ color: '#FFD700' }}>Premium</span>
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ backgroundColor: 'rgba(255,215,0,0.12)' }}>
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="crown" class="w-4 h-4"></i>' }} style={{ color: '#FFD700' }}></span>
+                                    <span className="text-xs font-bold" style={{ color: '#FFD700' }}>Premium</span>
+                                </div>
+                                <button
+                                    onClick={onManage}
+                                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-white/50 hover:bg-white/5 hover:text-white transition-all"
+                                >
+                                    Gestionar suscripción
+                                </button>
                             </div>
                         )}
                         <button onClick={startTutorial} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold text-white/50 hover:bg-white/5 hover:text-white transition-all">
@@ -5506,6 +5514,20 @@
                 }
             };
 
+            // Both pages live behind Firebase Hosting rewrites, which do not exist on
+            // GitHub Pages — so these URLs must stay absolute.
+            const SUBSCRIBE_BASE = 'https://basketmanager-ed370.web.app';
+
+            const goToSubscribe = () => {
+                if (!user?.uid) return;
+                window.location.assign(`${SUBSCRIBE_BASE}/subscribe?uid=${encodeURIComponent(user.uid)}`);
+            };
+
+            const goToManage = () => {
+                if (!user?.uid) return;
+                window.location.assign(`${SUBSCRIBE_BASE}/manage?uid=${encodeURIComponent(user.uid)}`);
+            };
+
             const getSelectedTeam = () => teams.find(t => t.id === selectedTeamId);
             const getActiveMatch = () => matches.find(m => m.id === activeMatchId);
 
@@ -5551,7 +5573,7 @@
                     )}
 
                     {/* Desktop sidebar – only visible on lg+ and NOT in public-match */}
-                    {view !== 'public-match' && <DesktopSidebar navigate={navigate} view={view} signOut={signOut} premium={premium} isOnline={isOnline} startTutorial={startTutorial} isAdmin={isAdmin} teams={teams} matches={matches} />}
+                    {view !== 'public-match' && <DesktopSidebar navigate={navigate} view={view} signOut={signOut} premium={premium} isOnline={isOnline} startTutorial={startTutorial} isAdmin={isAdmin} teams={teams} matches={matches} onManage={goToManage} />}
 
                     {/* Main column: mobile top-bar + scrollable content */}
                     <div className="flex flex-col flex-1 min-w-0 lg:overflow-y-auto">
