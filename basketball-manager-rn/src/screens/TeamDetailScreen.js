@@ -32,6 +32,7 @@ import { cacheDoc, getCachedDoc } from '../utils/offlineCache';
 import { useSubscription } from '../hooks/useSubscription';
 import PaywallModal from '../components/PaywallModal';
 import CreateMatchModal from '../components/CreateMatchModal';
+import { RULESETS, resolveRulesetId } from '../constants/ruleset';
 
 export default function TeamDetailScreen() {
   const T = useTheme();
@@ -201,7 +202,7 @@ export default function TeamDetailScreen() {
         position: conf.position ?? null, order: conf.order ?? 99,
       };
     });
-    setTeamForm({ name: team.name, roles: currentRoles, federationId: team.federationId || '', mode: team.mode || 'pasarela' });
+    setTeamForm({ name: team.name, roles: currentRoles, federationId: team.federationId || '', rulesetId: resolveRulesetId(team) });
     setConfigModalVisible(true);
   };
 
@@ -212,8 +213,10 @@ export default function TeamDetailScreen() {
       Object.entries(teamForm.roles)
         .sort(([, a], [, b]) => (a.position ?? 999) - (b.position ?? 999))
         .forEach(([k, v], i) => { sorted[k] = { ...v, order: v.position ?? (100 + i) }; });
-      setTeam({ ...team, name: teamForm.name, roles: sorted, federationId: teamForm.federationId, mode: teamForm.mode });
-      await writeDoc('teams', teamId, { name: teamForm.name, roles: sorted, federationId: teamForm.federationId, mode: teamForm.mode });
+      // Se escribe solo rulesetId. El antiguo team.mode se deja intacto en los
+      // documentos ya existentes: se sigue leyendo como respaldo, nunca se escribe.
+      setTeam({ ...team, name: teamForm.name, roles: sorted, federationId: teamForm.federationId, rulesetId: teamForm.rulesetId });
+      await writeDoc('teams', teamId, { name: teamForm.name, roles: sorted, federationId: teamForm.federationId, rulesetId: teamForm.rulesetId });
       setConfigModalVisible(false);
     } catch {
       Alert.alert('Error', 'No se guardó la configuración');
@@ -279,7 +282,7 @@ export default function TeamDetailScreen() {
       for (const fedMatch of res.matches) {
         const existing = matches.find(m => m.federationMatchId === fedMatch.federationMatchId);
         if (!existing) {
-          await addMatch({ ...fedMatch, players: initialPlayers });
+          await addMatch({ ...fedMatch, players: initialPlayers, rulesetId: resolveRulesetId(team) });
           imported++;
         } else {
           const needsUpdate = existing.date !== fedMatch.date || existing.time !== fedMatch.time
@@ -987,17 +990,13 @@ export default function TeamDetailScreen() {
                       <Text style={styles.meFormCardNum}>02</Text>
                       <Text style={styles.meFormCardTitle}>Modo de partido</Text>
                     </View>
-                    {[
-                      { key: 'pasarela',  label: 'Pasarela 8P', sub: '8 periodos · Reglamento estándar' },
-                      { key: 'pasarela6', label: 'Pasarela 6P',   sub: '6 periodos · Categorías menores' },
-                      { key: 'libre',     label: 'Libre',          sub: 'Sin restricciones de minutos' },
-                    ].map(m => {
-                      const active = teamForm.mode === m.key;
+                    {Object.values(RULESETS).map(r => ({ key: r.id, label: r.name, sub: r.sub })).map(m => {
+                      const active = teamForm.rulesetId === m.key;
                       return (
                         <TouchableOpacity
                           key={m.key}
                           style={[styles.cfModeRow, active && styles.cfModeRowActive]}
-                          onPress={() => setTeamForm({ ...teamForm, mode: m.key })}
+                          onPress={() => setTeamForm({ ...teamForm, rulesetId: m.key })}
                           activeOpacity={0.7}
                         >
                           <View style={[styles.cfModeRadio, active && styles.cfModeRadioActive]}>

@@ -19,6 +19,7 @@ import { useLayout } from '../hooks/useLayout';
 import { importFederationMatches } from '../utils/federation';
 import { useSubscription } from '../hooks/useSubscription';
 import PaywallModal from '../components/PaywallModal';
+import { resolveRulesetId } from '../constants/ruleset';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -148,7 +149,7 @@ export default function MatchListScreen() {
       for (const m of res.matches) {
         const exists = matches.find(ex => ex.federationMatchId === m.federationMatchId);
         if (!exists) {
-          await addMatch({ ...m, players: initialPlayers });
+          await addMatch({ ...m, players: initialPlayers, rulesetId: resolveRulesetId(team) });
           added++;
         } else if (
           exists.state !== m.state || exists.date !== m.date || exists.time !== m.time ||

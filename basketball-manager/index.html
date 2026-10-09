@@ -382,27 +382,40 @@
             console.error('Error durante la limpieza de caché:', e);
         }
 
+        // Catalogo de reglamentos. Debe mantenerse identico al RULESETS de
+        // basketball-manager-rn/src/constants/ruleset.js: las dos apps leen el mismo
+        // team.rulesetId.
         const RULESETS = {
             'fbcv_8p': {
                 id: 'fbcv_8p',
-                name: 'FBCV 8 periodos',
+                name: 'Pasarela 8 periodos',
                 totalPeriods: 8,
                 checkPeriod: 6,
                 minPlay: 2,
                 minRest: 2,
-                maxPlay: 4
+                maxPlay: 4,
+                freeSubstitutions: false
             },
             'fbcv_6p': {
                 id: 'fbcv_6p',
-                name: 'FBCV 6 periodos',
+                name: 'Pasarela 6 periodos',
                 totalPeriods: 6,
                 checkPeriod: 5,
                 minPlay: 2,
                 minRest: 2,
-                maxPlay: 3
+                maxPlay: 3,
+                freeSubstitutions: false
+            },
+            'libre_4p': {
+                id: 'libre_4p',
+                name: 'Libre 4 periodos',
+                totalPeriods: 4,
+                freeSubstitutions: true
             }
         };
         const DEFAULT_RULESET = 'fbcv_8p';
+        // Campo antiguo del movil. Se lee como respaldo, nunca se escribe.
+        const LEGACY_MODE_MAP = { pasarela: 'fbcv_8p', pasarela6: 'fbcv_6p', libre: 'libre_4p' };
         const DEFAULT_ROLES = {
             'receptor': { label: 'Receptor', order: 1, color: 'text-blue-600', bg: 'bg-blue-50' },
             'medio': { label: 'Medio', order: 2, color: 'text-green-600', bg: 'bg-green-50' },
@@ -1990,8 +2003,10 @@
                 </div>
             );
 
-            const rulesetId = match?.rulesetId || team?.rulesetId || DEFAULT_RULESET;
+            // Respaldo a team.mode para equipos configurados desde el movil.
+            const rulesetId = match?.rulesetId || team?.rulesetId || LEGACY_MODE_MAP[team?.mode] || DEFAULT_RULESET;
             const ruleset = RULESETS[rulesetId] || RULESETS[DEFAULT_RULESET];
+            const isLibre = !!ruleset.freeSubstitutions;
             const currentP = match?.currentPeriod || 1;
             const isFinished = match?.state === 'finished';
             const isLocked = isFinished && !forceEdit;
@@ -2170,6 +2185,8 @@
             const getValidationState = () => {
                 const errors = [];
                 const warnings = [];
+                // Libre: cambios libres, no hay reglamento Pasarela que incumplir.
+                if (isLibre) return { errors, warnings };
                 const historyArray = {};
                 for (let i = 1; i <= ruleset.totalPeriods; i++) {
                     const pData = localHistory[i];

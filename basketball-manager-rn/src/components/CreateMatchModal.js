@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Check } from 'lucide-react-native';
 import Svg, { Defs, Pattern as SvgPattern, Path as SvgPath, Rect as SvgRect } from 'react-native-svg';
 import { useTheme } from '../theme/ThemeContext';
+import { resolveRulesetId } from '../constants/ruleset';
 
 function GridPattern() {
   return (
@@ -58,7 +59,9 @@ export default function CreateMatchModal({ visible, onClose, team, addMatch, onC
     setSubmitting(true);
     try {
       const initialPlayers = team?.players ? [...team.players] : [];
-      const newMatchId = await addMatch({ ...form, players: initialPlayers });
+      // Se guarda el reglamento con el partido: cambiar el del equipo más adelante
+    // no debe revalidar partidos ya jugados con el anterior.
+    const newMatchId = await addMatch({ ...form, players: initialPlayers, rulesetId: resolveRulesetId(team) });
       setForm(freshForm());
       onClose();
       onCreated?.(newMatchId);

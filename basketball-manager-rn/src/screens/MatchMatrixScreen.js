@@ -22,7 +22,7 @@ import { useLayout } from '../hooks/useLayout';
 import AppDrawer from '../components/AppDrawer';
 import GuidedTourOverlay from '../components/GuidedTourOverlay';
 import { ROLES, getRoleConfig, getAvailableRoleKeys } from '../constants/roles';
-import { DEFAULT_RULESET } from '../constants/ruleset';
+import { resolveRuleset, MAX_PERIODS } from '../constants/ruleset';
 import { db } from '../constants/firebase';
 import { doc, onSnapshot, getDoc, deleteDoc, deleteField } from 'firebase/firestore';
 import OfflineBanner from '../components/OfflineBanner';
@@ -142,8 +142,11 @@ export default function MatchMatrixScreen() {
   const timerInitializedRef = useRef(false);  // restore only once on first snapshot
 
   // Derived — depend on async state, updated on every render
-  const isLibre      = team?.mode === 'libre';
-  const basePeriods  = isLibre ? 4 : DEFAULT_RULESET.totalPeriods;
+  // Un único reglamento resuelto para toda la pantalla: el del partido si lo tiene,
+  // si no el del equipo, con respaldo al campo antiguo team.mode.
+  const ruleset      = resolveRuleset(team, match);
+  const isLibre      = ruleset.freeSubstitutions;
+  const basePeriods  = ruleset.totalPeriods;
   const totalPeriods = basePeriods + (match?.extraPeriods || 0);
 
   // Dynamic column width: fill screen in libre mode (4 cols), fixed 44px in Pasarela (8 cols)
@@ -195,7 +198,11 @@ export default function MatchMatrixScreen() {
       if (snap.exists()) {
         const data = snap.data();
         if (!data.history) data.history = {};
-        for (let i = 1; i <= DEFAULT_RULESET.totalPeriods; i++) {
+        // Normaliza todos los periodos del catálogo y además cualquiera que ya
+        // exista (prórrogas incluidas), sin depender del reglamento del equipo.
+        const storedPeriods = Object.keys(data.history).map(Number).filter(Number.isFinite);
+        const upperPeriod = Math.max(MAX_PERIODS, ...(storedPeriods.length ? storedPeriods : [0]));
+        for (let i = 1; i <= upperPeriod; i++) {
           if (!Array.isArray(data.history[i])) {
             if (data.history[i] && typeof data.history[i] === 'object') {
               data.history[i] = Object.entries(data.history[i])
@@ -460,7 +467,6 @@ export default function MatchMatrixScreen() {
   const validationErrors = useMemo(() => {
     if (isLibre || !match?.history) return {};
     const errors = {};
-    const ruleset = DEFAULT_RULESET;
     const currentP = match.currentPeriod || 1;
     const notInjured = (p, i) => !(match.injuries || []).find(
       inj => inj.period === i && (inj.playerOut === p.id || inj.playerIn === p.id)
@@ -505,7 +511,7 @@ export default function MatchMatrixScreen() {
 
   const forbiddenCells = useMemo(() => {
     if (isLibre || !match?.history) return {};
-    const { checkPeriod, maxPlay, minRest } = DEFAULT_RULESET;
+    const { checkPeriod, maxPlay, minRest } = ruleset;
     const result = {};
     sortedPlayers.forEach(p => {
       result[p.id] = {};
@@ -596,18 +602,18 @@ export default function MatchMatrixScreen() {
       };
 
       // Pasarela: modal de confirmación si viola el reglamento
-      if (!isLibre && period <= DEFAULT_RULESET.checkPeriod) {
+      if (!isLibre && period <= ruleset.checkPeriod) {
         let playedExcluding = 0;
-        for (let i = 1; i <= DEFAULT_RULESET.checkPeriod; i++) {
+        for (let i = 1; i <= ruleset.checkPeriod; i++) {
           if (i === period) continue;
           if ((currentHistory[i] || []).some(e => e === playerId || (e && e.id === playerId))) playedExcluding++;
         }
         const wouldPlay = playedExcluding + 1;
-        const wouldRest = DEFAULT_RULESET.checkPeriod - wouldPlay;
-        if (wouldPlay > DEFAULT_RULESET.maxPlay || wouldRest < DEFAULT_RULESET.minRest) {
-          const violationMsg = wouldPlay > DEFAULT_RULESET.maxPlay
-            ? `Jugaría ${wouldPlay} de los primeros ${DEFAULT_RULESET.checkPeriod} periodos (máx. ${DEFAULT_RULESET.maxPlay}).`
-            : `Solo descansaría ${wouldRest} de los ${DEFAULT_RULESET.checkPeriod} (mín. ${DEFAULT_RULESET.minRest}).`;
+        const wouldRest = ruleset.checkPeriod - wouldPlay;
+        if (wouldPlay > ruleset.maxPlay || wouldRest < ruleset.minRest) {
+          const violationMsg = wouldPlay > ruleset.maxPlay
+            ? `Jugaría ${wouldPlay} de los primeros ${ruleset.checkPeriod} periodos (máx. ${ruleset.maxPlay}).`
+            : `Solo descansaría ${wouldRest} de los ${ruleset.checkPeriod} (mín. ${ruleset.minRest}).`;
           setConfirmModal({ title: 'Aviso Pasarela', msg: violationMsg, confirmLabel: 'Añadir igualmente', onConfirm: doAdd });
           return;
         }
