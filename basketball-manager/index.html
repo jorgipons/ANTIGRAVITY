@@ -824,7 +824,7 @@
             }
         };
 
-        const DesktopSidebar = ({ navigate, view, signOut, subscription, isOnline, startTutorial, isAdmin, teams = [], matches = [] }) => {
+        const DesktopSidebar = ({ navigate, view, signOut, premium, isOnline, startTutorial, isAdmin, teams = [], matches = [] }) => {
             const handleLogout = async () => {
                 if (confirm('¿Cerrar sesión?')) {
                     await signOut(window.auth);
@@ -906,7 +906,7 @@
 
                     {/* Bottom user area */}
                     <div className="px-3 py-4 border-t space-y-2" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-                        {(subscription === 'active' || subscription === 'trialing') && (
+                        {premium.isPro && (
                             <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ backgroundColor: 'rgba(255,215,0,0.12)' }}>
                                 <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="crown" class="w-4 h-4"></i>' }} style={{ color: '#FFD700' }}></span>
                                 <span className="text-xs font-bold" style={{ color: '#FFD700' }}>Premium</span>
@@ -924,7 +924,7 @@
         };
 
 
-        const TopBar = ({ navigate, view, signOut, subscription, isOnline, startTutorial, isAdmin }) => {
+        const TopBar = ({ navigate, view, signOut, premium, isOnline, startTutorial, isAdmin }) => {
             const handleLogout = async () => {
                 if (confirm('¿Cerrar sesión?')) {
                     await signOut(window.auth);
@@ -957,7 +957,7 @@
                                     <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="shield-check" class="w-5 h-5"></i>' }}></span>
                                 </button>
                             )}
-                            {subscription === 'active' || subscription === 'trialing' ? (
+                            {premium.isPro ? (
                                 <span style={{ color: '#FFD700' }} title="Premium">
                                     <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="crown" class="w-5 h-5"></i>' }}></span>
                                 </span>
@@ -2965,7 +2965,7 @@
         };
 
 
-        const TeamsListView = ({ teams, matches, navigate, addDoc, collection, db, doc, subscription, startCheckout }) => {
+        const TeamsListView = ({ teams, matches, navigate, addDoc, collection, db, doc, premium, startCheckout }) => {
             const [newTeamName, setNewTeamName] = useState('');
             const [newTeamRuleset, setNewTeamRuleset] = useState(DEFAULT_RULESET);
             const [newTeamFederationId, setNewTeamFederationId] = useState('');
@@ -2981,7 +2981,7 @@
                 e.preventDefault();
                 if (!newTeamName.trim() || !window.auth.currentUser) return;
                 // --- Nueva Lógica de Límites ---
-                if (teams.length >= 1 && subscription === null) {
+                if (teams.length >= 1 && !premium.isPro && !premium.loading) {
                     showToast('Límite del Plan Gratuito: Solo puedes gestionar 1 equipo. Pásate a Premium para equipos ilimitados.');
                     startCheckout();
                     return;
@@ -3007,7 +3007,7 @@
 
             useEffect(() => {
                 if (window.lucide) lucide.createIcons();
-            }, [teams, showForm, subscription, showArchived]);
+            }, [teams, showForm, premium.isPro, showArchived]);
 
             return (
                 <div className="max-w-md lg:max-w-4xl mx-auto">
@@ -3037,7 +3037,7 @@
                             </div>
                         </header>
 
-                        {subscription === null && (
+                        {!premium.isPro && !premium.loading && (
                             <div className="mb-6 p-4 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl shadow-lg relative overflow-hidden group">
                                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
                                     <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="crown" class="w-20 h-20 text-white"></i>' }}></span>
@@ -5113,7 +5113,11 @@
             const [selectedTeamId, setSelectedTeamId] = useState(initialState.teamId);
             const [activeMatchId, setActiveMatchId] = useState(initialState.matchId);
             const [authLoading, setAuthLoading] = useState(true);
-            const [subscription, setSubscription] = useState(undefined); // undefined = loading, null = free, 'active' = premium
+            // Premium state — mirrors src/hooks/useSubscription.js in the mobile app.
+            // Any change to this rule must be applied there too.
+            const [premium, setPremium] = useState({ isPro: false, loading: true, source: null });
+            const [ownSub, setOwnSub] = useState({ isPro: false, clubId: null, source: null, loading: true });
+            const [clubSub, setClubSub] = useState({ isPro: false });
             const [checkoutLoading, setCheckoutLoading] = useState(false);
             const [isOnline, setIsOnline] = useState(navigator.onLine);
             const [toast, setToast] = useState(null);
@@ -5412,24 +5416,63 @@
                 return () => unsubscribe();
             }, [user]);
 
+            // Listener A — the coach's own subscription
             useEffect(() => {
-                if (!user) return;
-                const subRef = collection(db, 'customers', user.uid, 'subscriptions');
-                const q = query(subRef, where('status', 'in', ['active', 'trialing']));
-                const unsubscribe = onSnapshot(q, (snapshot) => {
-                    if (snapshot.empty) {
-                        // Double check just in case sync is slow or user just subscribed
-                        // Fallback to check metadata on user object if needed, but for now strict check
-                        // Add a small delay/retry logic if needed for newly created subs
-                        setTimeout(() => {
-                            setSubscription(null);
-                        }, 400);
-                    } else {
-                        setSubscription(snapshot.docs[0].data().status);
-                    }
-                });
+                if (!user) {
+                    setOwnSub({ isPro: false, clubId: null, source: null, loading: false });
+                    return;
+                }
+                const unsubscribe = onSnapshot(
+                    doc(db, 'users', user.uid),
+                    (snap) => {
+                        const data = snap.data() || {};
+                        const sub = data.subscription;
+                        const end = sub?.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : null;
+                        const isPro = sub?.status === 'pro' && (!end || end > new Date());
+                        setOwnSub({
+                            isPro,
+                            clubId: data.clubId || null,
+                            source: isPro ? (sub.source || 'own') : null,
+                            loading: false,
+                        });
+                    },
+                    () => setOwnSub({ isPro: false, clubId: null, source: null, loading: false })
+                );
                 return () => unsubscribe();
             }, [user]);
+
+            // Listener B — Premium granted by the coach's club. Only mounted when there is one.
+            useEffect(() => {
+                if (!ownSub.clubId) {
+                    setClubSub({ isPro: false });
+                    return;
+                }
+                const unsubscribe = onSnapshot(
+                    doc(db, 'clubs', ownSub.clubId),
+                    (snap) => {
+                        if (!snap.exists()) { setClubSub({ isPro: false }); return; }
+                        const sub = snap.data().subscription;
+                        const end = sub?.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : null;
+                        setClubSub({ isPro: sub?.status === 'pro' && (!end || end > new Date()) });
+                    },
+                    () => setClubSub({ isPro: false })
+                );
+                return () => unsubscribe();
+            }, [ownSub.clubId]);
+
+            // resolvePremium — combines both listeners into the single value the UI reads.
+            useEffect(() => {
+                if (ownSub.loading) {
+                    setPremium({ isPro: false, loading: true, source: null });
+                    return;
+                }
+                const isPro = ownSub.isPro || clubSub.isPro;
+                setPremium({
+                    isPro,
+                    loading: false,
+                    source: ownSub.isPro ? ownSub.source : (clubSub.isPro ? 'club' : null),
+                });
+            }, [ownSub, clubSub]);
 
             useEffect(() => {
                 if (window.lucide) {
@@ -5476,7 +5519,7 @@
                 await updateDoc(matchRef, updates);
             };
 
-            if (authLoading || (user && subscription === undefined)) return (
+            if (authLoading || (user && premium.loading)) return (
                 <div className="min-h-screen flex items-center justify-center bg-slate-50">
                     <div className="flex flex-col items-center gap-4">
                         <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
@@ -5508,11 +5551,11 @@
                     )}
 
                     {/* Desktop sidebar – only visible on lg+ and NOT in public-match */}
-                    {view !== 'public-match' && <DesktopSidebar navigate={navigate} view={view} signOut={signOut} subscription={subscription} isOnline={isOnline} startTutorial={startTutorial} isAdmin={isAdmin} teams={teams} matches={matches} />}
+                    {view !== 'public-match' && <DesktopSidebar navigate={navigate} view={view} signOut={signOut} premium={premium} isOnline={isOnline} startTutorial={startTutorial} isAdmin={isAdmin} teams={teams} matches={matches} />}
 
                     {/* Main column: mobile top-bar + scrollable content */}
                     <div className="flex flex-col flex-1 min-w-0 lg:overflow-y-auto">
-                        {view !== 'public-match' && <TopBar navigate={navigate} view={view} signOut={signOut} subscription={subscription} isOnline={isOnline} startTutorial={startTutorial} isAdmin={isAdmin} />}
+                        {view !== 'public-match' && <TopBar navigate={navigate} view={view} signOut={signOut} premium={premium} isOnline={isOnline} startTutorial={startTutorial} isAdmin={isAdmin} />}
 
 
                         {showTutorial && (
@@ -5526,7 +5569,7 @@
 
                         <div className="flex-grow">
                             {view === 'public-match' && <PublicMatchView matchId={activeMatchId} user={user} navigate={navigate} db={db} doc={doc} onSnapshot={onSnapshot} updateDoc={updateDoc} collection={collection} query={query} where={where} getDocs={getDocs} />}
-                            {view === 'teams-list' && <TeamsListView teams={teams} matches={matches} navigate={navigate} addDoc={addDoc} collection={collection} db={db} deleteDoc={deleteDoc} doc={doc} subscription={subscription} startCheckout={startCheckout} />}
+                            {view === 'teams-list' && <TeamsListView teams={teams} matches={matches} navigate={navigate} addDoc={addDoc} collection={collection} db={db} deleteDoc={deleteDoc} doc={doc} premium={premium} startCheckout={startCheckout} />}
                             {view === 'admin-dashboard' && isAdmin && <AdminDashboardView navigate={navigate} db={db} collection={collection} getDocs={getDocs} query={query} where={where} />}
                             {view === 'all-matches-calendar' && <AllMatchesCalendarView teams={teams} matches={matches} navigate={navigate} />}
                             {view === 'team-detail' && <TeamDetailView team={getSelectedTeam()} matches={matches} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} addDoc={addDoc} collection={collection} db={db} />}
@@ -5564,7 +5607,7 @@
                                             <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="shield-check" class="w-3 h-3"></i>' }}></span> Admin
                                         </button>
                                     )}
-                                    {subscription === 'active' || subscription === 'trialing' ? (
+                                    {premium.isPro ? (
                                         <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 px-2 py-1 rounded-full" style={{ color: '#FFD700', backgroundColor: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.25)' }}>
                                             <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="crown" class="w-3 h-3"></i>' }}></span> Premium
                                         </span>
