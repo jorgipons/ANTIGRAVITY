@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>partits. Pro</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #FCFCFD; }</style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-6">
+  <div class="max-w-md w-full">
+    <div class="text-center mb-8">
+      <h1 class="text-3xl font-black text-gray-900">partits<span class="text-orange-500">.</span> Pro</h1>
+      <p class="text-gray-500 mt-2">Equipos y partidos ilimitados, sincronización FBCV</p>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-200 p-6 mb-4 shadow-sm">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <p class="font-black text-lg text-gray-900">€1.99/mes</p>
+          <p class="text-sm text-gray-400">o €16.99/año (~30% descuento)</p>
+        </div>
+        <span class="bg-orange-100 text-orange-600 text-xs font-bold px-3 py-1 rounded-full">PRO</span>
+      </div>
+      <ul class="space-y-2 text-sm text-gray-600 mb-6">
+        <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Equipos ilimitados</li>
+        <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Partidos ilimitados</li>
+        <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Sincronización FBCV automática</li>
+      </ul>
+
+      <button
+        id="btn-monthly"
+        onclick="subscribe('monthly')"
+        class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-xl text-base mb-3 transition-colors"
+      >Suscribirse · €1.99/mes</button>
+      <button
+        id="btn-yearly"
+        onclick="subscribe('yearly')"
+        class="w-full bg-gray-900 hover:bg-gray-800 text-white font-semibold py-3 rounded-xl text-sm transition-colors"
+      >Pago anual · €16.99/año (ahorra ~€7)</button>
+    </div>
+
+    <p id="error-msg" class="text-red-500 text-sm text-center hidden mb-2"></p>
+    <p class="text-xs text-gray-400 text-center">Cancela cuando quieras. Sin compromisos.</p>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const userId = params.get('uid');
+
+    async function subscribe(plan) {
+      const btn = document.getElementById(`btn-${plan}`);
+      btn.disabled = true;
+      btn.textContent = 'Cargando...';
+      document.getElementById('error-msg').classList.add('hidden');
+
+      try {
+        const res = await fetch(
+          'https://europe-west3-basketmanager-ed370.cloudfunctions.net/createCheckoutSession',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, plan }),
+          }
+        );
+        const data = await res.json();
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          throw new Error(data.error || 'Error desconocido');
+        }
+      } catch (e) {
+        document.getElementById('error-msg').textContent = 'Error: ' + e.message;
+        document.getElementById('error-msg').classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = plan === 'monthly' ? 'Suscribirse · €1.99/mes' : 'Pago anual · €16.99/año';
+      }
+    }
+  </script>
+</body>
+</html>

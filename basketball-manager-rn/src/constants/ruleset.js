@@ -3,7 +3,7 @@ export const DEFAULT_RULESET = {
   checkPeriod: 6, // Las reglas FBCV obligan a revisar en el 6º
   minPlay: 2,
   minRest: 2,
-  maxPlay: 3
+  maxPlay: 4
 };
 
 // Utils translated from the PWA index.html for validating the match matrix

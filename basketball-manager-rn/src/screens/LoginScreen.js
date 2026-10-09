@@ -1,38 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { GoogleAuthProvider, signInWithCredential, signInWithPopup } from 'firebase/auth';
 import { auth } from '../constants/firebase';
-import { COLORS } from '../constants/colors';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { useTheme } from '../theme/ThemeContext';
+import Svg, { Rect } from 'react-native-svg';
 
-// We configure GoogleSignin only for native (Android/iOS)
 if (Platform.OS !== 'web') {
   GoogleSignin.configure({
-    // We MUST use the WEB Client ID here. Firebase uses the Web Client ID to verify the token.
-    // The native Android SHA-1 is verified by Google Play Services automatically.
-    webClientId: '177594386006-7969dbqtjmp5uun0d9rk7du66mel9vaj.apps.googleusercontent.com', 
+    webClientId: '177594386006-7969dbqtjmp5uun0d9rk7du66mel9vaj.apps.googleusercontent.com',
     offlineAccess: false,
   });
 }
 
+const GridDots = () => {
+  const dots = [];
+  for (let r = 0; r < 22; r++) {
+    for (let c = 0; c < 16; c++) {
+      dots.push(<Rect key={`${r}-${c}`} x={c * 26} y={r * 26} width={2} height={2} fill="white" rx={1} />);
+    }
+  }
+  return (
+    <Svg style={[StyleSheet.absoluteFill, { opacity: 0.05 }]} width="100%" height="100%">
+      {dots}
+    </Svg>
+  );
+};
+
 export default function LoginScreen() {
+  const T = useTheme();
+  const styles = useMemo(() => makeStyles(T), [T]);
   const [loading, setLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
       if (Platform.OS === 'web') {
-        // Web uses standard Firebase popup
         const provider = new GoogleAuthProvider();
         await signInWithPopup(auth, provider);
       } else {
-        // Native uses Google Sign-In via Google Play Services
         await GoogleSignin.hasPlayServices();
         const userInfo = await GoogleSignin.signIn();
-        
-        // V16 of @react-native-google-signin usually returns data in userInfo.data
         const idToken = userInfo.idToken || userInfo?.data?.idToken;
-        
         if (idToken) {
           const credential = GoogleAuthProvider.credential(idToken);
           await signInWithCredential(auth, credential);
@@ -41,134 +51,99 @@ export default function LoginScreen() {
         }
       }
     } catch (error) {
-      console.log('Login Error: ', error);
       if (error.code !== 'SIGN_IN_CANCELLED' && error.code !== 12501) {
-        Alert.alert("Error de Inicio de Sesión", error.message || "Ocurrió un error al conectar con Google.");
+        Alert.alert('Error de Inicio de Sesión', error.message || 'Ocurrió un error al conectar con Google.');
       }
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Gestor Basket Pasarela</Text>
-        <Text style={styles.subtitle}>Panel de gestión deportiva</Text>
-      </View>
+    <LinearGradient colors={[T.ink2, T.ink]} style={styles.bg}>
+      <GridDots />
+      <View style={styles.content}>
+        <View style={styles.brand}>
+          <View style={styles.logoBox}>
+            <Text style={styles.logoEmoji}>🏀</Text>
+          </View>
+          <Text style={styles.brandName}>partits.</Text>
+          <Text style={styles.brandSub}>GESTOR BASKET PASARELA</Text>
+        </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Inicia Sesión</Text>
-        <Text style={styles.cardText}>
-          Necesitas una cuenta para gestionar tus equipos, jugadores y partidos.
-        </Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Inicia Sesión</Text>
+          <Text style={styles.cardText}>
+            Necesitas una cuenta para gestionar tus equipos, jugadores y partidos.
+          </Text>
 
-        <TouchableOpacity 
-          style={[styles.googleButton, loading ? styles.buttonDisabled : null]}
-          disabled={loading}
-          onPress={handleGoogleSignIn}
-        >
-          {loading ? (
-            <ActivityIndicator color={COLORS.white} />
-          ) : (
-            <>
-              <View style={styles.iconPlaceholder}>
-                <Text style={styles.googleG}>G</Text>
-              </View>
-              <Text style={styles.buttonText}>Continuar con Google</Text>
-            </>
-          )}
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.googleBtnWrap, loading && { opacity: 0.7 }]}
+            disabled={loading}
+            onPress={handleGoogleSignIn}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={[T.orange, T.orangeDeep]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.googleBtnGrad}
+            >
+              {loading ? (
+                <ActivityIndicator color={T.white} />
+              ) : (
+                <>
+                  <View style={styles.gIconBox}>
+                    <Text style={styles.gLetter}>G</Text>
+                  </View>
+                  <Text style={styles.googleBtnText}>Continuar con Google</Text>
+                </>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.footer}>FBCV · Pasarela · 2025–26</Text>
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.slate50,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
+function makeStyles(T) { return StyleSheet.create({
+  bg: { flex: 1 },
+  content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
+
+  brand: { alignItems: 'center', marginBottom: 48 },
+  logoBox: {
+    width: 76, height: 76, borderRadius: T.rCardLg,
+    backgroundColor: 'rgba(255,106,44,0.18)',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 18,
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: 48,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: COLORS.slate500,
-    textAlign: 'center',
-  },
+  logoEmoji: { fontSize: 38 },
+  brandName: { fontFamily: T.fontBlack, fontSize: 44, color: T.white, letterSpacing: -1 },
+  brandSub: { fontFamily: T.fontSemi, fontSize: 11, color: 'rgba(255,255,255,0.35)', letterSpacing: 2.5, marginTop: 4 },
+
   card: {
-    width: '100%',
-    maxWidth: 400,
-    backgroundColor: COLORS.white,
-    padding: 32,
-    borderRadius: 24,
-    alignItems: 'center',
-    shadowColor: COLORS.slate900,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: COLORS.slate100,
+    width: '100%', maxWidth: 420, backgroundColor: T.white, borderRadius: T.rCardLg,
+    padding: 28, alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.4, shadowRadius: 36, elevation: 24,
   },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: COLORS.slate800,
-    marginBottom: 12,
-  },
+  cardTitle: { fontFamily: T.fontBold, fontSize: 20, color: T.text, marginBottom: 8 },
   cardText: {
-    fontSize: 14,
-    color: COLORS.slate500,
-    textAlign: 'center',
-    marginBottom: 32,
-    lineHeight: 20,
+    fontFamily: T.fontReg, fontSize: 14, color: T.textSub, textAlign: 'center',
+    lineHeight: 20, marginBottom: 28,
   },
-  googleButton: {
-    width: '100%',
-    backgroundColor: COLORS.primary,
-    padding: 16,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+
+  googleBtnWrap: { width: '100%', borderRadius: T.rBtn, overflow: 'hidden' },
+  googleBtnGrad: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 16, paddingHorizontal: 24,
   },
-  buttonDisabled: {
-    opacity: 0.7,
+  gIconBox: {
+    width: 24, height: 24, backgroundColor: 'rgba(255,255,255,0.25)',
+    borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 12,
   },
-  iconPlaceholder: {
-    width: 24,
-    height: 24,
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  googleG: {
-    color: COLORS.primary,
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  buttonText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-});
+  gLetter: { fontFamily: T.fontBold, color: T.white, fontSize: 14 },
+  googleBtnText: { fontFamily: T.fontSemi, color: T.white, fontSize: 16 },
+
+  footer: { fontFamily: T.mono, fontSize: 11, color: 'rgba(255,255,255,0.25)', marginTop: 44, letterSpacing: 1 },
+}); }

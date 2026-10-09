@@ -42,6 +42,34 @@
     ],
     "rewrites": [
       {
+        "source": "/attendance",
+        "destination": "/attendance.html"
+      },
+      {
+        "source": "/subscribe",
+        "destination": "/subscribe.html"
+      },
+      {
+        "source": "/subscribe-success",
+        "destination": "/subscribe-success.html"
+      },
+      {
+        "source": "/manage",
+        "destination": "/manage.html"
+      },
+      {
+        "source": "/club-subscribe",
+        "destination": "/club-subscribe.html"
+      },
+      {
+        "source": "/club-subscribe-success",
+        "destination": "/club-subscribe-success.html"
+      },
+      {
+        "source": "/landing",
+        "destination": "/landing.html"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

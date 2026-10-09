@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="es" style="scroll-behavior:smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>partits. — Gestor de baloncesto FBCV Pasarela</title>
+  <meta name="description" content="Gestiona la reglamentación Pasarela 8P de la FBCV con facilidad. Matriz de periodos, convocatoria y sincronización con el calendario federativo.">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* ── BASE ─────────────────────────────────────────────── */
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      visibility: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+    ::selection { background: rgba(249,115,22,0.18); color: inherit; }
+    *:focus-visible {
+      outline: 2px solid rgba(249,115,22,0.55);
+      outline-offset: 3px;
+      border-radius: 4px;
+    }
+
+    /* ── MATRIX CELLS ─────────────────────────────────────── */
+    .matrix-cell {
+      width: 34px; height: 28px; border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700;
+    }
+
+    /* ── HERO BG — double radial glow ─────────────────────── */
+    .hero-bg {
+      background:
+        radial-gradient(ellipse 85% 50% at 50% -8%,  rgba(249,115,22,0.19) 0%, transparent 62%),
+        radial-gradient(ellipse 40% 35% at 88% 25%,  rgba(249,115,22,0.07) 0%, transparent 55%),
+        radial-gradient(ellipse 30% 25% at 12% 70%,  rgba(249,115,22,0.04) 0%, transparent 50%),
+        #09090b;
+    }
+
+    /* ── SCROLL FADE-UP ───────────────────────────────────── */
+    .fade-up {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+                  transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .fade-up.visible { opacity: 1; transform: translateY(0); }
+
+    /* ── CARD HOVER — spring easing ───────────────────────── */
+    .card-hover {
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                  box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .card-hover:hover { transform: translateY(-4px); }
+
+    /* Multi-layer shadow for light cards */
+    .card-hover-light:hover {
+      box-shadow:
+        0 0 0 1px rgba(0,0,0,0.04),
+        0 2px 4px rgba(0,0,0,0.04),
+        0 8px 20px rgba(0,0,0,0.07),
+        0 20px 44px rgba(0,0,0,0.05);
+    }
+    .card-hover-dark:hover { box-shadow: 0 16px 48px rgba(0,0,0,0.5); }
+
+    /* Top accent line on hover (needs position:relative overflow:hidden on parent) */
+    .card-accent::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent 0%, rgba(249,115,22,0.55) 30%, rgba(249,115,22,0.55) 70%, transparent 100%);
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+    .card-accent:hover::before { opacity: 1; }
+
+    /* ── BUTTON GLOW + LIFT ───────────────────────────────── */
+    .btn-glow { transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
+    .btn-glow:hover {
+      box-shadow: 0 0 0 3px rgba(249,115,22,0.2), 0 8px 28px rgba(249,115,22,0.38);
+      transform: translateY(-1px);
+    }
+    .btn-glow:active { transform: scale(0.97); box-shadow: none; }
+
+    /* ── MATRIX MOCKUP ────────────────────────────────────── */
+    .matrix-glow {
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.04),
+        0 0 70px rgba(249,115,22,0.1),
+        0 32px 80px rgba(0,0,0,0.65);
+    }
+    /* current period header highlight */
+    .period-current {
+      background: rgba(249,115,22,0.12);
+      border-radius: 5px;
+      color: #fb923c;
+      font-weight: 800;
+    }
+
+    /* ── PULSING DOT ──────────────────────────────────────── */
+    @keyframes dot-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(249,115,22,0.55); }
+      50%       { box-shadow: 0 0 0 6px rgba(249,115,22,0);   }
+    }
+    .dot-pulse { animation: dot-pulse 2s ease-in-out infinite; }
+
+    /* ── SHIMMER — popular badge ──────────────────────────── */
+    @keyframes shimmer {
+      0%   { background-position: -200% center; }
+      100% { background-position:  200% center; }
+    }
+    .badge-shimmer {
+      background: linear-gradient(90deg, #c2410c 0%, #f97316 22%, #fdba74 50%, #f97316 78%, #c2410c 100%);
+      background-size: 200% auto;
+      animation: shimmer 4s linear infinite;
+    }
+
+    /* ── CELL BLINK ───────────────────────────────────────── */
+    @keyframes cell-blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+    .cell-active { animation: cell-blink 1.9s ease-in-out infinite; }
+
+    /* ── GRID PATTERN (dark sections) ────────────────────── */
+    .grid-pattern {
+      background-image:
+        linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* ── ICON CONTAINER ───────────────────────────────────── */
+    .icon-orange {
+      background: linear-gradient(145deg, rgba(249,115,22,0.14) 0%, rgba(234,88,12,0.06) 100%);
+      border: 1px solid rgba(249,115,22,0.18);
+    }
+
+    /* ── SECTION LABEL PILL ───────────────────────────────── */
+    .label-pill {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.64rem;
+      font-weight: 800;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      color: #f97316;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      border: 1px solid rgba(249,115,22,0.22);
+      background: linear-gradient(135deg, rgba(249,115,22,0.1) 0%, rgba(249,115,22,0.04) 100%);
+      margin-bottom: 10px;
+    }
+    .label-pill-dark {
+      color: rgba(251,146,60,0.9);
+      border-color: rgba(249,115,22,0.25);
+      background: rgba(249,115,22,0.09);
+    }
+
+    /* ── PRO CARD GRADIENT BORDER ─────────────────────────── */
+    /* Outer wrapper provides 1px padding acting as gradient border */
+    .pro-border-wrap {
+      padding: 1px;
+      border-radius: 17px;
+      background: linear-gradient(145deg,
+        rgba(249,115,22,0.65) 0%,
+        rgba(249,115,22,0.1)  45%,
+        rgba(249,115,22,0.52) 100%);
+      box-shadow: 0 24px 60px rgba(249,115,22,0.09), 0 0 0 0 transparent;
+      transition: box-shadow 0.25s ease;
+    }
+    .pro-border-wrap:hover {
+      box-shadow: 0 28px 70px rgba(249,115,22,0.15);
+    }
+
+    /* ── NAV GRADIENT SEPARATOR ───────────────────────────── */
+    .nav-separator {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent 0%, rgba(255,255,255,0.08) 20%,
+        rgba(255,255,255,0.08) 80%, transparent 100%);
+    }
+
+    /* ── CTA SECTION GLOW ─────────────────────────────────── */
+    .cta-bg {
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 50%, rgba(249,115,22,0.07) 0%, transparent 65%),
+        #09090b;
+    }
+
+    /* ── FOOTER GRADIENT TOP ──────────────────────────────── */
+    .footer-top {
+      border-top: 1px solid transparent;
+      border-image: linear-gradient(90deg,
+        transparent 0%, rgba(255,255,255,0.07) 25%,
+        rgba(255,255,255,0.07) 75%, transparent 100%) 1;
+    }
+
+    /* ── INSET GLOW ON DARK CARDS ────────────────────────── */
+    .dark-card-inset {
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+  </style>
+</head>
+<body class="bg-white text-gray-900 antialiased">
+
+  <!-- NAV -->
+  <nav class="fixed top-0 w-full bg-[#09090b]/88 backdrop-blur-md z-50" style="position:fixed">
+    <div class="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="/landing" class="font-black text-2xl tracking-tight text-white" style="letter-spacing:-0.03em">
+        partits<span class="text-orange-500">.</span>
+      </a>
+      <div class="flex items-center gap-3">
+        <div class="flex rounded-full border border-white/10 overflow-hidden text-sm">
+          <button id="btn-es" onclick="setLang('es')" aria-label="Español"
+                  class="px-3 py-1.5 font-semibold transition-colors">ES</button>
+          <button id="btn-val" onclick="setLang('val')" aria-label="Valencià"
+                  class="px-3 py-1.5 font-semibold transition-colors">VAL</button>
+        </div>
+        <a href="/"
+           data-es="Entrar" data-val="Entrar"
+           class="bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm px-5 py-2 rounded-full btn-glow">Entrar</a>
+      </div>
+    </div>
+    <div class="nav-separator"></div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero-bg pt-32 pb-28 px-6">
+    <div class="max-w-4xl mx-auto text-center">
+
+      <!-- Badge -->
+      <div class="inline-flex items-center gap-2 text-orange-400 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-8 fade-up"
+           style="border:1px solid rgba(249,115,22,0.22); background:linear-gradient(135deg,rgba(249,115,22,0.1),rgba(249,115,22,0.04))">
+        <span class="w-2 h-2 bg-orange-500 rounded-full dot-pulse inline-block flex-shrink-0"></span>
+        <span>FBCV · Pasarela 8P</span>
+      </div>
+
+      <!-- Headline — tighter tracking for display size -->
+      <h1 class="text-5xl md:text-7xl font-black leading-none mb-6 text-white fade-up"
+          style="letter-spacing:-0.03em; transition-delay:.08s"
+          data-es="El gestor de partidos<br><span class='text-orange-500'>para tu equipo</span>"
+          data-val="El gestor de partits<br><span class='text-orange-500'>per al teu equip</span>">
+        El gestor de partidos<br><span class="text-orange-500">para tu equipo</span>
+      </h1>
+
+      <p class="text-lg text-white/45 max-w-lg mx-auto mb-10 fade-up"
+         style="transition-delay:.16s; line-height:1.65"
+         data-es="Controla minutos, gestiona la convocatoria y cumple el reglamento Pasarela de la FBCV sin esfuerzo."
+         data-val="Controla minuts, gestiona la convocatòria i compleix el reglament Pasarela de la FBCV sense esforç.">
+        Controla minutos, gestiona la convocatoria y cumple el reglamento Pasarela de la FBCV sin esfuerzo.
+      </p>
+
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mb-16 fade-up"
+           style="transition-delay:.24s">
+        <a href="/"
+           class="w-full sm:w-auto text-white font-black text-base px-9 py-3.5 rounded-2xl btn-glow"
+           style="background:linear-gradient(160deg,#f97316 0%,#ea580c 100%)"
+           data-es="Empieza gratis" data-val="Comença gratis">Empieza gratis</a>
+        <a href="#pricing"
+           class="w-full sm:w-auto text-white/55 hover:text-white font-semibold text-base px-9 py-3.5 rounded-2xl text-center"
+           style="border:1px solid rgba(255,255,255,0.1); transition:all 0.22s ease"
+           onmouseover="this.style.borderColor='rgba(255,255,255,0.22)'"
+           onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'"
+           data-es="Ver planes" data-val="Veure plans">Ver planes</a>
+      </div>
+
+      <!-- MATRIX MOCKUP -->
+      <div class="matrix-glow bg-[#111113] rounded-3xl p-6 max-w-2xl mx-auto overflow-x-auto fade-up"
+           style="border:1px solid rgba(255,255,255,0.05); transition-delay:.32s">
+
+        <!-- Header -->
+        <div class="text-left mb-5 flex items-center justify-between pb-4"
+             style="border-bottom:1px solid rgba(255,255,255,0.06)">
+          <div>
+            <div class="text-xs font-bold text-orange-400 tracking-widest uppercase mb-1"
+                 data-es="PARTIDO EN CURSO" data-val="PARTIT EN CURS">PARTIDO EN CURSO</div>
+            <div class="text-white font-black text-base" style="letter-spacing:-0.02em">FC Alicante B</div>
+          </div>
+          <div class="text-right">
+            <div class="text-gray-600 text-xs font-semibold tracking-widest uppercase mb-0.5"
+                 data-es="PERÍODO" data-val="PERÍODE">PERÍODO</div>
+            <div class="text-white font-black text-3xl leading-none" style="letter-spacing:-0.04em">4</div>
+          </div>
+        </div>
+
+        <div class="inline-block min-w-full">
+          <!-- Period headers -->
+          <div class="flex gap-1 mb-2 pl-24">
+            <div class="matrix-cell text-gray-600 text-xs">P1</div>
+            <div class="matrix-cell text-gray-600 text-xs">P2</div>
+            <div class="matrix-cell text-gray-600 text-xs">P3</div>
+            <div class="matrix-cell period-current text-xs">P4</div>
+            <div class="matrix-cell text-gray-700 text-xs">P5</div>
+            <div class="matrix-cell text-gray-700 text-xs">P6</div>
+            <!-- checkpoint separator -->
+            <div class="w-px mx-0.5 self-stretch" style="background:rgba(255,255,255,0.08)"></div>
+            <div class="matrix-cell text-gray-800 text-xs">P7</div>
+            <div class="matrix-cell text-gray-800 text-xs">P8</div>
+          </div>
+          <!-- Row 1 -->
+          <div class="flex gap-1 items-center mb-1.5">
+            <div class="w-24 text-gray-300 text-xs font-semibold truncate pr-2">#4 García</div>
+            <div class="matrix-cell bg-orange-500/20 text-orange-400">✓</div>
+            <div class="matrix-cell bg-orange-500/20 text-orange-400">✓</div>
+            <div class="matrix-cell bg-gray-800/50"></div>
+            <div class="matrix-cell text-orange-300 cell-active" style="background:rgba(249,115,22,0.32)">✓</div>
+            <div class="matrix-cell bg-gray-800/50"></div>
+            <div class="matrix-cell bg-gray-800/50"></div>
+            <div class="w-px mx-0.5 self-stretch" style="background:rgba(255,255,255,0.08)"></div>
+            <div class="matrix-cell bg-gray-900/70"></div>
+            <div class="matrix-cell bg-gray-900/70"></div>
+          </div>
+          <!-- Row 2 -->
+          <div class="flex gap-1 items-center mb-1.5">
+            <div class="w-24 text-gray-300 text-xs font-semibold truncate pr-2">#7 Martínez</div>
+            <div class="matrix-cell bg-gray-800/50"></div>
+            <div class="matrix-cell bg-orange-500/20 text-orange-400">✓</div>
+            <div class="matrix-cell bg-orange-500/20 text-orange-400">✓</div>
+            <div class="matrix-cell bg-gray-800/30 cell-active"></div>
+            <div class="matrix-cell bg-orange-500/20 text-orange-400">✓</div>
+            <div class="matrix-cell bg-gray-800/50"></div>
+            <div class="w-px mx-0.5 self-stretch" style="background:rgba(255,255,255,0.08)"></div>
+            <div class="matrix-cell bg-gray-900/70"></div>
+            <div class="matrix-cell bg-gray-900/70"></div>
+          </div>
+          <!-- Row 3: error -->
+          <div class="flex gap-1 items-center mb-1.5">
+            <div class="w-24 text-red-400 text-xs font-semibold truncate pr-2">#11 López</div>
+            <div class="matrix-cell bg-red-500/20 text-red-400">✕</div>
+            <div class="matrix-cell bg-red-500/20 text-red-400">✕</div>
+            <div class="matrix-cell bg-red-500/20 text-red-400">✕</div>
+            <div class="matrix-cell text-red-300 cell-active" style="background:rgba(239,68,68,0.3)">✕</div>
+            <div class="matrix-cell bg-gray-800/50"></div>
+            <div class="matrix-cell bg-gray-800/50"></div>
+            <div class="w-px mx-0.5 self-stretch" style="background:rgba(255,255,255,0.08)"></div>
+            <div class="matrix-cell bg-gray-900/70"></div>
+            <div class="matrix-cell bg-gray-900/70"></div>
+          </div>
+          <!-- Row 4 -->
+          <div class="flex gap-1 items-center mb-1.5">
+            <div class="w-24 text-gray-300 text-xs font-semibold truncate pr-2">#14 Pérez</div>
+            <div class="matrix-cell bg-gray-800/50"></div>
+            <div class="matrix-cell bg-gray-800/50"></div>
+            <div class="matrix-cell bg-orange-500/20 text-orange-400">✓</div>
+            <div class="matrix-cell bg-gray-800/30 cell-active"></div>
+            <div class="matrix-cell bg-orange-500/20 text-orange-400">✓</div>
+            <div class="matrix-cell bg-orange-500/20 text-orange-400">✓</div>
+            <div class="w-px mx-0.5 self-stretch" style="background:rgba(255,255,255,0.08)"></div>
+            <div class="matrix-cell bg-gray-900/70"></div>
+            <div class="matrix-cell bg-gray-900/70"></div>
+          </div>
+          <!-- Row 5 -->
+          <div class="flex gap-1 items-center">
+            <div class="w-24 text-gray-300 text-xs font-semibold truncate pr-2">#17 Ruiz</div>
+            <div class="matrix-cell bg-orange-500/20 text-orange-400">✓</div>
+            <div class="matrix-cell bg-gray-800/50"></div>
+            <div class="matrix-cell bg-gray-800/50"></div>
+            <div class="matrix-cell text-orange-300 cell-active" style="background:rgba(249,115,22,0.32)">✓</div>
+            <div class="matrix-cell bg-gray-800/50"></div>
+            <div class="matrix-cell bg-gray-800/50"></div>
+            <div class="w-px mx-0.5 self-stretch" style="background:rgba(255,255,255,0.08)"></div>
+            <div class="matrix-cell bg-gray-900/70"></div>
+            <div class="matrix-cell bg-gray-900/70"></div>
+          </div>
+        </div>
+
+        <!-- Legend + checkpoint note -->
+        <div class="mt-4 pt-3 flex items-center justify-between flex-wrap gap-3"
+             style="border-top:1px solid rgba(255,255,255,0.05)">
+          <div class="flex gap-4 text-xs">
+            <span class="flex items-center gap-1.5 text-orange-400">
+              <span class="w-2.5 h-2.5 rounded" style="background:rgba(249,115,22,0.3)"></span>
+              <span data-es="Jugando" data-val="Jugant">Jugando</span>
+            </span>
+            <span class="flex items-center gap-1.5 text-red-400">
+              <span class="w-2.5 h-2.5 rounded" style="background:rgba(239,68,68,0.3)"></span>
+              <span data-es="Error Pasarela" data-val="Error Pasarela">Error Pasarela</span>
+            </span>
+          </div>
+          <span class="text-xs text-gray-700 font-medium"
+                data-es="↑ P7–P8 fuera del conteo" data-val="↑ P7–P8 fora del compte">↑ P7–P8 fuera del conteo</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROBLEMA → SOLUCIÓN -->
+  <section class="py-20 px-6 bg-white">
+    <div class="max-w-4xl mx-auto">
+      <div class="text-center mb-12 fade-up">
+        <h2 class="text-4xl font-black mb-4" style="letter-spacing:-0.025em; line-height:1.1"
+            data-es="La Pasarela tiene reglas.<br>Nosotros las controlamos."
+            data-val="La Pasarela té regles.<br>Nosaltres les controlem.">
+          La Pasarela tiene reglas.<br>Nosotros las controlamos.
+        </h2>
+        <p class="text-gray-400 max-w-lg mx-auto" style="line-height:1.65"
+           data-es="La normativa FBCV exige que cada jugador juegue un mínimo y un máximo de periodos. partits. lo calcula en tiempo real."
+           data-val="La normativa FBCV exigeix que cada jugador jugue un mínim i un màxim de períodes. partits. ho calcula en temps real.">
+          La normativa FBCV exige que cada jugador juegue un mínimo y un máximo de periodos. partits. lo calcula en tiempo real.
+        </p>
+      </div>
+      <div class="grid md:grid-cols-3 gap-5">
+        <div class="fade-up relative overflow-hidden bg-gray-50 rounded-2xl p-6 card-hover card-hover-light card-accent"
+             style="border:1px solid rgba(0,0,0,0.05); transition-delay:.0s">
+          <div class="w-10 h-10 rounded-xl icon-orange flex items-center justify-center mb-4 text-base">⚡</div>
+          <h3 class="font-black text-base mb-1.5"
+              data-es="Mínimos y máximos automáticos"
+              data-val="Mínims i màxims automàtics">Mínimos y máximos automáticos</h3>
+          <p class="text-gray-500 text-sm leading-relaxed"
+             data-es="Calcula en tiempo real cuántos periodos puede jugar cada jugador según las reglas Pasarela 8P."
+             data-val="Calcula en temps real quants períodes pot jugar cada jugador segons les regles Pasarela 8P.">
+            Calcula en tiempo real cuántos periodos puede jugar cada jugador según las reglas Pasarela 8P.
+          </p>
+        </div>
+        <div class="fade-up relative overflow-hidden bg-gray-50 rounded-2xl p-6 card-hover card-hover-light card-accent"
+             style="border:1px solid rgba(0,0,0,0.05); transition-delay:.08s">
+          <div class="w-10 h-10 rounded-xl icon-orange flex items-center justify-center mb-4 text-base">🔔</div>
+          <h3 class="font-black text-base mb-1.5"
+              data-es="Alertas al convocar"
+              data-val="Alertes en convocar">Alertas al convocar</h3>
+          <p class="text-gray-500 text-sm leading-relaxed"
+             data-es="Si una alineación infringe el reglamento, lo ves al momento con colores y mensajes claros."
+             data-val="Si una alineació infringeix el reglament, ho veus al moment amb colors i missatges clars.">
+            Si una alineación infringe el reglamento, lo ves al momento con colores y mensajes claros.
+          </p>
+        </div>
+        <div class="fade-up relative overflow-hidden bg-gray-50 rounded-2xl p-6 card-hover card-hover-light card-accent"
+             style="border:1px solid rgba(0,0,0,0.05); transition-delay:.16s">
+          <div class="w-10 h-10 rounded-xl icon-orange flex items-center justify-center mb-4 text-base">📅</div>
+          <h3 class="font-black text-base mb-1.5"
+              data-es="Calendario federativo"
+              data-val="Calendari federatiu">Calendario federativo</h3>
+          <p class="text-gray-500 text-sm leading-relaxed"
+             data-es="Importa los partidos directamente del calendario FBCV. Sin copiar y pegar."
+             data-val="Importa els partits directament del calendari FBCV. Sense copiar i enganxar.">
+            Importa los partidos directamente del calendario FBCV. Sin copiar y pegar.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES ENTRENADORES -->
+  <section class="py-20 px-6" style="background:#fafafa">
+    <div class="max-w-4xl mx-auto">
+      <div class="mb-10 fade-up">
+        <span class="label-pill"
+              data-es="PARA ENTRENADORES" data-val="PER A ENTRENADORS">PARA ENTRENADORES</span>
+        <h2 class="font-black text-3xl" style="letter-spacing:-0.02em; line-height:1.15"
+            data-es="Todo lo que necesitas en la banda"
+            data-val="Tot el que necessites a la banda">Todo lo que necesitas en la banda</h2>
+      </div>
+      <div class="grid md:grid-cols-3 gap-5">
+        <div class="fade-up relative overflow-hidden bg-white rounded-2xl p-6 card-hover card-hover-light card-accent"
+             style="border:1px solid rgba(0,0,0,0.06); box-shadow:0 1px 2px rgba(0,0,0,0.04); transition-delay:.0s">
+          <div class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center mb-4 text-lg">📊</div>
+          <h3 class="font-black text-base mb-1.5"
+              data-es="Matriz de periodos" data-val="Matriu de períodes">Matriz de periodos</h3>
+          <p class="text-gray-500 text-sm leading-relaxed"
+             data-es="Cuadrícula visual con validación Pasarela 8P en tiempo real. Verde = válido, rojo = infracción."
+             data-val="Quadrícula visual amb validació Pasarela 8P en temps real. Verd = vàlid, roig = infracció.">
+            Cuadrícula visual con validación Pasarela 8P en tiempo real. Verde = válido, rojo = infracción.
+          </p>
+        </div>
+        <div class="fade-up relative overflow-hidden bg-white rounded-2xl p-6 card-hover card-hover-light card-accent"
+             style="border:1px solid rgba(0,0,0,0.06); box-shadow:0 1px 2px rgba(0,0,0,0.04); transition-delay:.08s">
+          <div class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center mb-4 text-lg">📋</div>
+          <h3 class="font-black text-base mb-1.5"
+              data-es="Convocatoria y asistencia" data-val="Convocatòria i assistència">Convocatoria y asistencia</h3>
+          <p class="text-gray-500 text-sm leading-relaxed"
+             data-es="Comparte un enlace para que los jugadores confirmen asistencia desde el móvil. Sin registro."
+             data-val="Comparteix un enllaç perquè els jugadors confirmen assistència des del mòbil. Sense registre.">
+            Comparte un enlace para que los jugadores confirmen asistencia desde el móvil. Sin registro.
+          </p>
+        </div>
+        <div class="fade-up relative overflow-hidden bg-white rounded-2xl p-6 card-hover card-hover-light card-accent"
+             style="border:1px solid rgba(0,0,0,0.06); box-shadow:0 1px 2px rgba(0,0,0,0.04); transition-delay:.16s">
+          <div class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center mb-4 text-lg">🔄</div>
+          <h3 class="font-black text-base mb-1.5"
+              data-es="Sincronización FBCV" data-val="Sincronització FBCV">Sincronización FBCV</h3>
+          <p class="text-gray-500 text-sm leading-relaxed"
+             data-es="Importa automáticamente el calendario de la federación. Detección inteligente de duplicados."
+             data-val="Importa automàticament el calendari de la federació. Detecció intel·ligent de duplicats.">
+            Importa automáticamente el calendario de la federación. Detección inteligente de duplicados.
+          </p>
+          <span class="mt-3 inline-block text-xs font-black text-orange-500 px-2 py-0.5 rounded-full"
+                style="background:rgba(249,115,22,0.1); border:1px solid rgba(249,115,22,0.18)">PRO</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMUNICACIÓN CON LOS PADRES -->
+  <section class="py-20 px-6 bg-white">
+    <div class="max-w-4xl mx-auto">
+      <div class="mb-10 fade-up">
+        <span class="label-pill"
+              data-es="COMUNICACIÓN" data-val="COMUNICACIÓ">COMUNICACIÓN</span>
+        <h2 class="font-black text-3xl" style="letter-spacing:-0.02em; line-height:1.15"
+            data-es="Los padres siempre informados"
+            data-val="Els pares sempre informats">Los padres siempre informados</h2>
+        <p class="text-gray-400 mt-2 max-w-xl leading-relaxed"
+           data-es="Sin grupos de WhatsApp caóticos. partits. genera el mensaje y recoge las confirmaciones por ti."
+           data-val="Sense grups de WhatsApp caòtics. partits. genera el missatge i recull les confirmacions per tu.">
+          Sin grupos de WhatsApp caóticos. partits. genera el mensaje y recoge las confirmaciones por ti.
+        </p>
+      </div>
+      <div class="grid md:grid-cols-2 gap-6">
+
+        <!-- Confirmación de asistencia -->
+        <div class="fade-up relative overflow-hidden bg-gray-50 rounded-2xl p-8 card-hover card-hover-light card-accent"
+             style="border:1px solid rgba(0,0,0,0.05); transition-delay:.0s">
+          <div class="w-12 h-12 rounded-2xl flex items-center justify-center mb-5 text-2xl"
+               style="background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.12)">👨‍👩‍👦</div>
+          <h3 class="font-black text-xl mb-2" style="letter-spacing:-0.02em"
+              data-es="Confirmación sin app"
+              data-val="Confirmació sense app">Confirmación sin app</h3>
+          <p class="text-gray-500 mb-5 text-sm leading-relaxed"
+             data-es="Comparte un enlace único del partido. Los padres confirman o excusan la asistencia desde el móvil en un clic, sin descargar nada ni registrarse."
+             data-val="Comparteix un enllaç únic del partit. Els pares confirmen o excusen l'assistència des del mòbil en un clic, sense descarregar res ni registrar-se.">
+            Comparte un enlace único del partido. Los padres confirman o excusan la asistencia desde el móvil en un clic, sin descargar nada ni registrarse.
+          </p>
+          <!-- Mockup: attendance confirmation UI -->
+          <div class="bg-white rounded-xl p-4 text-sm" style="border:1px solid rgba(0,0,0,0.08); box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+            <div class="font-black text-gray-800 mb-1 text-sm"
+                 data-es="¿Vendrá tu hijo al partido?" data-val="Vindrà el teu fill al partit?">¿Vendrá tu hijo al partido?</div>
+            <div class="text-gray-400 text-xs mb-4"
+                 data-es="Sáb 7 jun · 10:00h · Pabellón Municipal" data-val="Dis 7 juny · 10:00h · Pavelló Municipal">Sáb 7 jun · 10:00h · Pabellón Municipal</div>
+            <div class="flex gap-2">
+              <div class="flex-1 text-white text-xs font-black py-2.5 rounded-lg text-center"
+                   style="background:linear-gradient(160deg,#22c55e,#16a34a); box-shadow:0 2px 8px rgba(34,197,94,0.3)"
+                   data-es="✓ Sí, vendrá" data-val="✓ Sí, vindrà">✓ Sí, vendrá</div>
+              <div class="flex-1 bg-gray-100 text-gray-500 text-xs font-semibold py-2.5 rounded-lg text-center"
+                   data-es="✗ No puede" data-val="✗ No pot">✗ No puede</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mensaje automático -->
+        <div class="fade-up relative overflow-hidden bg-gray-50 rounded-2xl p-8 card-hover card-hover-light card-accent"
+             style="border:1px solid rgba(0,0,0,0.05); transition-delay:.08s">
+          <div class="w-12 h-12 rounded-2xl flex items-center justify-center mb-5 text-2xl"
+               style="background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.12)">💬</div>
+          <h3 class="font-black text-xl mb-2" style="letter-spacing:-0.02em"
+              data-es="Mensaje listo en segundos"
+              data-val="Missatge llest en segons">Mensaje listo en segundos</h3>
+          <p class="text-gray-500 mb-5 text-sm leading-relaxed"
+             data-es="partits. redacta automáticamente el aviso del partido con fecha, hora, lugar, transporte y enlace de confirmación. Tú solo lo mandas."
+             data-val="partits. redacta automàticament l'avís del partit amb data, hora, lloc, transport i enllaç de confirmació. Tu només l'envies.">
+            partits. redacta automáticamente el aviso del partido con fecha, hora, lugar, transporte y enlace de confirmación. Tú solo lo mandas.
+          </p>
+          <!-- Mockup: WhatsApp-style message -->
+          <div class="rounded-xl p-3" style="background:#111b21">
+            <div class="px-3.5 py-3 rounded-xl rounded-tl-none text-xs leading-relaxed max-w-[88%]"
+                 style="background:#005c4b; box-shadow:0 1px 3px rgba(0,0,0,0.3)">
+              <div class="font-black mb-1" style="color:#86efac">🏀 CONVOCATORIA</div>
+              <div style="color:rgba(220,252,231,0.88)"
+                   data-es="📅 Sáb 7 jun · 10:00h<br>🏛️ Pabellón Municipal<br>🚌 Salida 9:15h desde el pabellón<br><br>Confirma asistencia 👇"
+                   data-val="📅 Dis 7 juny · 10:00h<br>🏛️ Pavelló Municipal<br>🚌 Eixida 9:15h des del pavelló<br><br>Confirma assistència 👇">
+                📅 Sáb 7 jun · 10:00h<br>🏛️ Pabellón Municipal<br>🚌 Salida 9:15h desde el pabellón<br><br>Confirma asistencia 👇
+              </div>
+              <div class="mt-2 text-xs underline" style="color:#93c5fd">partits.app/confirmación</div>
+              <div class="mt-1.5 text-right text-xs" style="color:rgba(134,239,172,0.5)">✓✓ 14:32</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES CLUBS — dark section -->
+  <section class="py-20 px-6 grid-pattern" style="background:#09090b">
+    <div class="max-w-4xl mx-auto">
+      <div class="mb-10 fade-up">
+        <span class="label-pill label-pill-dark"
+              data-es="PARA CLUBS" data-val="PER A CLUBS">PARA CLUBS</span>
+        <h2 class="font-black text-3xl text-white" style="letter-spacing:-0.02em; line-height:1.15"
+            data-es="Un club, todos los entrenadores"
+            data-val="Un club, tots els entrenadors">Un club, todos los entrenadores</h2>
+      </div>
+      <div class="grid md:grid-cols-2 gap-5">
+        <div class="fade-up text-white rounded-2xl p-8 card-hover card-hover-dark dark-card-inset"
+             style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); backdrop-filter:blur(8px); transition-delay:.0s">
+          <div class="text-2xl mb-4">🏀</div>
+          <h3 class="font-black text-xl mb-2" style="letter-spacing:-0.02em"
+              data-es="Gestión centralizada" data-val="Gestió centralitzada">Gestión centralizada</h3>
+          <p class="text-gray-400 text-sm leading-relaxed"
+             data-es="El admin del club paga una suscripción y todos los entrenadores tienen acceso Pro. Sin tarjetas individuales."
+             data-val="L'admin del club paga una subscripció i tots els entrenadors tenen accés Pro. Sense targetes individuals.">
+            El admin del club paga una suscripción y todos los entrenadores tienen acceso Pro. Sin tarjetas individuales.
+          </p>
+        </div>
+        <div class="fade-up text-white rounded-2xl p-8 card-hover card-hover-dark"
+             style="background:linear-gradient(145deg,#f97316 0%,#ea580c 100%); box-shadow:0 8px 32px rgba(249,115,22,0.25); transition-delay:.08s">
+          <div class="text-2xl mb-4">🔑</div>
+          <h3 class="font-black text-xl mb-2" style="letter-spacing:-0.02em"
+              data-es="Código de invitación" data-val="Codi d'invitació">Código de invitación</h3>
+          <p class="leading-relaxed text-sm" style="color:rgba(255,255,255,0.8)"
+             data-es="Añade entrenadores con un código PARTITS-XXXXXX. Se unen en segundos, sin burocracia."
+             data-val="Afig entrenadors amb un codi PARTITS-XXXXXX. S'uneixen en segons, sense burocràcia.">
+            Añade entrenadores con un código PARTITS-XXXXXX. Se unen en segundos, sin burocracia.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section id="pricing" class="py-20 px-6" style="background:#fafafa">
+    <div class="max-w-4xl mx-auto">
+      <div class="text-center mb-12 fade-up">
+        <h2 class="text-4xl font-black mb-2" style="letter-spacing:-0.025em"
+            data-es="Planes y precios" data-val="Plans i preus">Planes y precios</h2>
+        <p class="text-gray-400"
+           data-es="Empieza gratis. Escala cuando lo necesites."
+           data-val="Comença gratis. Escala quan ho necessites.">Empieza gratis. Escala cuando lo necesites.</p>
+      </div>
+      <div class="grid md:grid-cols-3 gap-5 items-start">
+
+        <!-- GRATIS -->
+        <div class="fade-up relative overflow-hidden bg-white rounded-2xl p-7 card-hover card-hover-light card-accent"
+             style="border:1px solid rgba(0,0,0,0.06); box-shadow:0 1px 2px rgba(0,0,0,0.04); transition-delay:.0s">
+          <div class="text-xs font-black tracking-widest text-gray-400 uppercase mb-5 flex items-center gap-2">
+            <span data-es="GRATIS" data-val="GRATIS">GRATIS</span>
+          </div>
+          <div class="mb-1" style="letter-spacing:-0.04em">
+            <span class="text-4xl font-black">€0</span>
+          </div>
+          <div class="text-gray-400 text-sm mb-7"
+               data-es="Para siempre" data-val="Per sempre">Para siempre</div>
+          <ul class="space-y-2.5 text-sm text-gray-600 mb-7">
+            <li class="flex items-center gap-2">
+              <span class="w-4 h-4 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0" style="background:rgba(34,197,94,0.12); color:#16a34a">✓</span>
+              <span data-es="1 equipo" data-val="1 equip">1 equipo</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="w-4 h-4 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0" style="background:rgba(34,197,94,0.12); color:#16a34a">✓</span>
+              <span data-es="8 partidos" data-val="8 partits">8 partidos</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="w-4 h-4 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0" style="background:rgba(34,197,94,0.12); color:#16a34a">✓</span>
+              <span data-es="Matriz y convocatoria" data-val="Matriu i convocatòria">Matriz y convocatoria</span>
+            </li>
+          </ul>
+          <a href="/"
+             class="block text-center font-bold py-3 rounded-xl transition-colors text-sm"
+             style="background:#f3f4f6; color:#111827"
+             onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f3f4f6'"
+             data-es="Empezar gratis" data-val="Començar gratis">Empezar gratis</a>
+        </div>
+
+        <!-- PRO — gradient border wrapper -->
+        <div class="fade-up relative pro-border-wrap" style="transition-delay:.08s">
+          <!-- popular badge — outside the card, positioned via relative parent -->
+          <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap">
+            <span class="badge-shimmer text-white text-xs font-black px-4 py-1.5 rounded-full tracking-wide"
+                  style="box-shadow:0 2px 12px rgba(249,115,22,0.4)"
+                  data-es="MÁS POPULAR" data-val="MÉS POPULAR">MÁS POPULAR</span>
+          </div>
+          <!-- inner card -->
+          <div class="text-white p-7 h-full" style="background:#0d0d0f; border-radius:16px">
+            <div class="text-xs font-black tracking-widest text-orange-400 uppercase mb-5 mt-2">PRO</div>
+            <div class="mb-0.5" style="letter-spacing:-0.04em">
+              <span class="text-4xl font-black">€1.99</span>
+              <span class="text-gray-500 text-sm">/mes</span>
+            </div>
+            <div class="text-gray-600 text-sm mb-7"
+                 data-es="o €16.99/año (~30% dto.)" data-val="o €16.99/any (~30% dte.)">o €16.99/año (~30% dto.)</div>
+            <ul class="space-y-2.5 text-sm text-gray-300 mb-7">
+              <li class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0" style="background:rgba(249,115,22,0.15); color:#f97316">✓</span>
+                <span data-es="Equipos ilimitados" data-val="Equips il·limitats">Equipos ilimitados</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0" style="background:rgba(249,115,22,0.15); color:#f97316">✓</span>
+                <span data-es="Partidos ilimitados" data-val="Partits il·limitats">Partidos ilimitados</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0" style="background:rgba(249,115,22,0.15); color:#f97316">✓</span>
+                <span data-es="Sincronización FBCV" data-val="Sincronització FBCV">Sincronización FBCV</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0" style="background:rgba(249,115,22,0.15); color:#f97316">✓</span>
+                <span data-es="Funciones futuras" data-val="Funcions futures">Funciones futuras</span>
+              </li>
+            </ul>
+            <a href="/subscribe"
+               class="block text-center text-white font-black py-3.5 rounded-xl btn-glow text-sm"
+               style="background:linear-gradient(160deg,#f97316 0%,#ea580c 100%)"
+               data-es="Hazte Pro" data-val="Fes-te Pro">Hazte Pro</a>
+          </div>
+        </div>
+
+        <!-- CLUB -->
+        <div class="fade-up relative overflow-hidden bg-white rounded-2xl p-7 card-hover card-hover-light card-accent"
+             style="border:2px solid #111827; transition-delay:.16s">
+          <div class="text-xs font-black tracking-widest text-gray-400 uppercase mb-5"
+               data-es="CLUB" data-val="CLUB">CLUB</div>
+          <div class="mb-0.5" style="letter-spacing:-0.04em">
+            <span class="text-lg text-gray-400 font-semibold"
+                  data-es="desde " data-val="des de ">desde </span>
+            <span class="text-4xl font-black">€9.99</span>
+            <span class="text-gray-400 text-sm">/mes</span>
+          </div>
+          <div class="text-gray-400 text-sm mb-7"
+               data-es="Hasta 10, 20 o 30 entrenadores" data-val="Fins a 10, 20 o 30 entrenadors">Hasta 10, 20 o 30 entrenadores</div>
+          <ul class="space-y-2.5 text-sm text-gray-600 mb-7">
+            <li class="flex items-center gap-2">
+              <span class="w-4 h-4 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0" style="background:rgba(34,197,94,0.12); color:#16a34a">✓</span>
+              <span data-es="Todo lo de Pro" data-val="Tot el de Pro">Todo lo de Pro</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="w-4 h-4 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0" style="background:rgba(34,197,94,0.12); color:#16a34a">✓</span>
+              <span data-es="Gestión centralizada" data-val="Gestió centralitzada">Gestión centralizada</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="w-4 h-4 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0" style="background:rgba(34,197,94,0.12); color:#16a34a">✓</span>
+              <span data-es="Código de invitación" data-val="Codi d'invitació">Código de invitación</span>
+            </li>
+          </ul>
+          <a href="/club-subscribe"
+             class="block text-center font-black py-3 rounded-xl transition-colors text-sm"
+             style="background:#111827; color:#fff"
+             onmouseover="this.style.background='#1f2937'" onmouseout="this.style.background='#111827'"
+             data-es="Ver plan Club" data-val="Veure pla Club">Ver plan Club</a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA FINAL -->
+  <section class="py-28 px-6 text-white text-center cta-bg grid-pattern">
+    <div class="max-w-2xl mx-auto fade-up">
+      <div class="font-black mb-3 text-white" style="font-size:4.5rem; letter-spacing:-0.04em; line-height:1">
+        partits<span class="text-orange-500">.</span>
+      </div>
+      <h2 class="text-3xl font-black mb-3" style="letter-spacing:-0.02em"
+          data-es="Empieza gratis hoy" data-val="Comença gratis avui">Empieza gratis hoy</h2>
+      <p class="text-lg mb-10" style="color:rgba(255,255,255,0.4)"
+         data-es="Sin tarjeta de crédito. Sin compromiso."
+         data-val="Sense targeta de crèdit. Sense compromís.">Sin tarjeta de crédito. Sin compromiso.</p>
+      <a href="/"
+         class="inline-block text-white font-black text-lg px-12 py-4 rounded-2xl btn-glow"
+         style="background:linear-gradient(160deg,#f97316 0%,#ea580c 100%)"
+         data-es="Crear cuenta gratis" data-val="Crear compte gratis">Crear cuenta gratis</a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="py-10 px-6 footer-top" style="background:#050505; color:#6b7280">
+    <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm">
+      <div class="font-black text-white text-lg" style="letter-spacing:-0.03em">
+        partits<span class="text-orange-500">.</span>
+      </div>
+      <div class="flex gap-6">
+        <a href="#"
+           class="hover:text-gray-300 transition-colors"
+           data-es="Política de privacidad" data-val="Política de privacitat">Política de privacidad</a>
+        <span class="text-gray-700">·</span>
+        <a href="mailto:jorgibeni7@gmail.com"
+           class="hover:text-gray-300 transition-colors"
+           data-es="Contacto" data-val="Contacte">Contacto</a>
+      </div>
+      <div style="color:#374151" data-es="© 2026 partits." data-val="© 2026 partits.">© 2026 partits.</div>
+    </div>
+  </footer>
+
+  <script>
+    /* Language toggle */
+    function setLang(lang) {
+      document.querySelectorAll('[data-es]').forEach(function(el) {
+        var val = el.dataset[lang];
+        if (val !== undefined) el.innerHTML = val;
+      });
+      var activeClass   = 'px-3 py-1.5 font-semibold transition-colors bg-white text-gray-900';
+      var inactiveClass = 'px-3 py-1.5 font-semibold transition-colors text-white/50 hover:text-white';
+      document.getElementById('btn-es').className  = lang === 'es'  ? activeClass : inactiveClass;
+      document.getElementById('btn-val').className = lang === 'val' ? activeClass : inactiveClass;
+      localStorage.setItem('lang', lang);
+      document.body.style.visibility = 'visible';
+    }
+    try { setLang(localStorage.getItem('lang') || 'val'); } catch(e) { setLang('val'); document.body.style.visibility = 'visible'; }
+
+    /* Scroll fade-up */
+    var observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.08 });
+
+    document.querySelectorAll('.fade-up').forEach(function(el) {
+      observer.observe(el);
+    });
+  </script>
+</body>
+</html>

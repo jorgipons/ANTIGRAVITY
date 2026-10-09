@@ -36,13 +36,14 @@ export const generateInfoConvo = (match, team, players, lang = 'val') => {
   if (confirmed.length === 0) return baseInfo;
 
   const playersText = confirmed.map(p => `- ${p.name}`).join('\n');
+  const link = getAttendanceLink(team.id || '', match.id || '');
   if (lang === 'val') {
-    return `${baseInfo}\n\n👥  Convocats:\n${playersText}`;
+    return `${baseInfo}\n\n👥  Convocats:\n${playersText}\n\n✅  Confirmar convocatòria:\n${link}`;
   } else {
-    return `${baseInfo}\n\n👥  Convocados:\n${playersText}`;
+    return `${baseInfo}\n\n👥  Convocados:\n${playersText}\n\n✅  Confirmar convocatoria:\n${link}`;
   }
 };
 
 export const getAttendanceLink = (teamId, matchId, isPublic = true) => {
-  return `https://jorgipons.github.io/ANTIGRAVITY/basketball-manager/?matchId=${matchId}`;
+  return `https://basketmanager-ed370.web.app/attendance?matchId=${matchId}`;
 };

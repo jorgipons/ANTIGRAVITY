@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { db } from '../constants/firebase';
-import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 
 const PREF_KEY = '@partits_notif_enabled';
 
@@ -17,55 +17,62 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export const usePushNotifications = (user) => {
-  const [expoPushToken, setExpoPushToken] = useState('');
-  const [notification, setNotification] = useState(false);
-  const [notifEnabled, setNotifEnabled] = useState(true);
-  const notificationListener = useRef();
-  const responseListener = useRef();
+const NotificationsContext = createContext({ notifEnabled: true, toggleNotifications: () => {} });
 
-  // Carga preferencia guardada
+export function NotificationsProvider({ user, children }) {
+  const [notifEnabled, setNotifEnabled] = useState(true);
+  const [loaded, setLoaded] = useState(false);
+  const notifListenerRef = useRef();
+  const responseListenerRef = useRef();
+
+  // Leer preferencia guardada al montar
   useEffect(() => {
     AsyncStorage.getItem(PREF_KEY).then(val => {
       if (val === 'false') setNotifEnabled(false);
+      setLoaded(true);
     });
   }, []);
 
-  // Registra o elimina el token según la preferencia y el usuario
+  // Registrar/eliminar token cuando cambia la preferencia o el usuario
   useEffect(() => {
-    if (!user) return;
+    if (!loaded || !user) return;
 
     if (notifEnabled) {
       registerForPushNotificationsAsync().then(token => {
-        setExpoPushToken(token || '');
-        if (token) saveTokenToFirestore(user.uid, token);
+        if (token) saveToken(user.uid, token);
       });
     } else {
-      // Sin token en Firestore = sin notificaciones
-      setExpoPushToken('');
-      removeTokenFromFirestore(user.uid);
+      removeToken(user.uid);
     }
 
-    notificationListener.current = Notifications.addNotificationReceivedListener(n => {
-      setNotification(n);
-    });
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(() => {});
+    notifListenerRef.current = Notifications.addNotificationReceivedListener(() => {});
+    responseListenerRef.current = Notifications.addNotificationResponseReceivedListener(() => {});
 
     return () => {
-      notificationListener.current?.remove();
-      responseListener.current?.remove();
+      notifListenerRef.current?.remove();
+      responseListenerRef.current?.remove();
     };
-  }, [user, notifEnabled]);
+  }, [user, notifEnabled, loaded]);
 
   const toggleNotifications = useCallback(async (enabled) => {
     setNotifEnabled(enabled);
     await AsyncStorage.setItem(PREF_KEY, String(enabled));
   }, []);
 
-  return { expoPushToken, notification, notifEnabled, toggleNotifications };
-};
+  return (
+    <NotificationsContext.Provider value={{ notifEnabled, toggleNotifications }}>
+      {children}
+    </NotificationsContext.Provider>
+  );
+}
 
-async function saveTokenToFirestore(userId, token) {
+export function useNotifications() {
+  return useContext(NotificationsContext);
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+async function saveToken(userId, token) {
   try {
     await setDoc(doc(db, 'userTokens', userId), {
       token,
@@ -77,7 +84,7 @@ async function saveTokenToFirestore(userId, token) {
   }
 }
 
-async function removeTokenFromFirestore(userId) {
+async function removeToken(userId) {
   try {
     await deleteDoc(doc(db, 'userTokens', userId));
   } catch { /* ya no existía */ }
@@ -95,9 +102,9 @@ async function registerForPushNotificationsAsync() {
 
   if (!Device.isDevice) return null;
 
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-  if (existingStatus !== 'granted') {
+  const { status: existing } = await Notifications.getPermissionsAsync();
+  let finalStatus = existing;
+  if (existing !== 'granted') {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }
@@ -108,7 +115,7 @@ async function registerForPushNotificationsAsync() {
     const token = await Notifications.getExpoPushTokenAsync({ projectId });
     return token.data;
   } catch (e) {
-    console.error('Error getting Expo push token:', e);
+    console.error('Error getting push token:', e);
     return null;
   }
 }

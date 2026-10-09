@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Confirmar asistencia · partits.</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-up { animation: fadeUp 0.4s ease-out forwards; }
+    @keyframes spinAnim { to { transform: rotate(360deg); } }
+    .spin { animation: spinAnim 0.8s linear infinite; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50">
+  <div id="root" class="min-h-screen flex items-center justify-center p-4 md:p-8"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <script>
+    firebase.initializeApp({
+      apiKey: "AIzaSyAAbaUEbPjltfQrDethVojxoxD1gj4AC0w",
+      authDomain: "basketmanager-ed370.firebaseapp.com",
+      projectId: "basketmanager-ed370",
+      storageBucket: "basketmanager-ed370.firebasestorage.app",
+      messagingSenderId: "177594386006",
+      appId: "1:177594386006:web:8eef1b258c8dc6b395ddf7"
+    });
+    const db = firebase.firestore();
+
+    const matchId = new URLSearchParams(window.location.search).get('matchId');
+
+    let state = {
+      loading: true, error: null,
+      match: null, team: null,
+      selectedPlayerId: '', status: 'available', submitted: false,
+    };
+
+    function setState(updates) {
+      state = { ...state, ...updates };
+      render();
+    }
+
+    // ── Rendering ──────────────────────────────────────────────────────────────
+
+    function render() {
+      const root = document.getElementById('root');
+
+      if (state.loading) {
+        root.innerHTML = `
+          <div class="flex flex-col items-center gap-4">
+            <div class="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full spin"></div>
+            <p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Cargando datos del partido...</p>
+          </div>`;
+        return;
+      }
+
+      if (state.error || !state.match || !state.team) {
+        root.innerHTML = `
+          <div class="bg-white p-8 rounded-3xl shadow-xl border border-slate-100 text-center max-w-sm w-full">
+            <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <i data-lucide="alert-circle" class="w-8 h-8 text-red-500"></i>
+            </div>
+            <h2 class="text-xl font-bold text-slate-800 mb-2">${state.error || 'Partido no encontrado'}</h2>
+            <p class="text-slate-500 text-sm">El enlace puede haber expirado o ser incorrecto.</p>
+          </div>`;
+        lucide.createIcons();
+        return;
+      }
+
+      if (state.submitted) {
+        const player = state.team.players.find(p => p.id === state.selectedPlayerId);
+        root.innerHTML = `
+          <div class="bg-white p-8 rounded-3xl shadow-xl border border-slate-200 text-center max-w-sm w-full fade-up">
+            <div class="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <i data-lucide="check-circle" class="w-8 h-8 text-green-500"></i>
+            </div>
+            <h2 class="text-xl font-bold text-slate-800 mb-2">¡Confirmación enviada!</h2>
+            <p class="text-slate-500 text-sm mb-6">Gracias por confirmar la asistencia para <strong>${player?.name || ''}</strong>.</p>
+            <p class="text-slate-400 text-xs italic">Esta confirmación ya no se puede modificar.</p>
+          </div>`;
+        lucide.createIcons();
+        return;
+      }
+
+      renderForm();
+    }
+
+    function renderForm() {
+      const { match, team, selectedPlayerId, status } = state;
+      const root = document.getElementById('root');
+
+      const [dy, dm, dd] = (match.date || '').split('-');
+      const dateStr = (dy && dm && dd) ? `${dd}/${dm}/${dy}` : (match.date || '');
+
+      const alreadyConfirmed = !!match.attendance?.[selectedPlayerId];
+
+      const playerOptions = team.players
+        .slice().sort((a, b) => parseInt(a.number) - parseInt(b.number))
+        .map(p => {
+          const done = !!match.attendance?.[p.id];
+          return `<option value="${p.id}" ${done ? 'disabled' : ''}>#${p.number} ${p.name}${done ? ' ✓' : ''}</option>`;
+        }).join('');
+
+      const homeAway = match.isHome
+        ? `<span class="bg-white/20 px-2 py-0.5 rounded text-xs font-bold">🏠 Casa</span>`
+        : `<span class="bg-white/20 px-2 py-0.5 rounded text-xs font-bold">${match.transportType === 'bus' ? '🚌' : '🚗'} Visitante</span>`;
+
+      root.innerHTML = `
+        <div class="w-full max-w-md flex flex-col items-center gap-4 fade-up">
+          <div class="w-full bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
+
+            <!-- Header -->
+            <div class="bg-[#1A3D77] p-6 text-white text-center">
+              <p class="text-xs font-bold uppercase tracking-widest text-blue-200 mb-1">${team.name}</p>
+              <h1 class="text-xl font-bold mb-1">vs ${match.opponent}</h1>
+              <div class="flex justify-center mb-3">${homeAway}</div>
+              <div class="flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-sm text-blue-100">
+                <div class="flex items-center gap-1.5">
+                  <i data-lucide="calendar" class="w-4 h-4 text-blue-300"></i>
+                  ${dateStr}
+                </div>
+                <div class="flex items-center gap-1.5 font-bold">
+                  <i data-lucide="clock" class="w-4 h-4 text-blue-300"></i>
+                  ${match.time}h
+                </div>
+                ${match.callTime ? `
+                <div class="flex items-center gap-1.5 bg-white/20 px-2 py-0.5 rounded font-bold text-white">
+                  <i data-lucide="bell" class="w-3.5 h-3.5"></i>
+                  Cita: ${match.callTime}h
+                </div>` : ''}
+                ${match.location ? `
+                <div class="flex items-center gap-1.5 w-full justify-center border-t border-white/10 pt-2 mt-1">
+                  <i data-lucide="map-pin" class="w-4 h-4 text-blue-300"></i>
+                  ${match.location}
+                </div>` : ''}
+              </div>
+            </div>
+
+            <!-- Form -->
+            <div class="p-6 space-y-5">
+              <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Selecciona al jugador</label>
+                <select id="playerSelect"
+                  class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-blue-500 outline-none text-slate-800 font-medium appearance-none"
+                  style="background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 1rem center;background-size:1.25rem">
+                  <option value="">-- Elige un jugador --</option>
+                  ${playerOptions}
+                </select>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <button id="btnAvailable"
+                  class="p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all cursor-pointer
+                    ${status === 'available' ? 'bg-green-50 border-green-500' : 'bg-white border-slate-100 hover:border-slate-200'}">
+                  <div class="w-10 h-10 rounded-full flex items-center justify-center
+                    ${status === 'available' ? 'bg-green-500 text-white' : 'bg-slate-100 text-slate-400'}">
+                    <i data-lucide="check" class="w-5 h-5"></i>
+                  </div>
+                  <span class="font-bold text-sm ${status === 'available' ? 'text-green-700' : 'text-slate-400'}">Disponible</span>
+                </button>
+                <button id="btnUnavailable"
+                  class="p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all cursor-pointer
+                    ${status === 'unavailable' ? 'bg-red-50 border-red-500' : 'bg-white border-slate-100 hover:border-slate-200'}">
+                  <div class="w-10 h-10 rounded-full flex items-center justify-center
+                    ${status === 'unavailable' ? 'bg-red-500 text-white' : 'bg-slate-100 text-slate-400'}">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                  </div>
+                  <span class="font-bold text-sm ${status === 'unavailable' ? 'text-red-700' : 'text-slate-400'}">No disponible</span>
+                </button>
+              </div>
+
+              ${alreadyConfirmed ? `
+              <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
+                <i data-lucide="info" class="w-5 h-5 text-amber-500 shrink-0"></i>
+                <p class="text-xs text-amber-700">Este jugador ya tiene una confirmación registrada.</p>
+              </div>` : ''}
+
+              <button id="btnConfirm" ${!selectedPlayerId || alreadyConfirmed ? 'disabled' : ''}
+                class="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-base shadow-lg shadow-blue-200
+                  hover:bg-blue-700 active:scale-95 transition-all
+                  disabled:opacity-40 disabled:shadow-none disabled:cursor-not-allowed disabled:active:scale-100">
+                Confirmar asistencia
+              </button>
+
+              <p class="text-center text-xs text-slate-400 flex items-center justify-center gap-1.5">
+                <i data-lucide="lock" class="w-3 h-3"></i>
+                Tu respuesta es privada y solo la verá el entrenador.
+              </p>
+            </div>
+          </div>
+
+          <p class="text-xs text-slate-400 pb-4">partits. · Gestor Basket</p>
+        </div>`;
+
+      lucide.createIcons();
+
+      document.getElementById('playerSelect').addEventListener('change', e => {
+        setState({ selectedPlayerId: e.target.value });
+      });
+      document.getElementById('btnAvailable').addEventListener('click', () => setState({ status: 'available' }));
+      document.getElementById('btnUnavailable').addEventListener('click', () => setState({ status: 'unavailable' }));
+      const confirmBtn = document.getElementById('btnConfirm');
+      if (confirmBtn) confirmBtn.addEventListener('click', handleConfirm);
+    }
+
+    // ── Actions ────────────────────────────────────────────────────────────────
+
+    async function handleConfirm() {
+      const { match, team, selectedPlayerId, status } = state;
+      if (!selectedPlayerId) return;
+
+      const playerName = team.players.find(p => p.id === selectedPlayerId)?.name || 'el jugador';
+      const action = status === 'available' ? 'ASISTIRÁ' : 'NO ASISTIRÁ';
+      if (!confirm(`¿Confirmas que ${playerName} ${action} al partido vs ${match.opponent}?`)) return;
+
+      const btn = document.getElementById('btnConfirm');
+      if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+
+      try {
+        const attendance = { ...(match.attendance || {}) };
+        attendance[selectedPlayerId] = { status, updatedAt: new Date().toISOString() };
+        await db.collection('matches').doc(matchId).update({ attendance });
+        setState({ submitted: true });
+      } catch (err) {
+        console.error(err);
+        alert('Error al enviar la confirmación. Inténtalo de nuevo.');
+        if (btn) { btn.disabled = false; btn.textContent = 'Confirmar asistencia'; }
+      }
+    }
+
+    // ── Load data ──────────────────────────────────────────────────────────────
+
+    async function loadData() {
+      if (!matchId) { setState({ loading: false, error: 'Enlace inválido — falta el ID del partido.' }); return; }
+
+      try {
+        const matchSnap = await db.collection('matches').doc(matchId).get();
+        if (!matchSnap.exists) { setState({ loading: false, error: 'Partido no encontrado.' }); return; }
+        const match = { id: matchSnap.id, ...matchSnap.data() };
+
+        const teamSnap = await db.collection('teams').doc(match.teamId).get();
+        if (!teamSnap.exists) { setState({ loading: false, error: 'Equipo no encontrado.' }); return; }
+        const team = { id: teamSnap.id, ...teamSnap.data() };
+
+        setState({ match, team, loading: false });
+      } catch (err) {
+        console.error(err);
+        setState({ loading: false, error: 'Error al cargar los datos.' });
+      }
+    }
+
+    render();
+    loadData();
+  </script>
+</body>
+</html>

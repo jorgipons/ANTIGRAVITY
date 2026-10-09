@@ -1,43 +1,94 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Modal, TextInput, ActivityIndicator, ScrollView, Platform } from 'react-native';
-
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import {
+  View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Modal,
+  TextInput, ActivityIndicator, ScrollView, Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ChevronLeft, Plus, UserPlus, Trash2, Edit2, Play, AlertCircle, Settings, Calendar, Clock, MapPin, Users, Activity, RefreshCw, Trophy, Target, ChevronDown, Info, XCircle, Dribbble, Bell } from 'lucide-react-native';
-import { COLORS } from '../constants/colors';
+import {
+  Menu, ChevronLeft, Plus, UserPlus, Trash2, Edit2, AlertCircle, Settings,
+  Calendar, Clock, MapPin, Users, Activity, RefreshCw, Trophy, ChevronDown,
+  XCircle, Dribbble, Bell, Copy, ExternalLink, Save, Check, HelpCircle,
+} from 'lucide-react-native';
+import { useTheme } from '../theme/ThemeContext';
+import AppDrawer from '../components/AppDrawer';
+import GuidedTourOverlay from '../components/GuidedTourOverlay';
 import { ROLES, ROLE_KEYS, getRoleConfig, ROLE_COLORS_PALETTE, getAvailableRoleKeys } from '../constants/roles';
 import { useTeams } from '../hooks/useTeams';
 import { useMatches } from '../hooks/useMatches';
 import { db } from '../constants/firebase';
-import { doc, getDoc, updateDoc, writeBatch, collection, addDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { syncWithFederation, importFederationMatches } from '../utils/federation';
 import * as Clipboard from 'expo-clipboard';
 import { generateInfoPartido, generateInfoConvo, getAttendanceLink } from '../utils/sharing';
-import { Bus, Car, Copy, ExternalLink, Share2 } from 'lucide-react-native';
 import { Swipeable, RectButton } from 'react-native-gesture-handler';
-
-
+import { useLayout } from '../hooks/useLayout';
+import OfflineBanner from '../components/OfflineBanner';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { writeDoc } from '../utils/writeDoc';
+import { cacheDoc, getCachedDoc } from '../utils/offlineCache';
+import { useSubscription } from '../hooks/useSubscription';
+import PaywallModal from '../components/PaywallModal';
+import CreateMatchModal from '../components/CreateMatchModal';
 
 export default function TeamDetailScreen() {
+  const T = useTheme();
+  const styles = useMemo(() => makeStyles(T), [T]);
   const navigation = useNavigation();
   const route = useRoute();
   const { teamId } = route.params;
-  const { updateTeam, deleteTeam } = useTeams();
-  
+  const { deleteTeam } = useTeams();
+  const { IS_TABLET, IS_TABLET_LANDSCAPE } = useLayout();
+
   const [team, setTeam] = useState(null);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingPlayerId, setEditingPlayerId] = useState(null);
   const [playerForm, setPlayerForm] = useState({ name: '', number: '', role: 'receptor' });
-
   const [configModalVisible, setConfigModalVisible] = useState(false);
   const [teamForm, setTeamForm] = useState(null);
   const [syncMenuVisible, setSyncMenuVisible] = useState(false);
   const [syncingAll, setSyncingAll] = useState(false);
   const [matchEditModalVisible, setMatchEditModalVisible] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingMatch, setEditingMatch] = useState(null);
+  const [matchesExpanded, setMatchesExpanded] = useState(false);
+  const [tourActive, setTourActive] = useState(false);
+  const [syncMessage, setSyncMessage] = useState(null);
+  const { isPro } = useSubscription();
+  const [paywallVisible, setPaywallVisible] = useState(false);
+  const [paywallFeature, setPaywallFeature] = useState('');
+  const [createMatchVisible, setCreateMatchVisible] = useState(false);
 
-  const scrollRef = useRef(null);
+  const showPaywall = (featureName = '') => {
+    setPaywallFeature(featureName);
+    setPaywallVisible(true);
+  };
+  const handleSyncComplete = React.useCallback((count) => {
+    setSyncMessage(`✓ ${count} cambio(s) sincronizado(s)`);
+    setTimeout(() => setSyncMessage(null), 3000);
+  }, []);
+  const { isOnline } = useNetworkStatus({ onSyncComplete: handleSyncComplete });
+  const MATCHES_PREVIEW = 5;
+
+  const scrollRef       = useRef(null);
+  const scrollOffsetRef = useRef(0);
+  const menuBtnRef      = useRef(null);
+  const configureBtnRef = useRef(null);
+  const fedCardRef      = useRef(null);
+  const playersSectRef  = useRef(null);
+  const addPlayerBtnRef = useRef(null);
+
+  const TOUR_STEPS = [
+    { ref: menuBtnRef,      title: 'Menú lateral',      text: 'Navega a otras secciones de la app.' },
+    { ref: configureBtnRef, title: 'Configurar equipo',  text: 'Cambia el nombre, el modo de partido (Pasarela 8P, 6P o Libre) y los roles de cada posición. Aquí también introduces el ID de federación FBCV para sincronizar partidos.' },
+    { ref: fedCardRef,      title: 'Sincronización FBCV', text: 'Una vez configurado el ID de federación, esta tarjeta aparece. Pulsa "Sincro" para importar automáticamente los partidos del equipo desde la FBCV.' },
+    { ref: playersSectRef,  title: 'Jugadores',          text: 'Aquí aparece la plantilla completa con número de dorsal y posición.' },
+    { ref: addPlayerBtnRef, title: 'Añadir jugador',     text: 'Añade un nuevo jugador con su nombre, dorsal y posición.' },
+  ];
+
   const [playersSectionY, setPlayersSectionY] = useState(0);
 
   const scrollToPlayers = () => {
@@ -48,18 +99,16 @@ export default function TeamDetailScreen() {
 
   const { matches, addMatch, updateMatch: updateMatchHook, deleteMatch } = useMatches(teamId);
 
+  const effectiveMatchCount = Math.max(team?.matchCount || 0, matches.length);
 
   const nextMatch = React.useMemo(() => {
     if (!matches || matches.length === 0) return null;
     const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    const todayStr = `${year}-${month}-${day}`;
-
-    const upcomingMs = matches.filter(m => m.state !== 'finished' && m.date >= todayStr);
-    upcomingMs.sort((a, b) => new Date(a.date + 'T' + (a.time || '00:00')) - new Date(b.date + 'T' + (b.time || '00:00')));
-    return upcomingMs.length > 0 ? upcomingMs[0] : null;
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const upcoming = matches
+      .filter(m => m.state !== 'finished' && m.date >= todayStr)
+      .sort((a, b) => new Date(a.date + 'T' + (a.time || '00:00')) - new Date(b.date + 'T' + (b.time || '00:00')));
+    return upcoming.length > 0 ? upcoming[0] : null;
   }, [matches]);
 
   const sortedPlayers = React.useMemo(() => {
@@ -67,23 +116,23 @@ export default function TeamDetailScreen() {
     return [...team.players].sort((a, b) => parseInt(a.number || 0) - parseInt(b.number || 0));
   }, [team?.players]);
 
-
   useEffect(() => {
-    // Real-time listener for just this team (or fetch once)
-    const fetchTeam = async () => {
-      try {
-        const teamDoc = await getDoc(doc(db, 'teams', teamId));
-        if (teamDoc.exists()) {
-          setTeam({ id: teamDoc.id, ...teamDoc.data() });
-        }
-      } catch (e) {
-        Alert.alert('Error', 'No se pudo cargar el equipo');
-      } finally {
-        setLoading(false);
+    // 1. Caché proactiva — visible inmediatamente sin red
+    getCachedDoc('teams', teamId).then(cached => {
+      if (cached) { setTeam(cached); setLoading(false); }
+    });
+
+    // 2. Firestore actualiza cuando haya red
+    getDoc(doc(db, 'teams', teamId)).then(teamDoc => {
+      if (teamDoc.exists()) {
+        const data = { id: teamDoc.id, ...teamDoc.data() };
+        setTeam(data);
+        cacheDoc('teams', teamId, data);
       }
-    };
-    fetchTeam();
-    // In a real app we'd use onSnapshot here for real-time updates of the players array
+      setLoading(false);
+    }).catch(() => {
+      setLoading(false); // caché ya cargado arriba
+    });
   }, [teamId]);
 
   const openPlayerModal = (player = null) => {
@@ -102,110 +151,99 @@ export default function TeamDetailScreen() {
       Alert.alert('Error', 'Formulario incompleto');
       return;
     }
-
     try {
       let newPlayers = [...(team.players || [])];
-      
       if (editingPlayerId) {
-        newPlayers = newPlayers.map(p => 
-          p.id === editingPlayerId ? { ...playerForm, id: p.id } : p
-        );
+        newPlayers = newPlayers.map(p => p.id === editingPlayerId ? { ...playerForm, id: p.id } : p);
       } else {
         const newId = Date.now().toString() + Math.random().toString(36).substring(2, 9);
         newPlayers.push({ ...playerForm, id: newId });
       }
-
-      await updateTeam(teamId, { players: newPlayers });
       setTeam({ ...team, players: newPlayers });
+      await writeDoc('teams', teamId, { players: newPlayers });
       setModalVisible(false);
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'No se pudo guardar el jugador');
     }
   };
 
   const handleDeletePlayer = (playerId, playerName) => {
-    Alert.alert(
-      'Eliminar',
-      `¿Seguro que quieres eliminar a ${playerName}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Eliminar', 
-          style: 'destructive',
-          onPress: async () => {
-            const newPlayers = team.players.filter(p => p.id !== playerId);
-            await updateTeam(teamId, { players: newPlayers });
-            setTeam({ ...team, players: newPlayers });
-          }
-        }
-      ]
-    );
+    Alert.alert('Eliminar', `¿Seguro que quieres eliminar a ${playerName}?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar', style: 'destructive',
+        onPress: async () => {
+          const newPlayers = team.players.filter(p => p.id !== playerId);
+          setTeam({ ...team, players: newPlayers });
+          await writeDoc('teams', teamId, { players: newPlayers });
+        },
+      },
+    ]);
   };
 
   const handleDeleteTeam = () => {
-    Alert.alert(
-      '¡Atención!',
-      '¿Quieres eliminar este equipo y TODOS sus partidos de forma irreversible?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Eliminar Equipo', 
-          style: 'destructive',
-          onPress: async () => {
-            await deleteTeam(teamId);
-            navigation.goBack();
-          }
-        }
-      ]
-    );
+    Alert.alert('¡Atención!', '¿Quieres eliminar este equipo y TODOS sus partidos de forma irreversible?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar Equipo', style: 'destructive',
+        onPress: async () => { await deleteTeam(teamId); navigation.goBack(); },
+      },
+    ]);
   };
 
   const openConfigModal = () => {
     const currentRoles = {};
     const availableKeys = getAvailableRoleKeys(team);
     availableKeys.forEach(key => {
-      const conf = getRoleConfig(team, key);
-      currentRoles[key] = { label: conf.label, color: conf.color, bg: conf.bg };
+      const conf = getRoleConfig(team, key, T.isDark);
+      currentRoles[key] = {
+        label: conf.label, color: conf.color, bg: conf.bg,
+        position: conf.position ?? null, order: conf.order ?? 99,
+      };
     });
-    setTeamForm({ 
-      name: team.name, 
-      roles: currentRoles,
-      federationId: team.federationId || ''
-    });
+    setTeamForm({ name: team.name, roles: currentRoles, federationId: team.federationId || '', mode: team.mode || 'pasarela' });
     setConfigModalVisible(true);
   };
 
   const handleSaveTeamConfig = async () => {
     try {
       if (!teamForm.name.trim()) return Alert.alert('Error', 'El nombre no puede estar vacío');
-      await updateTeam(teamId, { 
-        name: teamForm.name, 
-        roles: teamForm.roles,
-        federationId: teamForm.federationId
-      });
-      setTeam({ 
-        ...team, 
-        name: teamForm.name, 
-        roles: teamForm.roles,
-        federationId: teamForm.federationId
-      });
+      const sorted = {};
+      Object.entries(teamForm.roles)
+        .sort(([, a], [, b]) => (a.position ?? 999) - (b.position ?? 999))
+        .forEach(([k, v], i) => { sorted[k] = { ...v, order: v.position ?? (100 + i) }; });
+      setTeam({ ...team, name: teamForm.name, roles: sorted, federationId: teamForm.federationId, mode: teamForm.mode });
+      await writeDoc('teams', teamId, { name: teamForm.name, roles: sorted, federationId: teamForm.federationId, mode: teamForm.mode });
       setConfigModalVisible(false);
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'No se guardó la configuración');
     }
+  };
+
+  const handleAddRole = () => {
+    const orders = Object.values(teamForm.roles).map(r => r.order || 0);
+    const nextOrder = orders.length > 0 ? Math.max(...orders) + 1 : 1;
+    const newKey = `custom_${Date.now()}`;
+    setTeamForm(prev => ({
+      ...prev,
+      roles: {
+        ...prev.roles,
+        [newKey]: { label: 'Nuevo rol', color: ROLE_COLORS_PALETTE[0].color, bg: ROLE_COLORS_PALETTE[0].bg, position: null, order: nextOrder },
+      },
+    }));
+  };
+
+  const handleDeleteRole = (rk) => {
+    setTeamForm(prev => {
+      const { [rk]: _, ...rest } = prev.roles;
+      return { ...prev, roles: rest };
+    });
   };
 
   const handleRoleColorSet = (roleKey, paletteColor) => {
     setTeamForm(prev => ({
       ...prev,
-      roles: {
-        ...prev.roles,
-        [roleKey]: {
-          ...prev.roles[roleKey],
-          color: paletteColor.color,
-          bg: paletteColor.bg
-        }
-      }
+      roles: { ...prev.roles, [roleKey]: { ...prev.roles[roleKey], color: paletteColor.color, bg: paletteColor.bg } },
     }));
   };
 
@@ -216,13 +254,13 @@ export default function TeamDetailScreen() {
     try {
       const res = await syncWithFederation(team.federationId);
       if (res.success) {
-        await updateTeam(teamId, { federationData: res.data });
         setTeam(prev => ({ ...prev, federationData: res.data }));
+        await writeDoc('teams', teamId, { federationData: res.data });
         Alert.alert('Éxito', 'Clasificación actualizada');
       } else {
         Alert.alert('Error', res.error);
       }
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'Fallo en la sincronización');
     } finally {
       setSyncingAll(false);
@@ -235,91 +273,84 @@ export default function TeamDetailScreen() {
     setSyncMenuVisible(false);
     try {
       const res = await importFederationMatches(team.federationId, mode);
-      if (!res.success) {
-        Alert.alert('Error', res.error);
-        return;
-      }
-
-      let imported = 0;
-      let updated = 0;
+      if (!res.success) { Alert.alert('Error', res.error); return; }
+      let imported = 0, updated = 0;
       const initialPlayers = team.players || [];
-
       for (const fedMatch of res.matches) {
         const existing = matches.find(m => m.federationMatchId === fedMatch.federationMatchId);
         if (!existing) {
           await addMatch({ ...fedMatch, players: initialPlayers });
           imported++;
         } else {
-          // Check for relevant changes (score, date, time)
-          const needsUpdate = 
-            existing.date !== fedMatch.date || 
-            existing.time !== fedMatch.time || 
-            existing.state !== fedMatch.state ||
-            JSON.stringify(existing.score) !== JSON.stringify(fedMatch.score);
-          
+          const needsUpdate = existing.date !== fedMatch.date || existing.time !== fedMatch.time
+            || existing.state !== fedMatch.state
+            || JSON.stringify(existing.score) !== JSON.stringify(fedMatch.score);
           if (needsUpdate) {
             await updateMatchHook(existing.id, {
-              date: fedMatch.date,
-              time: fedMatch.time,
-              state: fedMatch.state,
-              score: fedMatch.score,
-              result: fedMatch.result,
-              location: fedMatch.location
+              date: fedMatch.date, time: fedMatch.time, state: fedMatch.state,
+              score: fedMatch.score, result: fedMatch.result, location: fedMatch.location,
             });
             updated++;
           }
         }
       }
+      // Also update standings after syncing matches
+      const standRes = await syncWithFederation(team.federationId);
+      if (standRes.success) {
+        setTeam(prev => ({ ...prev, federationData: standRes.data }));
+        await writeDoc('teams', teamId, { federationData: standRes.data });
+      }
       Alert.alert('Sincronización completa', `${imported} partidos nuevos, ${updated} actualizados.`);
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'Fallo al importar partidos');
     } finally {
       setSyncingAll(false);
     }
   };
 
-  const openMatchEdit = (match) => {
-    setEditingMatch({ ...match });
-    setMatchEditModalVisible(true);
-  };
+  const openMatchEdit = (match) => { setEditingMatch({ ...match }); setMatchEditModalVisible(true); };
 
   const handleSaveMatchEdit = async () => {
     if (!editingMatch) return;
     try {
       await updateMatchHook(editingMatch.id, {
-        opponent: editingMatch.opponent,
-        date: editingMatch.date,
-        time: editingMatch.time,
-        location: editingMatch.location,
-        isHome: editingMatch.isHome,
-        matchDay: editingMatch.matchDay || '',
-        callTime: editingMatch.callTime || '',
-        departureTime: editingMatch.departureTime || '',
-        departureLocation: editingMatch.departureLocation || '',
-        transportType: editingMatch.transportType || 'car',
-        returnTime: editingMatch.returnTime || '',
-        observations: editingMatch.observations || ''
+        opponent: editingMatch.opponent, date: editingMatch.date, time: editingMatch.time,
+        location: editingMatch.location, isHome: editingMatch.isHome,
+        matchDay: editingMatch.matchDay || '', callTime: editingMatch.callTime || '',
+        departureTime: editingMatch.departureTime || '', departureLocation: editingMatch.departureLocation || '',
+        transportType: editingMatch.transportType || 'car', returnTime: editingMatch.returnTime || '',
+        observations: editingMatch.observations || '',
       });
       setMatchEditModalVisible(false);
       setEditingMatch(null);
       Alert.alert('Éxito', 'Configuración del partido actualizada');
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'No se pudo guardar el partido');
     }
   };
 
+  const handleDeleteMatch = (matchId, opponent) => {
+    const message = `¿Seguro que quieres eliminar el partido contra ${opponent}?`;
+    if (Platform.OS === 'web') {
+      if (window.confirm(message)) deleteMatch(matchId).catch(() => Alert.alert('Error', 'No se pudo eliminar'));
+      return;
+    }
+    Alert.alert('Eliminar Partido', message, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Eliminar', style: 'destructive', onPress: async () => { try { await deleteMatch(matchId); } catch { Alert.alert('Error', 'No se pudo eliminar'); } } },
+    ]);
+  };
+
   const copyMatchInfo = async (lang) => {
     if (!editingMatch) return;
-    const text = generateInfoPartido(editingMatch, team, lang);
-    await Clipboard.setStringAsync(text);
+    await Clipboard.setStringAsync(generateInfoPartido(editingMatch, team, lang));
     Alert.alert('Copiado', 'Información del partido copiada');
   };
 
   const copyRoster = async (lang) => {
     if (!editingMatch) return;
     const playersList = editingMatch.players || team.players || [];
-    const text = generateInfoConvo(editingMatch, team, playersList, lang);
-    await Clipboard.setStringAsync(text);
+    await Clipboard.setStringAsync(generateInfoConvo(editingMatch, team, playersList, lang));
     Alert.alert('Copiado', 'Convocatoria copiada');
   };
 
@@ -330,87 +361,59 @@ export default function TeamDetailScreen() {
     Alert.alert('Enlace copiado', url);
   };
 
-
-  const handleDeleteMatch = (matchId, opponent) => {
-    const message = `¿Seguro que quieres eliminar el partido contra ${opponent}?`;
-    
-    if (Platform.OS === 'web') {
-      if (window.confirm(message)) {
-        deleteMatch(matchId).catch(e => Alert.alert('Error', 'No se pudo eliminar el partido'));
-      }
-      return;
-    }
-
-    Alert.alert(
-      'Eliminar Partido',
-      message,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Eliminar', 
-          style: 'destructive', 
-          onPress: async () => {
-            try {
-              await deleteMatch(matchId);
-            } catch (e) {
-              Alert.alert('Error', 'No se pudo eliminar el partido');
-            }
-          } 
-        }
-      ]
-    );
-  };
-
   const renderMatchItem = (item) => {
     const isFinished = item.state === 'finished';
-
-    const renderRightActions = (id, opponent) => (
+    const renderRightActions = (id, opp) => (
       <View style={{ width: 80, height: '100%', marginBottom: 12 }}>
-        <RectButton
-          style={[styles.deleteAction, { height: '100%', borderRadius: 16 }]}
-          onPress={() => handleDeleteMatch(id, opponent)}
-        >
-          <Trash2 color={COLORS.white} size={24} />
+        <RectButton style={[styles.swipeDelete, { height: '100%', borderRadius: 14 }]} onPress={() => handleDeleteMatch(id, opp)}>
+          <Trash2 color={T.white} size={22} />
         </RectButton>
       </View>
     );
-
+    const dateParts = item.date?.split('-');
+    const dateDisplay = dateParts?.length === 3 ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}` : item.date;
     return (
-      <Swipeable
-        key={item.id}
-        renderRightActions={() => renderRightActions(item.id, item.opponent)}
-        containerStyle={{ marginBottom: 12 }}
-      >
-        <View style={[styles.matchCardDetailed, { marginBottom: 0 }]}>
-          <TouchableOpacity 
-            style={styles.matchMainInfo}
-            onPress={() => navigation.navigate('MatchMatrix', { matchId: item.id, teamId })}
-          >
-            <Text style={styles.matchOpponentText} numberOfLines={1}>{item.opponent}</Text>
-            <View style={styles.matchMetaRow}>
-              <Text style={styles.matchMetaText}>{item.date} • {item.time ? `${item.time}h` : '--:--'} • {item.isHome ? 'CASA' : 'VIS'} </Text>
+      <Swipeable key={item.id} renderRightActions={() => renderRightActions(item.id, item.opponent)} containerStyle={{ marginBottom: 10 }}>
+        <View style={[styles.matchCard, { marginBottom: 0 }]}>
+          {/* Result accent bar */}
+          {isFinished && (
+            <View style={[styles.matchResultBar, {
+              backgroundColor: item.result === 'won' ? T.pos : item.result === 'lost' ? T.neg : T.borderHard,
+            }]} />
+          )}
+          {/* Top: opponent + score */}
+          <TouchableOpacity onPress={() => navigation.navigate('MatchMatrix', { matchId: item.id, teamId })}>
+            <View style={styles.matchTopRow}>
+              <Text style={styles.matchOpponent}>{item.opponent}</Text>
               {isFinished && item.score && (
-                  <View style={[styles.inlineScoreBox, { backgroundColor: item.result === 'won' ? COLORS.successLight : item.result === 'lost' ? COLORS.dangerLight : COLORS.slate100 }]}>
-                      <Text style={[styles.inlineScoreText, { color: item.result === 'won' ? COLORS.success : item.result === 'lost' ? COLORS.danger : COLORS.slate600 }]}>{item.score.local}-{item.score.visitor}</Text>
-                  </View>
+                <View style={[styles.scoreBox, { backgroundColor: item.result === 'won' ? T.posSoft : item.result === 'lost' ? T.negSoft : T.panel }]}>
+                  <Text style={[styles.scoreText, { color: item.result === 'won' ? T.pos : item.result === 'lost' ? T.neg : T.textSub }]}>
+                    {item.score.local}–{item.score.visitor}
+                  </Text>
+                </View>
               )}
             </View>
+            <Text style={styles.matchMetaText}>
+              {dateDisplay} · {item.time ? `${item.time}h` : '--:--'} · {item.isHome ? 'Casa' : 'Visitante'}
+            </Text>
           </TouchableOpacity>
-
-          <View style={styles.matchActionsRightIcons}>
-            <TouchableOpacity style={styles.matchActionIconBtn} onPress={() => navigation.navigate('MatchAttendance', { matchId: item.id, teamId })}>
-              <Users color={COLORS.slate400} size={18} />
+          {/* Bottom: actions */}
+          <View style={styles.matchDivider} />
+          <View style={styles.matchActions}>
+            <TouchableOpacity style={styles.matchActionBtn} onPress={() => navigation.navigate('MatchAttendance', { matchId: item.id, teamId })}>
+              <Users color={T.textSub} size={14} strokeWidth={1.8} />
+              <Text style={styles.matchActionLabel}>Asistencia</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.matchActionIconBtn} onPress={() => openMatchEdit(item)}>
-              <Edit2 color={COLORS.slate400} size={18} />
+            <View style={styles.matchActionSep} />
+            <TouchableOpacity style={styles.matchActionBtn} onPress={() => openMatchEdit(item)}>
+              <Edit2 color={T.textSub} size={14} strokeWidth={1.8} />
+              <Text style={styles.matchActionLabel}>Editar</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.matchActionIconBtn, { backgroundColor: '#FFF7ED' }]} 
-              onPress={() => navigation.navigate('MatchMatrix', { matchId: item.id, teamId })}
-            >
-              <Dribbble color="#EA580C" size={18} />
+            <View style={styles.matchActionSep} />
+            <TouchableOpacity style={[styles.matchActionBtn, styles.matchActionBtnPrimary]} onPress={() => navigation.navigate('MatchMatrix', { matchId: item.id, teamId })}>
+              <Dribbble color={T.orange} size={14} strokeWidth={1.8} />
+              <Text style={[styles.matchActionLabel, { color: T.orange, fontFamily: T.fontBold }]}>Partido</Text>
             </TouchableOpacity>
-
           </View>
         </View>
       </Swipeable>
@@ -420,7 +423,7 @@ export default function TeamDetailScreen() {
   if (loading || !team) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={T.orange} />
       </View>
     );
   }
@@ -428,293 +431,506 @@ export default function TeamDetailScreen() {
   const fedData = team?.federationData || null;
   const sortedMatches = matches ? [...matches].sort((a, b) => new Date(b.date) - new Date(a.date)) : [];
 
-
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ChevronLeft color={COLORS.slate600} size={24} />
-        </TouchableOpacity>
-        <View style={styles.headerTitleBox}>
-          <Text style={styles.headerTitle} numberOfLines={1}>{team.name}</Text>
-        </View>
-        <View style={styles.headerRightIcons}>
-          <TouchableOpacity onPress={scrollToPlayers} style={styles.headerIconBtn}>
-            <Users color={COLORS.slate600} size={22} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('MatchList', { teamId, initialViewMode: 'calendar' })} style={styles.headerIconBtn}>
-            <Calendar color={COLORS.slate600} size={22} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={openConfigModal} style={styles.headerIconBtn}>
-            <Settings color={COLORS.slate600} size={22} />
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <StatusBar style="light" backgroundColor={T.ink2} />
+      <LinearGradient colors={[T.ink2, T.ink]} style={styles.header}>
+        {/* Top row: menu + name */}
+        <View style={styles.headerTop}>
+          {!IS_TABLET_LANDSCAPE && (
+            <TouchableOpacity ref={menuBtnRef} style={styles.headerIconBtn} onPress={() => setDrawerOpen(true)}>
+              <Menu color="rgba(255,255,255,0.7)" size={20} strokeWidth={1.8} />
+            </TouchableOpacity>
+          )}
+          <Text style={styles.headerTitle}>{team.name}</Text>
+          <TouchableOpacity onPress={() => setTourActive(true)} style={styles.headerIconBtn}>
+            <HelpCircle color="rgba(255,255,255,0.65)" size={20} />
           </TouchableOpacity>
         </View>
-      </View>
+        {/* Action buttons row */}
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerActionBtn} onPress={scrollToPlayers}>
+            <Users color="rgba(255,255,255,0.8)" size={16} strokeWidth={1.8} />
+            <Text style={styles.headerActionText}>Jugadores</Text>
+          </TouchableOpacity>
+          <View style={styles.headerActionSep} />
+          <TouchableOpacity style={styles.headerActionBtn} onPress={() => navigation.navigate('MatchList', { teamId, initialViewMode: 'calendar' })}>
+            <Calendar color="rgba(255,255,255,0.8)" size={16} strokeWidth={1.8} />
+            <Text style={styles.headerActionText}>Calendario</Text>
+          </TouchableOpacity>
+          <View style={styles.headerActionSep} />
+          <TouchableOpacity ref={configureBtnRef} style={styles.headerActionBtn} onPress={openConfigModal}>
+            <Settings color="rgba(255,255,255,0.8)" size={16} strokeWidth={1.8} />
+            <Text style={styles.headerActionText}>Configurar</Text>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+      <OfflineBanner isOnline={isOnline} syncMessage={syncMessage} />
 
-      <ScrollView 
-        ref={scrollRef}
-        style={styles.container} 
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Federation Section */}
-        {team.federationId ? (
-          <View style={[styles.fedCard, syncMenuVisible && { zIndex: 1000, elevation: 10 }]}>
-            <View style={[styles.fedHeader, syncMenuVisible && { zIndex: 1001 }]}>
-
-              <View style={styles.fedTitleBox}>
-                <RefreshCw color={COLORS.primary} size={16} />
-                <Text style={styles.fedTitle}>Federación FBCV</Text>
-              </View>
-              <View style={styles.syncBtnContainer}>
-                <TouchableOpacity 
-                    style={styles.syncBtnMain}
-                    onPress={() => setSyncMenuVisible(!syncMenuVisible)}
-                >
-                  {syncingAll ? (
-                    <ActivityIndicator size="small" color={COLORS.white} />
-                  ) : (
-                    <>
-                      <Activity color={COLORS.white} size={14} />
-                      <Text style={styles.syncBtnText}>Sincro Smart</Text>
-                      <ChevronDown color={COLORS.white} size={14} />
-                    </>
-                  )}
-                </TouchableOpacity>
-                {syncMenuVisible && (
-                  <View style={styles.syncDropdown}>
-                    <TouchableOpacity style={styles.syncOption} onPress={() => handleSyncMatches('smart')}>
-                      <Text style={styles.syncOptionText}>Sincro Smart (Actual + Sig.)</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.syncOption} onPress={() => handleSyncMatches('total')}>
-                      <Text style={styles.syncOptionText}>Sincro Total (Toda la temp.)</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.syncOption} onPress={() => handleSyncStanding()}>
-                      <Text style={styles.syncOptionText}>Actualizar Clasificación</Text>
+      {IS_TABLET_LANDSCAPE ? (
+        /* Two-column layout for tablet landscape */
+        <View style={styles.twoColContainer}>
+          {/* Left column: Players */}
+          <ScrollView style={styles.twoColLeft} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16 }}>
+            <View
+              ref={playersSectRef}
+              style={[styles.sectionRow, { marginTop: 0 }]}
+              onLayout={(e) => setPlayersSectionY(e.nativeEvent.layout.y)}
+            >
+              <Text style={styles.sectionTitle}>Jugadores ({sortedPlayers.length})</Text>
+              <TouchableOpacity ref={addPlayerBtnRef} onPress={() => openPlayerModal()} style={styles.addLinkBtn}>
+                <Plus color={T.orange} size={16} />
+                <Text style={styles.addLinkText}>Añadir</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.playersGrid}>
+              {sortedPlayers.map(item => {
+                const roleConf = getRoleConfig(team, item.role || 'receptor', T.isDark);
+                return (
+                  <View key={item.id} style={styles.playerCard}>
+                    <View style={styles.playerNumBox}>
+                      <Text style={styles.playerNum}>{item.number}</Text>
+                    </View>
+                    <Text style={styles.playerName} numberOfLines={1}>{item.name}</Text>
+                    <View style={[styles.playerRoleDot, { backgroundColor: roleConf?.bg }]}>
+                      <Text style={[styles.playerRoleText, { color: roleConf?.color }]}>{roleConf?.label?.[0]}</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => openPlayerModal(item)} style={styles.playerEditBtn}>
+                      <Edit2 color={T.borderHard} size={15} />
                     </TouchableOpacity>
                   </View>
+                );
+              })}
+            </View>
+            <View style={{ height: 32 }} />
+            <TouchableOpacity onPress={handleDeleteTeam} style={styles.deleteTeamBtn}>
+              <Trash2 color={T.neg} size={15} />
+              <Text style={styles.deleteTeamText}>Eliminar Equipo</Text>
+            </TouchableOpacity>
+            <View style={{ height: 48 }} />
+          </ScrollView>
+
+          {/* Right column: Fed card + Next match + Matches */}
+          <ScrollView style={styles.twoColRight} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16 }}>
+            {/* Federation Card */}
+            {team.federationId && (
+              <View ref={fedCardRef} style={[styles.fedCard, syncMenuVisible && { zIndex: 1000, elevation: 10 }]}>
+                <View style={[styles.fedHeader, syncMenuVisible && { zIndex: 1001 }]}>
+                  <View style={styles.fedTitleBox}>
+                    <RefreshCw color={T.blue} size={15} />
+                    <Text style={styles.fedTitle}>Federació FBCV</Text>
+                  </View>
+                  <View style={styles.syncBtnContainer}>
+                    <TouchableOpacity
+                      style={styles.syncBtn}
+                      onPress={() => {
+                        if (!isPro) { showPaywall('Sincronización FBCV'); return; }
+                        setSyncMenuVisible(!syncMenuVisible);
+                      }}
+                    >
+                      {syncingAll ? (
+                        <ActivityIndicator size="small" color={T.white} />
+                      ) : (
+                        <>
+                          <Activity color={T.white} size={13} />
+                          <Text style={styles.syncBtnText}>Sincro</Text>
+                          <ChevronDown color={T.white} size={13} />
+                        </>
+                      )}
+                    </TouchableOpacity>
+                    {syncMenuVisible && (
+                      <View style={styles.syncDropdown}>
+                        <TouchableOpacity style={styles.syncOption} onPress={() => handleSyncMatches('smart')}>
+                          <Text style={styles.syncOptionText}>Sincro Smart (Actual + Sig.)</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.syncOption} onPress={() => handleSyncMatches('total')}>
+                          <Text style={styles.syncOptionText}>Sincro Total (Toda la temp.)</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.syncOption} onPress={() => handleSyncStanding()}>
+                          <Text style={styles.syncOptionText}>Actualizar Clasificación</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                {fedData ? (
+                  <View style={styles.fedStats}>
+                    <View style={styles.fedStatRow}>
+                      <View style={styles.fedStatItem}>
+                        <Text style={styles.fedStatLabel}>POS</Text>
+                        <Text style={styles.fedStatValue}>{fedData.standing?.position || '--'}º</Text>
+                      </View>
+                      <View style={styles.fedStatItem}>
+                        <Text style={styles.fedStatLabel}>PTS</Text>
+                        <Text style={styles.fedStatValue}>{fedData.standing?.points || '--'}</Text>
+                      </View>
+                      <View style={styles.fedStatItem}>
+                        <Text style={styles.fedStatLabel}>V/D</Text>
+                        <Text style={styles.fedStatValue}>{fedData.standing?.wins}/{fedData.standing?.losses}</Text>
+                      </View>
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={styles.fedEmpty}>Sincroniza para ver clasificación</Text>
                 )}
               </View>
-            </View>
-
-            {fedData ? (
-              <View style={[styles.fedStatsGrid, { zIndex: 1 }]}>
-                <View style={styles.fedStatRow}>
-                   <View style={styles.fedStatItemInline}>
-                      <Text style={styles.fedStatLabelInline}>POSICIÓN: </Text>
-                      <Text style={styles.fedStatValueInline}>{fedData.standing?.position || '--'}º</Text>
-                   </View>
-                   <View style={styles.fedStatItemInline}>
-                      <Text style={styles.fedStatLabelInline}>PUNTOS: </Text>
-                      <Text style={styles.fedStatValueInline}>{fedData.standing?.points || '--'}</Text>
-                   </View>
-                </View>
-                <View style={styles.fedStatRowCompact}>
-                   <Text style={styles.fedStatSubText}>V/D: {fedData.standing?.wins}/{fedData.standing?.losses}   PF/PC: {fedData.standing?.scoreFavour}/{fedData.standing?.scoreAgainst}</Text>
-                </View>
-              </View>
-            ) : (
-
-                <Text style={styles.fedStatEmpty}>Sincroniza para ver clasificación</Text>
             )}
-          </View>
-        ) : null}
 
-        {/* Next Match Widget */}
-        {nextMatch && (
-            <TouchableOpacity 
-              style={styles.nextMatchWidget}
-              onPress={() => navigation.navigate('MatchMatrix', { matchId: nextMatch.id, teamId })}
-              activeOpacity={0.8}
-            >
-              <View style={styles.nextMatchHeader}>
+            {/* Next match card */}
+            {nextMatch && (
+              <TouchableOpacity
+                style={styles.nmWidget}
+                onPress={() => navigation.navigate('MatchMatrix', { matchId: nextMatch.id, teamId })}
+                activeOpacity={0.85}
+              >
+                <View style={styles.nmHeaderRow}>
                   <View style={styles.nmTitleRow}>
-                      <View style={styles.nmStatusDot} />
-                      <Text style={styles.nextMatchTitle}>PRÓXIMO PARTIDO</Text>
+                    <View style={styles.nmDot} />
+                    <Text style={styles.nmLabel}>PRÓXIMO PARTIDO</Text>
                   </View>
-                  <View style={[styles.badge, nextMatch.isHome ? styles.badgeHome : styles.badgeAway]}>
-                    <Text style={styles.badgeText}>{nextMatch.isHome ? '🏠 CASA' : (nextMatch.transportType === 'car' ? '🚗 COCHE' : '🚌 BUS')}</Text>
+                  <View style={[styles.nmBadge, nextMatch.isHome ? styles.nmBadgeHome : styles.nmBadgeAway]}>
+                    <Text style={styles.nmBadgeText}>{nextMatch.isHome ? '🏠 CASA' : (nextMatch.transportType === 'car' ? '🚗 COCHE' : '🚌 BUS')}</Text>
                   </View>
-              </View>
-              
-              <View style={styles.nmMainContent}>
-                <View style={styles.nmInfoColumn}>
-                  <Text style={styles.nextMatchOpponent} numberOfLines={1}>{nextMatch.opponent.toUpperCase()}</Text>
-                  
-                  <View style={styles.nmRow}>
-                      <Clock color={COLORS.slate400} size={13} />
-                      <Text style={styles.nmText}>
-                        {new Date(nextMatch.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} • {nextMatch.time}h
+                </View>
+
+                <View style={styles.nmBody}>
+                  <View style={styles.nmInfoCol}>
+                    <Text style={styles.nmOpponent} numberOfLines={1}>{nextMatch.opponent.toUpperCase()}</Text>
+                    <View style={styles.nmRow}>
+                      <Clock color="rgba(255,255,255,0.4)" size={13} />
+                      <Text style={styles.nmRowText}>
+                        {new Date(nextMatch.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} · {nextMatch.time}h
                       </Text>
-                  </View>
-                  
-                  {nextMatch.location && (
-                    <View style={styles.nmLocationPill}>
-                        <MapPin color={COLORS.slate400} size={11} />
+                    </View>
+                    {nextMatch.location && (
+                      <View style={styles.nmLocationPill}>
+                        <MapPin color="rgba(255,255,255,0.4)" size={11} />
                         <Text style={styles.nmLocationText} numberOfLines={1}>{nextMatch.location.toUpperCase()}</Text>
+                      </View>
+                    )}
+                    <View style={styles.nmRow}>
+                      <Bell color={T.pos} size={13} />
+                      <Text style={[styles.nmRowText, { color: T.pos }]}>
+                        Convocatoria: {nextMatch.callTime || '--:--'}h
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.nmRightCol}>
+                    <View style={styles.nmAttBox}>
+                      <TouchableOpacity
+                        onPress={(e) => { e.stopPropagation(); navigation.navigate('MatchAttendance', { matchId: nextMatch.id, teamId }); }}
+                        style={styles.nmUsersBtn}
+                        activeOpacity={0.7}
+                      >
+                        <Users color="rgba(255,255,255,0.8)" size={18} />
+                      </TouchableOpacity>
+                      <View style={styles.nmStatsRow}>
+                        <View style={styles.nmStatMini}><View style={[styles.nmStatDot, { backgroundColor: T.pos }]} /><Text style={styles.nmStatCount}>{nextMatch.attendance ? Object.values(nextMatch.attendance).filter(a => a.status === 'available').length : 0}</Text></View>
+                        <View style={styles.nmStatMini}><View style={[styles.nmStatDot, { backgroundColor: T.neg }]} /><Text style={styles.nmStatCount}>{nextMatch.attendance ? Object.values(nextMatch.attendance).filter(a => a.status === 'unavailable').length : 0}</Text></View>
+                        <View style={styles.nmStatMini}><View style={[styles.nmStatDot, { backgroundColor: 'rgba(255,255,255,0.3)' }]} /><Text style={styles.nmStatCount}>{team?.players ? team.players.length - (nextMatch.attendance ? Object.values(nextMatch.attendance).filter(a => a.status === 'available' || a.status === 'unavailable').length : 0) : 0}</Text></View>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            {/* Matches Section */}
+            <View style={styles.sectionRow}>
+              <Text style={styles.sectionTitle}>Partidos</Text>
+              <TouchableOpacity
+                style={styles.addLinkBtn}
+                onPress={() => {
+                  if (!isPro && effectiveMatchCount >= 8) { showPaywall('Creación de partidos'); return; }
+                  setCreateMatchVisible(true);
+                }}
+              >
+                <Plus color={T.orange} size={16} />
+                <Text style={styles.addLinkText}>Nuevo Partido</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.matchesSection}>
+              {sortedMatches.length === 0 ? (
+                <Text style={styles.emptySectionText}>No hay partidos creados.</Text>
+              ) : (
+                <>
+                  {sortedMatches.slice(0, matchesExpanded ? sortedMatches.length : MATCHES_PREVIEW).map(renderMatchItem)}
+                  {sortedMatches.length > MATCHES_PREVIEW && (
+                    <TouchableOpacity
+                      style={styles.accordionBtn}
+                      onPress={() => setMatchesExpanded(!matchesExpanded)}
+                    >
+                      <ChevronDown
+                        color={T.textSub}
+                        size={16}
+                        strokeWidth={2}
+                        style={{ transform: [{ rotate: matchesExpanded ? '180deg' : '0deg' }] }}
+                      />
+                      <Text style={styles.accordionText}>
+                        {matchesExpanded
+                          ? 'Ver menos'
+                          : `Ver ${sortedMatches.length - MATCHES_PREVIEW} partidos más`}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
+            </View>
+          </ScrollView>
+        </View>
+      ) : (
+        /* Single column — existing ScrollView UNCHANGED */
+        <ScrollView
+          ref={scrollRef}
+          style={styles.container}
+          contentContainerStyle={IS_TABLET && !IS_TABLET_LANDSCAPE ? { maxWidth: 680, alignSelf: 'center', width: '100%' } : undefined}
+          showsVerticalScrollIndicator={false}
+          onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}
+          scrollEventThrottle={16}
+        >
+
+          {/* Federation Card */}
+          {team.federationId && (
+            <View ref={fedCardRef} style={[styles.fedCard, syncMenuVisible && { zIndex: 1000, elevation: 10 }]}>
+              <View style={[styles.fedHeader, syncMenuVisible && { zIndex: 1001 }]}>
+                <View style={styles.fedTitleBox}>
+                  <RefreshCw color={T.blue} size={15} />
+                  <Text style={styles.fedTitle}>Federació FBCV</Text>
+                </View>
+                <View style={styles.syncBtnContainer}>
+                  <TouchableOpacity
+                    style={styles.syncBtn}
+                    onPress={() => {
+                      if (!isPro) { showPaywall('Sincronización FBCV'); return; }
+                      setSyncMenuVisible(!syncMenuVisible);
+                    }}
+                  >
+                    {syncingAll ? (
+                      <ActivityIndicator size="small" color={T.white} />
+                    ) : (
+                      <>
+                        <Activity color={T.white} size={13} />
+                        <Text style={styles.syncBtnText}>Sincro</Text>
+                        <ChevronDown color={T.white} size={13} />
+                      </>
+                    )}
+                  </TouchableOpacity>
+                  {syncMenuVisible && (
+                    <View style={styles.syncDropdown}>
+                      <TouchableOpacity style={styles.syncOption} onPress={() => handleSyncMatches('smart')}>
+                        <Text style={styles.syncOptionText}>Sincro Smart (Actual + Sig.)</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.syncOption} onPress={() => handleSyncMatches('total')}>
+                        <Text style={styles.syncOptionText}>Sincro Total (Toda la temp.)</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.syncOption} onPress={() => handleSyncStanding()}>
+                        <Text style={styles.syncOptionText}>Actualizar Clasificación</Text>
+                      </TouchableOpacity>
                     </View>
                   )}
+                </View>
+              </View>
 
-                  <View style={styles.nmRow}>
-                      <Bell color={COLORS.success} size={13} />
-                      <Text style={[styles.nmText, { color: COLORS.success, fontWeight: '700' }]}>
-                        Convocatoria: {nextMatch.callTime || '--:--'}h {nextMatch.callTime ? '(1h antes)' : ''}
-                      </Text>
+              {fedData ? (
+                <View style={styles.fedStats}>
+                  <View style={styles.fedStatRow}>
+                    <View style={styles.fedStatItem}>
+                      <Text style={styles.fedStatLabel}>POS</Text>
+                      <Text style={styles.fedStatValue}>{fedData.standing?.position || '--'}º</Text>
+                    </View>
+                    <View style={styles.fedStatItem}>
+                      <Text style={styles.fedStatLabel}>PTS</Text>
+                      <Text style={styles.fedStatValue}>{fedData.standing?.points || '--'}</Text>
+                    </View>
+                    <View style={styles.fedStatItem}>
+                      <Text style={styles.fedStatLabel}>V/D</Text>
+                      <Text style={styles.fedStatValue}>{fedData.standing?.wins}/{fedData.standing?.losses}</Text>
+                    </View>
                   </View>
                 </View>
-                
-                <View style={styles.nmRightPart}>
-                  <View style={styles.nmAttendanceCircle}>
-                    <Calendar color="rgba(255,255,255,0.05)" size={40} style={styles.nmBgIcon} />
+              ) : (
+                <Text style={styles.fedEmpty}>Sincroniza para ver clasificación</Text>
+              )}
+            </View>
+          )}
+
+          {/* Next Match */}
+          {nextMatch && (
+            <TouchableOpacity
+              style={styles.nmWidget}
+              onPress={() => navigation.navigate('MatchMatrix', { matchId: nextMatch.id, teamId })}
+              activeOpacity={0.85}
+            >
+              <View style={styles.nmHeaderRow}>
+                <View style={styles.nmTitleRow}>
+                  <View style={styles.nmDot} />
+                  <Text style={styles.nmLabel}>PRÓXIMO PARTIDO</Text>
+                </View>
+                <View style={[styles.nmBadge, nextMatch.isHome ? styles.nmBadgeHome : styles.nmBadgeAway]}>
+                  <Text style={styles.nmBadgeText}>{nextMatch.isHome ? '🏠 CASA' : (nextMatch.transportType === 'car' ? '🚗 COCHE' : '🚌 BUS')}</Text>
+                </View>
+              </View>
+
+              <View style={styles.nmBody}>
+                <View style={styles.nmInfoCol}>
+                  <Text style={styles.nmOpponent} numberOfLines={1}>{nextMatch.opponent.toUpperCase()}</Text>
+                  <View style={styles.nmRow}>
+                    <Clock color="rgba(255,255,255,0.4)" size={13} />
+                    <Text style={styles.nmRowText}>
+                      {new Date(nextMatch.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} · {nextMatch.time}h
+                    </Text>
+                  </View>
+                  {nextMatch.location && (
+                    <View style={styles.nmLocationPill}>
+                      <MapPin color="rgba(255,255,255,0.4)" size={11} />
+                      <Text style={styles.nmLocationText} numberOfLines={1}>{nextMatch.location.toUpperCase()}</Text>
+                    </View>
+                  )}
+                  <View style={styles.nmRow}>
+                    <Bell color={T.pos} size={13} />
+                    <Text style={[styles.nmRowText, { color: T.pos }]}>
+                      Convocatoria: {nextMatch.callTime || '--:--'}h
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.nmRightCol}>
+                  <View style={styles.nmAttBox}>
                     <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        navigation.navigate('MatchAttendance', { matchId: nextMatch.id, teamId });
-                      }}
-                      style={styles.nmUserIcon}
+                      onPress={(e) => { e.stopPropagation(); navigation.navigate('MatchAttendance', { matchId: nextMatch.id, teamId }); }}
+                      style={styles.nmUsersBtn}
                       activeOpacity={0.7}
                     >
                       <Users color="rgba(255,255,255,0.8)" size={18} />
                     </TouchableOpacity>
-                    <View style={styles.nmStatsOverlay}>
-                      <View style={styles.nmStatMini}>
-                        <View style={[styles.nmStatDot, { backgroundColor: COLORS.success }]} />
-                        <Text style={styles.nmStatCount}>
-                          {nextMatch.attendance ? Object.values(nextMatch.attendance).filter(a => a.status === 'available').length : 0}
-                        </Text>
-                      </View>
-                      <View style={styles.nmStatMini}>
-                        <View style={[styles.nmStatDot, { backgroundColor: COLORS.danger }]} />
-                        <Text style={styles.nmStatCount}>
-                          {nextMatch.attendance ? Object.values(nextMatch.attendance).filter(a => a.status === 'unavailable').length : 0}
-                        </Text>
-                      </View>
-                      <View style={styles.nmStatMini}>
-                        <View style={[styles.nmStatDot, { backgroundColor: COLORS.slate500 }]} />
-                        <Text style={styles.nmStatCount}>
-                          {team?.players ? team.players.length - (nextMatch.attendance ? Object.values(nextMatch.attendance).filter(a => a.status === 'available' || a.status === 'unavailable').length : 0) : 0}
-                        </Text>
-                      </View>
+                    <View style={styles.nmStatsRow}>
+                      <View style={styles.nmStatMini}><View style={[styles.nmStatDot, { backgroundColor: T.pos }]} /><Text style={styles.nmStatCount}>{nextMatch.attendance ? Object.values(nextMatch.attendance).filter(a => a.status === 'available').length : 0}</Text></View>
+                      <View style={styles.nmStatMini}><View style={[styles.nmStatDot, { backgroundColor: T.neg }]} /><Text style={styles.nmStatCount}>{nextMatch.attendance ? Object.values(nextMatch.attendance).filter(a => a.status === 'unavailable').length : 0}</Text></View>
+                      <View style={styles.nmStatMini}><View style={[styles.nmStatDot, { backgroundColor: 'rgba(255,255,255,0.3)' }]} /><Text style={styles.nmStatCount}>{team?.players ? team.players.length - (nextMatch.attendance ? Object.values(nextMatch.attendance).filter(a => a.status === 'available' || a.status === 'unavailable').length : 0) : 0}</Text></View>
                     </View>
                   </View>
                 </View>
               </View>
             </TouchableOpacity>
-        )}
-
-
-        {/* Section Title: Partidos */}
-        <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Partidos</Text>
-            <View style={styles.sectionHeaderActions}>
-                <TouchableOpacity style={styles.sectionIconBtn}>
-                    <Calendar color={COLORS.slate600} size={18} />
-                </TouchableOpacity>
-                <TouchableOpacity 
-                    style={styles.addMatchBtnText}
-                    onPress={() => navigation.navigate('MatchList', { teamId })}
-                >
-                    <Text style={styles.addMatchText}>+ Nuevo Partido</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-
-        {/* Matches List */}
-        <View style={styles.matchesSection}>
-          {sortedMatches.length === 0 ? (
-            <Text style={styles.emptySectionText}>No hay partidos creados.</Text>
-          ) : (
-            sortedMatches.map(renderMatchItem)
           )}
-        </View>
 
-        {/* Players Section (At the bottom) */}
-        <View 
-          style={[styles.sectionHeaderRow, { marginTop: 24 }]}
-          onLayout={(e) => setPlayersSectionY(e.nativeEvent.layout.y)}
-        >
-            <Text style={styles.sectionTitle}>Jugadores ({sortedPlayers.length})</Text>
-            <TouchableOpacity onPress={() => openPlayerModal()} style={styles.addPlayerLink}>
-                <Plus color={COLORS.primary} size={18} />
-                <Text style={styles.addPlayerText}>Añadir</Text>
+          {/* Matches Section */}
+          <View style={styles.sectionRow}>
+            <Text style={styles.sectionTitle}>Partidos</Text>
+            <TouchableOpacity
+              style={styles.addLinkBtn}
+              onPress={() => {
+                if (!isPro && effectiveMatchCount >= 8) { showPaywall('Creación de partidos'); return; }
+                setCreateMatchVisible(true);
+              }}
+            >
+              <Plus color={T.orange} size={16} />
+              <Text style={styles.addLinkText}>Nuevo Partido</Text>
             </TouchableOpacity>
-        </View>
-        <View style={styles.playersSection}>
+          </View>
+          <View style={styles.matchesSection}>
+            {sortedMatches.length === 0 ? (
+              <Text style={styles.emptySectionText}>No hay partidos creados.</Text>
+            ) : (
+              <>
+                {sortedMatches.slice(0, matchesExpanded ? sortedMatches.length : MATCHES_PREVIEW).map(renderMatchItem)}
+                {sortedMatches.length > MATCHES_PREVIEW && (
+                  <TouchableOpacity
+                    style={styles.accordionBtn}
+                    onPress={() => setMatchesExpanded(!matchesExpanded)}
+                  >
+                    <ChevronDown
+                      color={T.textSub}
+                      size={16}
+                      strokeWidth={2}
+                      style={{ transform: [{ rotate: matchesExpanded ? '180deg' : '0deg' }] }}
+                    />
+                    <Text style={styles.accordionText}>
+                      {matchesExpanded
+                        ? 'Ver menos'
+                        : `Ver ${sortedMatches.length - MATCHES_PREVIEW} partidos más`}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+          </View>
+
+          {/* Players Section */}
+          <View
+            ref={playersSectRef}
+            style={[styles.sectionRow, { marginTop: 28 }]}
+            onLayout={(e) => setPlayersSectionY(e.nativeEvent.layout.y)}
+          >
+            <Text style={styles.sectionTitle}>Jugadores ({sortedPlayers.length})</Text>
+            <TouchableOpacity ref={addPlayerBtnRef} onPress={() => openPlayerModal()} style={styles.addLinkBtn}>
+              <Plus color={T.orange} size={16} />
+              <Text style={styles.addLinkText}>Añadir</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.playersGrid}>
             {sortedPlayers.map(item => {
-                 const roleConf = getRoleConfig(team, item.role || 'receptor');
-                 return (
-                    <View key={item.id} style={styles.playerCardSmall}>
-                        <View style={styles.numberBadgeSmall}>
-                            <Text style={styles.numberTextSmall}>{item.number}</Text>
-                        </View>
-                        <Text style={styles.playerNameSmall} numberOfLines={1}>{item.name}</Text>
-                        <View style={[styles.roleLabelSmall, { backgroundColor: roleConf?.bg }]}>
-                            <Text style={[styles.roleTextSmall, { color: roleConf?.color }]}>{roleConf?.label[0]}</Text>
-                        </View>
-                        <TouchableOpacity onPress={() => openPlayerModal(item)} style={styles.playerEditIcon}>
-                            <Edit2 color={COLORS.slate300} size={16} />
-                        </TouchableOpacity>
-                    </View>
-                 );
+              const roleConf = getRoleConfig(team, item.role || 'receptor');
+              return (
+                <View key={item.id} style={styles.playerCard}>
+                  <View style={styles.playerNumBox}>
+                    <Text style={styles.playerNum}>{item.number}</Text>
+                  </View>
+                  <Text style={styles.playerName} numberOfLines={1}>{item.name}</Text>
+                  <View style={[styles.playerRoleDot, { backgroundColor: roleConf?.bg }]}>
+                    <Text style={[styles.playerRoleText, { color: roleConf?.color }]}>{roleConf?.label?.[0]}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => openPlayerModal(item)} style={styles.playerEditBtn}>
+                    <Edit2 color={T.borderHard} size={15} />
+                  </TouchableOpacity>
+                </View>
+              );
             })}
-        </View>
-        
-        <View style={styles.footerSpacer} />
-        
-        <TouchableOpacity onPress={handleDeleteTeam} style={styles.deleteTeamLink}>
-            <Trash2 color={COLORS.danger} size={16} />
+          </View>
+
+          <View style={{ height: 32 }} />
+          <TouchableOpacity onPress={handleDeleteTeam} style={styles.deleteTeamBtn}>
+            <Trash2 color={T.neg} size={15} />
             <Text style={styles.deleteTeamText}>Eliminar Equipo</Text>
-        </TouchableOpacity>
-        
-        <View style={styles.footerSpacer} />
-      </ScrollView>
+          </TouchableOpacity>
+          <View style={{ height: 48 }} />
+        </ScrollView>
+      )}
 
       {/* Player Modal */}
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalBg}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>{editingPlayerId ? 'Editar Jugador' : 'Añadir Jugador'}</Text>
-            
-            <Text style={styles.label}>Nombre</Text>
-            <TextInput
-              style={styles.input}
-              value={playerForm.name}
-              onChangeText={t => setPlayerForm({...playerForm, name: t})}
-            />
-
-            <Text style={styles.label}>Dorsal</Text>
-            <TextInput
-              style={styles.input}
-              keyboardType="number-pad"
-              value={playerForm.number}
-              onChangeText={t => setPlayerForm({...playerForm, number: t})}
-            />
-
-            <Text style={styles.label}>Rol por defecto</Text>
+            <Text style={styles.modalLabel}>NOMBRE</Text>
+            <TextInput style={styles.modalInput} value={playerForm.name} onChangeText={t => setPlayerForm({ ...playerForm, name: t })} />
+            <Text style={styles.modalLabel}>DORSAL</Text>
+            <TextInput style={styles.modalInput} keyboardType="number-pad" value={playerForm.number} onChangeText={t => setPlayerForm({ ...playerForm, number: t })} />
+            <Text style={styles.modalLabel}>ROL POR DEFECTO</Text>
             <View style={styles.roleGrid}>
               {getAvailableRoleKeys(team).map(rk => {
-                const conf = getRoleConfig(team, rk);
+                const conf = getRoleConfig(team, rk, T.isDark);
                 return (
                   <TouchableOpacity
                     key={rk}
-                    style={[
-                      styles.roleBtn,
-                      { backgroundColor: conf.bg },
-                      playerForm.role === rk && { borderWidth: 2, borderColor: conf.color }
-                    ]}
-                    onPress={() => setPlayerForm({...playerForm, role: rk})}
+                    style={[styles.roleBtn, { backgroundColor: conf.bg }, playerForm.role === rk && { borderWidth: 2, borderColor: conf.color }]}
+                    onPress={() => setPlayerForm({ ...playerForm, role: rk })}
                   >
                     <Text style={[styles.roleBtnText, { color: conf.color }]}>{conf.label}</Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
-
             <View style={styles.modalFooter}>
-              <TouchableOpacity style={styles.modalBtnCancel} onPress={() => setModalVisible(false)}>
-                <Text style={styles.modalBtnTextCancel}>Cancelar</Text>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setModalVisible(false)}>
+                <Text style={styles.modalCancelText}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalBtnSave} onPress={handleSavePlayer}>
-                <Text style={styles.modalBtnTextSave}>Guardar</Text>
+              <TouchableOpacity style={styles.modalSaveWrap} onPress={handleSavePlayer}>
+                <LinearGradient colors={[T.orange, T.orangeDeep]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.modalSaveGrad}>
+                  <Text style={styles.modalSaveText}>Guardar</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           </View>
@@ -723,228 +939,319 @@ export default function TeamDetailScreen() {
 
       {/* Team Config Modal */}
       <Modal visible={configModalVisible} transparent animationType="slide">
-        <SafeAreaView style={styles.modalBg}>
-          <View style={[styles.modalCard, { maxHeight: '90%' }]}>
-            <Text style={styles.modalTitle}>Configuración del Equipo</Text>
-            
-            {teamForm && (
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <View>
-                    <Text style={styles.label}>Nombre del equipo</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={teamForm.name}
-                      onChangeText={t => setTeamForm({...teamForm, name: t})}
-                    />
+        <View style={styles.matchEditOverlay}>
+          <SafeAreaView style={styles.matchEditSheet} edges={['bottom']}>
 
-                    <Text style={[styles.label, { marginTop: 16 }]}>ID Federación (FCBQ/FBCV)</Text>
+            {/* Header */}
+            <LinearGradient colors={[T.ink2, T.ink]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.matchEditHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <TouchableOpacity onPress={() => setConfigModalVisible(false)} style={styles.matchEditBackBtn}>
+                  <ChevronLeft color="#fff" size={16} strokeWidth={1.8} />
+                </TouchableOpacity>
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={styles.matchEditEyebrow}>CONFIGURAR EQUIPO</Text>
+                  <Text style={styles.matchEditTitle} numberOfLines={1}>{team?.name || '—'}</Text>
+                </View>
+                <TouchableOpacity style={styles.matchEditSaveBtn} onPress={handleSaveTeamConfig}>
+                  <Save color="#fff" size={18} strokeWidth={2} />
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+
+            <ScrollView style={{ padding: 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {teamForm && (
+                <View style={{ gap: 12 }}>
+
+                  {/* Card 01 — Equipo */}
+                  <View style={styles.meFormCard}>
+                    <View style={styles.meFormCardHeader}>
+                      <Text style={styles.meFormCardNum}>01</Text>
+                      <Text style={styles.meFormCardTitle}>Equipo</Text>
+                    </View>
+                    <Text style={styles.meFormLabel}>NOMBRE</Text>
+                    <TextInput style={styles.meFormInput} value={teamForm.name} onChangeText={t => setTeamForm({ ...teamForm, name: t })} />
+                    <Text style={[styles.meFormLabel, { marginTop: 12 }]}>ID FEDERACIÓN (FBCV)</Text>
                     <TextInput
-                      style={styles.input}
+                      style={styles.meFormInput}
                       placeholder="Ej: 3822100"
+                      placeholderTextColor={T.textFaint}
                       keyboardType="number-pad"
                       value={teamForm.federationId}
-                      onChangeText={t => setTeamForm({...teamForm, federationId: t})}
+                      onChangeText={t => setTeamForm({ ...teamForm, federationId: t })}
                     />
+                  </View>
 
-                    <Text style={[styles.label, { marginTop: 24, marginBottom: 12 }]}>Roles de Jugadores</Text>
-                    {Object.keys(teamForm.roles).map(rk => (
-                      <View key={rk} style={styles.roleConfigRow}>
-                        <View style={{flex: 1}}>
-                          <TextInput
-                            style={[styles.input, { marginBottom: 8 }]}
-                            value={teamForm.roles[rk].label}
-                            onChangeText={t => {
-                              setTeamForm(prev => ({
-                                ...prev,
-                                roles: { ...prev.roles, [rk]: { ...prev.roles[rk], label: t } }
-                              }));
-                            }}
-                          />
-                          <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {/* Card 02 — Modo de partido */}
+                  <View style={styles.meFormCard}>
+                    <View style={styles.meFormCardHeader}>
+                      <Text style={styles.meFormCardNum}>02</Text>
+                      <Text style={styles.meFormCardTitle}>Modo de partido</Text>
+                    </View>
+                    {[
+                      { key: 'pasarela',  label: 'Pasarela 8P', sub: '8 periodos · Reglamento estándar' },
+                      { key: 'pasarela6', label: 'Pasarela 6P',   sub: '6 periodos · Categorías menores' },
+                      { key: 'libre',     label: 'Libre',          sub: 'Sin restricciones de minutos' },
+                    ].map(m => {
+                      const active = teamForm.mode === m.key;
+                      return (
+                        <TouchableOpacity
+                          key={m.key}
+                          style={[styles.cfModeRow, active && styles.cfModeRowActive]}
+                          onPress={() => setTeamForm({ ...teamForm, mode: m.key })}
+                          activeOpacity={0.7}
+                        >
+                          <View style={[styles.cfModeRadio, active && styles.cfModeRadioActive]}>
+                            {active && <View style={styles.cfModeRadioDot} />}
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.cfModeLabel, active && styles.cfModeLabelActive]}>{m.label}</Text>
+                            <Text style={styles.cfModeSub}>{m.sub}</Text>
+                          </View>
+                          {active && <Check color={T.orange} size={15} strokeWidth={2.5} />}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  {/* Card 03 — Roles */}
+                  <View style={styles.meFormCard}>
+                    <View style={styles.meFormCardHeader}>
+                      <Text style={styles.meFormCardNum}>03</Text>
+                      <Text style={styles.meFormCardTitle}>Roles de jugadores</Text>
+                    </View>
+                    {Object.keys(teamForm.roles).map((rk, idx) => {
+                      const role = teamForm.roles[rk];
+                      const updateRole = (patch) =>
+                        setTeamForm(prev => ({ ...prev, roles: { ...prev.roles, [rk]: { ...prev.roles[rk], ...patch } } }));
+                      return (
+                        <View key={rk} style={[styles.cfRoleRow, idx > 0 && { borderTopWidth: 1, borderTopColor: T.border }]}>
+                          {/* Nombre visible + eliminar */}
+                          <View style={styles.cfRoleNameRow}>
+                            <View style={[styles.cfRolePosBadge, { backgroundColor: role.color + '22' }]}>
+                              <Text style={[styles.cfRolePosText, { color: role.color }]}>
+                                {role.position ?? '—'}
+                              </Text>
+                            </View>
+                            <TextInput
+                              style={[styles.meFormInput, { flex: 1 }]}
+                              value={role.label}
+                              placeholder="Nombre visible"
+                              placeholderTextColor={T.textFaint}
+                              onChangeText={t => updateRole({ label: t })}
+                            />
+                            <TouchableOpacity onPress={() => handleDeleteRole(rk)} style={styles.cfDeleteBtn}>
+                              <Trash2 color={T.neg} size={15} strokeWidth={1.8} />
+                            </TouchableOpacity>
+                          </View>
+                          {/* Posición en cancha */}
+                          <View style={styles.cfPosRow}>
+                            <Text style={styles.cfPosRowLabel}>Posición cancha</Text>
+                            <View style={styles.cfPosChips}>
+                              {[1, 2, 3, 4, 5, null].map(pos => {
+                                const sel = role.position === pos;
+                                return (
+                                  <TouchableOpacity
+                                    key={pos ?? 'null'}
+                                    style={[styles.cfPosChip, sel && { backgroundColor: role.color, borderColor: role.color }]}
+                                    onPress={() => updateRole({ position: pos })}
+                                  >
+                                    <Text style={[styles.cfPosChipText, sel && { color: '#fff' }]}>
+                                      {pos ?? '—'}
+                                    </Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </View>
+                          </View>
+                          {/* Color */}
+                          <View style={styles.cfColorRow}>
                             {ROLE_COLORS_PALETTE.map(pal => (
                               <TouchableOpacity
                                 key={pal.id}
-                                style={[
-                                  styles.colorDot,
-                                  { backgroundColor: pal.color },
-                                  teamForm.roles[rk].color === pal.color && styles.colorDotSelected
-                                ]}
+                                style={[styles.cfColorDot, { backgroundColor: pal.color },
+                                  role.color === pal.color && { borderWidth: 3, borderColor: T.text }]}
                                 onPress={() => handleRoleColorSet(rk, pal)}
                               />
                             ))}
                           </View>
                         </View>
-                      </View>
-                    ))}
+                      );
+                    })}
+                    <TouchableOpacity style={styles.cfAddRoleBtn} onPress={handleAddRole}>
+                      <Plus color={T.orange} size={15} strokeWidth={2} />
+                      <Text style={styles.cfAddRoleBtnText}>Añadir rol</Text>
+                    </TouchableOpacity>
                   </View>
-              </ScrollView>
-            )}
 
-            <View style={styles.modalFooter}>
-              <TouchableOpacity style={styles.modalBtnCancel} onPress={() => setConfigModalVisible(false)}>
-                <Text style={styles.modalBtnTextCancel}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalBtnSave} onPress={handleSaveTeamConfig}>
-                <Text style={styles.modalBtnTextSave}>Guardar Todo</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </SafeAreaView>
+                  <View style={{ height: 32 }} />
+                </View>
+              )}
+            </ScrollView>
+          </SafeAreaView>
+        </View>
       </Modal>
 
       {/* Match Edit Modal */}
       <Modal visible={matchEditModalVisible} transparent animationType="slide">
-        <View style={styles.modalBg}>
-          <SafeAreaView style={[styles.modalCard, { maxHeight: '90%' }]}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <View>
-                <Text style={[styles.modalTitle, { marginBottom: 0 }]}>Configuración Partit</Text>
-                <Text style={{ fontSize: 10, color: COLORS.slate300 }}>v1.1</Text>
+        <View style={styles.matchEditOverlay}>
+          <SafeAreaView style={styles.matchEditSheet} edges={['bottom']}>
+
+            {/* Dark gradient header */}
+            <LinearGradient colors={[T.ink2, T.ink]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.matchEditHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <TouchableOpacity onPress={() => setMatchEditModalVisible(false)} style={styles.matchEditBackBtn}>
+                  <ChevronLeft color="#fff" size={16} strokeWidth={1.8} />
+                </TouchableOpacity>
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={styles.matchEditEyebrow}>EDITAR PARTIDO</Text>
+                  <Text style={styles.matchEditTitle} numberOfLines={1}>{editingMatch?.opponent || '—'}</Text>
+                </View>
+                <TouchableOpacity style={styles.matchEditSaveBtn} onPress={handleSaveMatchEdit}>
+                  <Save color="#fff" size={18} strokeWidth={2} />
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity onPress={() => setMatchEditModalVisible(false)}>
-                <XCircle color={COLORS.slate400} size={24} />
-              </TouchableOpacity>
-            </View>
+              <View style={{ flexDirection: 'row', gap: 5, marginTop: 12 }}>
+                {['Rival', 'Fecha y hora', 'Ubicación', 'Viaje'].map((label, i) => (
+                  <View key={label} style={{ flex: 1, gap: 4 }}>
+                    <View style={{ height: 3, borderRadius: 2, backgroundColor: T.orange }} />
+                    <Text style={{ fontSize: 9, fontFamily: T.fontBold, color: '#fff', letterSpacing: 0.5 }}>0{i + 1} · {label}</Text>
+                  </View>
+                ))}
+              </View>
+            </LinearGradient>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView style={{ padding: 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {editingMatch && (
-                <View style={{ gap: 16 }}>
-                  {/* General Info */}
-                  <View style={styles.configSection}>
-                    <TextInput 
-                      style={[styles.input, { fontSize: 18, fontWeight: 'bold' }]} 
-                      value={editingMatch.opponent} 
-                      placeholder="Rival"
-                      onChangeText={t => setEditingMatch({...editingMatch, opponent: t})} 
+                <View style={{ gap: 12 }}>
+
+                  {/* Card 01 — Rival */}
+                  <View style={styles.meFormCard}>
+                    <View style={styles.meFormCardHeader}>
+                      <Text style={styles.meFormCardNum}>01</Text>
+                      <Text style={styles.meFormCardTitle}>Rival</Text>
+                    </View>
+                    <TextInput
+                      style={styles.meFormInput}
+                      value={editingMatch.opponent}
+                      placeholder="Nombre del rival"
+                      placeholderTextColor={T.textFaint}
+                      onChangeText={t => setEditingMatch({ ...editingMatch, opponent: t })}
                     />
-                    
-                    <View style={{flexDirection: 'row', gap: 10, marginTop: 12}}>
-                        <View style={{flex: 1}}>
-                            <Text style={styles.label}>Fecha</Text>
-                            <TextInput style={styles.input} value={editingMatch.date} onChangeText={t => setEditingMatch({...editingMatch, date: t})} />
-                        </View>
-                        <View style={{flex: 1}}>
-                            <Text style={styles.label}>Hora Inicio</Text>
-                            <TextInput style={styles.input} value={editingMatch.time} onChangeText={t => setEditingMatch({...editingMatch, time: t})} />
-                        </View>
-                    </View>
+                  </View>
 
-                    <View style={{flexDirection: 'row', gap: 10}}>
-                        <View style={{flex: 1}}>
-                            <Text style={styles.label}>Convocatoria</Text>
-                            <TextInput style={styles.input} value={editingMatch.callTime} placeholder="18:15" onChangeText={t => setEditingMatch({...editingMatch, callTime: t})} />
-                        </View>
-                        <View style={{flex: 1}}>
-                            <Text style={styles.label}>Jornada</Text>
-                            <TextInput style={styles.input} value={editingMatch.matchDay} placeholder="7" keyboardType="numeric" onChangeText={t => setEditingMatch({...editingMatch, matchDay: t})} />
-                        </View>
+                  {/* Card 02 — Fecha y hora */}
+                  <View style={styles.meFormCard}>
+                    <View style={styles.meFormCardHeader}>
+                      <Text style={styles.meFormCardNum}>02</Text>
+                      <Text style={styles.meFormCardTitle}>Fecha y hora</Text>
                     </View>
-
-                    <Text style={styles.label}>Lloc / Pabelló</Text>
-                    <TextInput style={styles.input} value={editingMatch.location} placeholder="Palau Esport Benidorm" onChangeText={t => setEditingMatch({...editingMatch, location: t})} />
-                    
-                    <View style={styles.toggleRow}>
-                        <TouchableOpacity 
-                            style={[styles.toggleBtn, editingMatch.isHome && styles.toggleBtnActive]} 
-                            onPress={() => setEditingMatch({...editingMatch, isHome: true})}
-                        >
-                            <Text style={[styles.toggleBtnText, editingMatch.isHome && styles.toggleBtnTextActive]}>LOCAL</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                            style={[styles.toggleBtn, !editingMatch.isHome && styles.toggleBtnActive]} 
-                            onPress={() => setEditingMatch({...editingMatch, isHome: false})}
-                        >
-                            <Text style={[styles.toggleBtnText, !editingMatch.isHome && styles.toggleBtnTextActive]}>VISITANTE</Text>
-                        </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.meFormLabel}>Fecha</Text>
+                        <TextInput style={[styles.meFormInput, { fontFamily: T.mono }]} value={editingMatch.date} onChangeText={t => setEditingMatch({ ...editingMatch, date: t })} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.meFormLabel}>Hora inicio</Text>
+                        <TextInput style={[styles.meFormInput, { fontFamily: T.mono }]} value={editingMatch.time} onChangeText={t => setEditingMatch({ ...editingMatch, time: t })} />
+                      </View>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.meFormLabel}>Convocatoria</Text>
+                        <TextInput style={[styles.meFormInput, { fontFamily: T.mono }]} value={editingMatch.callTime} placeholder="--:--" placeholderTextColor={T.textFaint} onChangeText={t => setEditingMatch({ ...editingMatch, callTime: t })} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.meFormLabel}>Jornada</Text>
+                        <TextInput style={styles.meFormInput} value={editingMatch.matchDay} placeholder="—" placeholderTextColor={T.textFaint} keyboardType="numeric" onChangeText={t => setEditingMatch({ ...editingMatch, matchDay: t })} />
+                      </View>
                     </View>
                   </View>
 
-                  {/* Travel Section */}
+                  {/* Card 03 — Ubicación y localía */}
+                  <View style={styles.meFormCard}>
+                    <View style={styles.meFormCardHeader}>
+                      <Text style={styles.meFormCardNum}>03</Text>
+                      <Text style={styles.meFormCardTitle}>Ubicación</Text>
+                    </View>
+                    <Text style={styles.meFormLabel}>Pabellón</Text>
+                    <TextInput style={styles.meFormInput} value={editingMatch.location} placeholder="Nombre del pabellón" placeholderTextColor={T.textFaint} onChangeText={t => setEditingMatch({ ...editingMatch, location: t })} />
+                    <View style={[styles.toggleRow, { marginTop: 10 }]}>
+                      <TouchableOpacity style={[styles.toggleBtn, editingMatch.isHome && styles.toggleBtnActive]} onPress={() => setEditingMatch({ ...editingMatch, isHome: true })}>
+                        <Text style={[styles.toggleBtnText, editingMatch.isHome && styles.toggleBtnTextActive]}>LOCAL</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.toggleBtn, !editingMatch.isHome && styles.toggleBtnActiveOrange]} onPress={() => setEditingMatch({ ...editingMatch, isHome: false })}>
+                        <Text style={[styles.toggleBtnText, !editingMatch.isHome && styles.toggleBtnTextOrange]}>VISITANTE</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Card 04 — Viaje (away only) */}
                   {!editingMatch.isHome && (
-                    <View style={styles.configSectionGray}>
-                      <View style={{flexDirection: 'row', gap: 10}}>
-                          <View style={{flex: 1}}>
-                              <Text style={styles.label}>HORA SALIDA</Text>
-                              <View style={styles.inputWithIcon}>
-                                <TextInput style={[styles.input, {flex: 1}]} value={editingMatch.departureTime} placeholder="--:--" onChangeText={t => setEditingMatch({...editingMatch, departureTime: t})} />
-                                <Clock color={COLORS.slate400} size={16} style={styles.inputIcon} />
-                              </View>
-                          </View>
-                          <View style={{flex: 1}}>
-                             <Text style={styles.label}>TRANSPORTE</Text>
-                             <View style={styles.transportToggle}>
-                                  <TouchableOpacity 
-                                      style={[styles.transportBtn, editingMatch.transportType === 'bus' && styles.transportBtnActive]}
-                                      onPress={() => setEditingMatch({...editingMatch, transportType: 'bus'})}
-                                  >
-                                      <Text style={{fontSize: 20}}>🚌</Text>
-                                  </TouchableOpacity>
-                                  <TouchableOpacity 
-                                      style={[styles.transportBtn, editingMatch.transportType === 'car' && styles.transportBtnActive]}
-                                      onPress={() => setEditingMatch({...editingMatch, transportType: 'car'})}
-                                  >
-                                      <Text style={{fontSize: 20}}>🚗</Text>
-                                  </TouchableOpacity>
-                             </View>
-                          </View>
+                    <View style={[styles.meFormCard, { borderColor: T.orange + '40', borderWidth: 1.5 }]}>
+                      <View style={styles.meFormCardHeader}>
+                        <Text style={styles.meFormCardNum}>04</Text>
+                        <Text style={styles.meFormCardTitle}>Desplazamiento</Text>
                       </View>
-  
-                      <View style={{flexDirection: 'row', gap: 10, marginTop: 16}}>
-                          <View style={{flex: 1}}>
-                              <Text style={styles.label}>LUGAR SALIDA</Text>
-                              <TextInput style={styles.input} value={editingMatch.departureLocation} placeholder="Pabellón..." onChangeText={t => setEditingMatch({...editingMatch, departureLocation: t})} />
+                      <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.meFormLabel}>Hora salida</Text>
+                          <TextInput style={[styles.meFormInput, { fontFamily: T.mono }]} value={editingMatch.departureTime} placeholder="--:--" placeholderTextColor={T.textFaint} onChangeText={t => setEditingMatch({ ...editingMatch, departureTime: t })} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.meFormLabel}>Transporte</Text>
+                          <View style={styles.transportToggle}>
+                            <TouchableOpacity style={[styles.transportBtn, editingMatch.transportType === 'bus' && styles.transportBtnActive]} onPress={() => setEditingMatch({ ...editingMatch, transportType: 'bus' })}>
+                              <Text style={{ fontSize: 20 }}>🚌</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.transportBtn, editingMatch.transportType === 'car' && styles.transportBtnActive]} onPress={() => setEditingMatch({ ...editingMatch, transportType: 'car' })}>
+                              <Text style={{ fontSize: 20 }}>🚗</Text>
+                            </TouchableOpacity>
                           </View>
-                          <View style={{flex: 1}}>
-                              <Text style={styles.label}>HORA VUELTA</Text>
-                              <View style={styles.inputWithIcon}>
-                                <TextInput style={[styles.input, {flex: 1}]} value={editingMatch.returnTime} placeholder="--:--" onChangeText={t => setEditingMatch({...editingMatch, returnTime: t})} />
-                                <Clock color={COLORS.slate400} size={16} style={styles.inputIcon} />
-                              </View>
-                          </View>
+                        </View>
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.meFormLabel}>Lugar salida</Text>
+                          <TextInput style={styles.meFormInput} value={editingMatch.departureLocation} placeholder="Pabellón..." placeholderTextColor={T.textFaint} onChangeText={t => setEditingMatch({ ...editingMatch, departureLocation: t })} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.meFormLabel}>Hora vuelta</Text>
+                          <TextInput style={[styles.meFormInput, { fontFamily: T.mono }]} value={editingMatch.returnTime} placeholder="--:--" placeholderTextColor={T.textFaint} onChangeText={t => setEditingMatch({ ...editingMatch, returnTime: t })} />
+                        </View>
                       </View>
                     </View>
                   )}
 
-                  {/* Observations */}
-                  <View style={styles.configSection}>
-                    <Text style={styles.label}>Observaciones</Text>
-                    <TextInput 
-                      style={[styles.input, { height: 80, textAlignVertical: 'top' }]} 
-                      multiline 
-                      value={editingMatch.observations} 
-                      placeholder="Indicar ropa, comida, etc."
-                      onChangeText={t => setEditingMatch({...editingMatch, observations: t})} 
-                    />
+                  {/* Observaciones */}
+                  <View style={styles.meFormCard}>
+                    <Text style={styles.meFormLabel}>Observaciones</Text>
+                    <TextInput style={[styles.meFormInput, { height: 70, textAlignVertical: 'top' }]} multiline value={editingMatch.observations} placeholder="Indicar ropa, comida, etc." placeholderTextColor={T.textFaint} onChangeText={t => setEditingMatch({ ...editingMatch, observations: t })} />
                   </View>
 
-                  {/* Actions */}
-                  <View style={{ gap: 12, marginTop: 10 }}>
-                    <TouchableOpacity style={styles.btnSavePrimary} onPress={handleSaveMatchEdit}>
-                      <Text style={styles.btnSaveText}>Guardar Cambios</Text>
+                  {/* Footer buttons */}
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                    <TouchableOpacity style={styles.meDeleteBtn} onPress={() => handleDeleteMatch(editingMatch.id, editingMatch.opponent)}>
+                      <Trash2 color={T.neg} size={16} strokeWidth={1.8} />
                     </TouchableOpacity>
-                    
-                    <TouchableOpacity 
-                      style={styles.btnDeleteMatch} 
-                      onPress={() => handleDeleteMatch(editingMatch.id, editingMatch.opponent)}
-                    >
-                      <Text style={styles.btnDeleteMatchText}>Eliminar Partido</Text>
+                    <TouchableOpacity style={styles.meSaveBtn} onPress={handleSaveMatchEdit}>
+                      <Save color="#fff" size={16} strokeWidth={2} />
+                      <Text style={styles.meSaveBtnText}>Guardar cambios</Text>
                     </TouchableOpacity>
                   </View>
 
                   <View style={styles.divider} />
 
-                  {/* Share Sections */}
                   <View style={styles.shareGroup}>
                     <Text style={styles.shareGroupTitle}>COPIAR CONVOCATORIA</Text>
                     <Text style={styles.shareGroupDesc}>Con el listado de jugadores convocados</Text>
                     <View style={styles.shareBtnRow}>
-                      <TouchableOpacity style={[styles.copyBtn, { backgroundColor: '#FFEDD5' }]} onPress={() => copyRoster('val')}>
-                        <Copy color="#9A3412" size={16} />
-                        <Text style={[styles.copyBtnText, { color: '#9A3412' }]}>Valencià</Text>
+                      <TouchableOpacity style={[styles.copyBtn, { backgroundColor: T.orangeSoft }]} onPress={() => copyRoster('val')}>
+                        <Copy color={T.orange} size={15} />
+                        <Text style={[styles.copyBtnText, { color: T.orange }]}>Valencià</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={[styles.copyBtn, { backgroundColor: '#DCFCE7' }]} onPress={() => copyRoster('es')}>
-                        <Copy color="#166534" size={16} />
-                        <Text style={[styles.copyBtnText, { color: '#166534' }]}>Castellano</Text>
+                      <TouchableOpacity style={[styles.copyBtn, { backgroundColor: T.posSoft }]} onPress={() => copyRoster('es')}>
+                        <Copy color={T.posDark} size={15} />
+                        <Text style={[styles.copyBtnText, { color: T.posDark }]}>Castellano</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -953,36 +1260,30 @@ export default function TeamDetailScreen() {
                     <Text style={styles.shareGroupTitle}>COPIAR INFO PARTIDO</Text>
                     <Text style={styles.shareGroupDesc}>Sin listado de jugadores, solo información</Text>
                     <View style={styles.shareBtnRow}>
-                      <TouchableOpacity style={[styles.copyBtn, { backgroundColor: '#FFEDD5' }]} onPress={() => copyMatchInfo('val')}>
-                        <Copy color="#9A3412" size={16} />
-                        <Text style={[styles.copyBtnText, { color: '#9A3412' }]}>Valencià</Text>
+                      <TouchableOpacity style={[styles.copyBtn, { backgroundColor: T.orangeSoft }]} onPress={() => copyMatchInfo('val')}>
+                        <Copy color={T.orange} size={15} />
+                        <Text style={[styles.copyBtnText, { color: T.orange }]}>Valencià</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={[styles.copyBtn, { backgroundColor: '#DCFCE7' }]} onPress={() => copyMatchInfo('es')}>
-                        <Copy color="#166534" size={16} />
-                        <Text style={[styles.copyBtnText, { color: '#166534' }]}>Castellano</Text>
+                      <TouchableOpacity style={[styles.copyBtn, { backgroundColor: T.posSoft }]} onPress={() => copyMatchInfo('es')}>
+                        <Copy color={T.posDark} size={15} />
+                        <Text style={[styles.copyBtnText, { color: T.posDark }]}>Castellano</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
 
                   <View style={styles.shareGroupBlue}>
                     <Text style={[styles.shareGroupTitle, { color: '#1E3A8A' }]}>ENLACE PARA PADRES</Text>
-                    <Text style={[styles.shareGroupDesc, { color: '#3B82F6' }]}>Envía este enlace por WhatsApp para confirmar asistencia</Text>
-                    
-                    <TouchableOpacity 
-                      style={styles.linkActionBtn} 
-                      onPress={() => {
-                        console.log("Navigating to attendance:", { matchId: editingMatch.id, teamId });
-                        navigation.push('MatchAttendance', { matchId: editingMatch.id, teamId });
-                        setTimeout(() => setMatchEditModalVisible(false), 200);
-                      }}
+                    <Text style={[styles.shareGroupDesc, { color: T.blue }]}>Envía este enlace por WhatsApp para confirmar asistencia</Text>
+                    <TouchableOpacity
+                      style={styles.linkBtn}
+                      onPress={() => { navigation.push('MatchAttendance', { matchId: editingMatch.id, teamId }); setTimeout(() => setMatchEditModalVisible(false), 200); }}
                     >
-                      <Users color={COLORS.primary} size={18} />
-                      <Text style={styles.linkActionBtnText}>Ver Estado Convocatoria</Text>
+                      <Users color={T.blue} size={17} />
+                      <Text style={styles.linkBtnText}>Ver Estado Convocatoria</Text>
                     </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.linkActionBtnCopy} onPress={copyAttendanceLinkAction}>
-                      <ExternalLink color={COLORS.white} size={18} />
-                      <Text style={styles.linkActionBtnTextWhite}>Copiar Enlace de Asistencia</Text>
+                    <TouchableOpacity style={styles.linkBtnPrimary} onPress={copyAttendanceLinkAction}>
+                      <ExternalLink color={T.white} size={17} />
+                      <Text style={styles.linkBtnPrimaryText}>Copiar Enlace de Asistencia</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -992,212 +1293,353 @@ export default function TeamDetailScreen() {
           </SafeAreaView>
         </View>
       </Modal>
-
-
+      <AppDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} navigation={navigation} />
+      <GuidedTourOverlay steps={TOUR_STEPS} visible={tourActive} onClose={() => setTourActive(false)} scrollRef={scrollRef} scrollOffsetRef={scrollOffsetRef} />
+      <PaywallModal
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        reason="feature"
+        featureName={paywallFeature}
+      />
+      <CreateMatchModal
+        visible={createMatchVisible}
+        onClose={() => setCreateMatchVisible(false)}
+        team={team}
+        addMatch={addMatch}
+        onCreated={(id) => navigation.navigate('MatchMatrix', { matchId: id, teamId })}
+      />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: COLORS.slate50 },
+function makeStyles(T) { return StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: T.bg },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  container: { flex: 1, padding: 16 },
 
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: 16, backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.slate200
+    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16,
   },
-  backButton: { padding: 8, marginLeft: -8 },
-  headerTitleBox: { flex: 1, paddingHorizontal: 12 },
-  headerTitle: { fontSize: 22, fontWeight: 'bold', color: COLORS.slate900 },
-  headerRightIcons: { flexDirection: 'row', gap: 8 },
-  headerIconBtn: { padding: 8 },
+  headerTop: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14,
+  },
+  headerIconBtn: { padding: 7, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: {
+    flex: 1, fontFamily: T.fontBold, fontSize: 20, color: T.onDark, letterSpacing: -0.3,
+  },
+  headerActions: {
+    flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12, overflow: 'hidden',
+  },
+  headerActionBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingVertical: 10,
+  },
+  headerActionText: {
+    fontFamily: T.fontSemi, fontSize: 12, color: 'rgba(255,255,255,0.85)',
+  },
+  headerActionSep: {
+    width: 1, backgroundColor: 'rgba(255,255,255,0.12)', marginVertical: 8,
+  },
+
+  container: { flex: 1, padding: 16 },
 
   // Federation Card
-  fedCard: { 
-    position: 'relative',
-    backgroundColor: '#F0F7FF', borderRadius: 16, padding: 12, marginBottom: 16,
-    borderWidth: 1, borderColor: '#E0EEFF',
-    zIndex: 50
+  fedCard: {
+    backgroundColor: T.blueSoft, borderRadius: T.rCard, padding: 14, marginBottom: 16,
+    borderWidth: 1, borderColor: 'rgba(64,113,255,0.2)', position: 'relative', zIndex: 50,
   },
   fedHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, position: 'relative' },
   fedTitleBox: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  fedTitle: { fontSize: 13, fontWeight: 'bold', color: COLORS.slate700 },
+  fedTitle: { fontFamily: T.fontSemi, fontSize: 13, color: T.blue },
   syncBtnContainer: { position: 'relative', zIndex: 1100 },
-  syncBtnMain: { 
-    flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.success, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 
+  syncBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: T.blue, paddingHorizontal: 10, paddingVertical: 6, borderRadius: T.rTag + 4 },
+  syncBtnText: { fontFamily: T.fontSemi, color: T.white, fontSize: 12 },
+  syncDropdown: {
+    position: 'absolute', top: 36, right: 0, backgroundColor: T.white, borderRadius: T.rCard, width: 220, zIndex: 1200,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 20,
+    borderWidth: 1, borderColor: T.border,
   },
-  syncBtnText: { color: COLORS.white, fontSize: 12, fontWeight: 'bold' },
-  syncDropdown: { 
-    position: 'absolute', top: 36, right: 0, backgroundColor: COLORS.white, borderRadius: 12, width: 220, zIndex: 1200,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 20, borderWidth: 1, borderColor: COLORS.slate100
+  syncOption: { padding: 14, borderBottomWidth: 1, borderBottomColor: T.border },
+  syncOptionText: { fontFamily: T.fontMed, fontSize: 13, color: T.text },
+  fedStats: { flexDirection: 'row', gap: 8 },
+  fedStatRow: { flex: 1, flexDirection: 'row', backgroundColor: T.white, borderRadius: T.rCard, padding: 10, gap: 12 },
+  fedStatItem: { flex: 1, alignItems: 'center' },
+  fedStatLabel: { fontFamily: T.fontSemi, fontSize: 10, color: T.textFaint, textTransform: 'uppercase', letterSpacing: 1 },
+  fedStatValue: { fontFamily: T.monoBold, fontSize: 18, color: T.text, marginTop: 2 },
+  fedEmpty: { fontFamily: T.fontReg, fontSize: 12, color: T.blue, textAlign: 'center', padding: 4 },
+
+  // Next Match Widget
+  nmWidget: {
+    backgroundColor: T.ink, borderRadius: T.rCardLg, padding: 16, marginBottom: 20,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.28, shadowRadius: 16, elevation: 8,
   },
-
-  syncOption: { padding: 14, borderBottomWidth: 1, borderBottomColor: COLORS.slate100 },
-  syncOptionText: { fontSize: 13, color: COLORS.slate700, fontWeight: '500' },
-  
-  fedStatsGrid: { gap: 6 },
-  fedStatRow: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: COLORS.white, padding: 10, borderRadius: 10 },
-  fedStatItemInline: { flexDirection: 'row', alignItems: 'baseline' },
-  fedStatLabelInline: { fontSize: 11, fontWeight: 'bold', color: COLORS.slate500 },
-  fedStatValueInline: { fontSize: 16, fontWeight: '800', color: COLORS.slate900 },
-  
-  fedStatRowCompact: { backgroundColor: 'rgba(255,255,255,0.5)', padding: 8, borderRadius: 10 },
-  fedStatSubText: { fontSize: 11, fontWeight: '600', color: COLORS.slate600 },
-  fedStatEmpty: { textAlign: 'center', color: COLORS.slate400, fontSize: 11, padding: 6 },
-
-
-  nextMatchWidget: { 
-    backgroundColor: '#0F172A', marginBottom: 20, borderRadius: 24, padding: 16, 
-    shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 8 
-  },
-  nextMatchHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  nmHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   nmTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  nmStatusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#3B82F6' },
-  nextMatchTitle: { color: '#94A3B8', fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
-  badge: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: '#1E293B', flexDirection: 'row', alignItems: 'center' },
-  badgeHome: { backgroundColor: '#172554' },
-  badgeAway: { backgroundColor: '#1E293B' },
-  badgeText: { color: COLORS.white, fontSize: 11, fontWeight: '800' },
-  nextMatchOpponent: { color: COLORS.white, fontSize: 18, fontWeight: '900', marginBottom: 4 },
-  
-  nmMainContent: { flexDirection: 'row', justifyContent: 'space-between' },
-  nmInfoColumn: { flex: 1, gap: 8 },
-  nmRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  nmText: { color: '#CBD5E1', fontSize: 13, fontWeight: '500' },
-  
+  nmDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: T.blue },
+  nmLabel: { fontFamily: T.fontSemi, fontSize: 10, color: 'rgba(255,255,255,0.45)', letterSpacing: 1.5 },
+  nmBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: T.rPill },
+  nmBadgeHome: { backgroundColor: '#172554' },
+  nmBadgeAway: { backgroundColor: 'rgba(255,255,255,0.08)' },
+  nmBadgeText: { fontFamily: T.fontSemi, fontSize: 10, color: T.white },
+  nmBody: { flexDirection: 'row', justifyContent: 'space-between' },
+  nmInfoCol: { flex: 1, gap: 7 },
+  nmOpponent: { fontFamily: T.fontBlack, fontSize: 18, color: T.white },
+  nmRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  nmRowText: { fontFamily: T.fontMed, fontSize: 12, color: 'rgba(255,255,255,0.5)' },
   nmLocationPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.08)',
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, alignSelf: 'flex-start', marginTop: 2
+    flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.07)',
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: T.rPill, alignSelf: 'flex-start',
   },
-  nmLocationText: { fontSize: 11, fontWeight: '700', color: '#CBD5E1' },
-  
-  nmRightPart: { alignItems: 'center', justifyContent: 'center', paddingLeft: 12 },
-  nmAttendanceCircle: {
-    width: 70, height: 70, justifyContent: 'center', alignItems: 'center', position: 'relative',
-    backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 35
-  },
-  nmBgIcon: { position: 'absolute', opacity: 0.1 },
-  nmUserIcon: {
-    backgroundColor: '#1E3A8A', padding: 8, borderRadius: 12, 
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8
-  },
-  nmStatsOverlay: {
-    position: 'absolute', bottom: 5, flexDirection: 'row', gap: 6,
-    backgroundColor: 'rgba(15,23,42,0.8)', paddingHorizontal: 6, paddingVertical: 4, borderRadius: 10
-  },
+  nmLocationText: { fontFamily: T.fontSemi, fontSize: 10, color: 'rgba(255,255,255,0.5)' },
+  nmRightCol: { alignItems: 'center', justifyContent: 'center', paddingLeft: 12 },
+  nmAttBox: { width: 68, height: 68, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 34, position: 'relative' },
+  nmUsersBtn: { backgroundColor: '#1E3A8A', padding: 8, borderRadius: 12 },
+  nmStatsRow: { position: 'absolute', bottom: 3, flexDirection: 'row', gap: 5, backgroundColor: 'rgba(11,14,20,0.85)', paddingHorizontal: 5, paddingVertical: 3, borderRadius: 8 },
   nmStatMini: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  nmStatDot: { width: 6, height: 6, borderRadius: 3 },
-  nmStatCount: { fontSize: 10, fontWeight: 'bold', color: COLORS.white },
+  nmStatDot: { width: 5, height: 5, borderRadius: 2.5 },
+  nmStatCount: { fontFamily: T.mono, fontSize: 9, color: T.white },
 
+  // Section
+  sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sectionTitle: { fontFamily: T.fontBold, fontSize: 17, color: T.text },
+  addLinkBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  addLinkText: { fontFamily: T.fontSemi, color: T.orange, fontSize: 14 },
 
-  // Section Header
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.slate900 },
-  sectionHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  sectionIconBtn: { padding: 8, backgroundColor: COLORS.white, borderRadius: 8, borderWidth: 1, borderColor: COLORS.slate200 },
-  addMatchBtnText: { backgroundColor: COLORS.primaryLight, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
-  addMatchText: { color: COLORS.primary, fontWeight: 'bold', fontSize: 13 },
-
-  // Matches List
-  matchesSection: { gap: 10 },
-  matchCardDetailed: { 
-    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, padding: 16, borderRadius: 16,
-    borderWidth: 1, borderColor: COLORS.slate200
+  // Match Cards
+  matchesSection: {},
+  matchCard: {
+    backgroundColor: T.white, paddingHorizontal: 14, paddingTop: 14,
+    borderRadius: T.rCard, borderWidth: 1, borderColor: T.borderHard,
+    overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 10, elevation: 3,
   },
-  matchMainInfo: { flex: 1 },
-  matchOpponentText: { fontSize: 16, fontWeight: 'bold', color: COLORS.slate900, marginBottom: 4 },
-  matchMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  matchMetaText: { fontSize: 12, color: COLORS.slate500 },
-  inlineScoreBox: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  inlineScoreText: { fontSize: 11, fontWeight: 'bold' },
-  matchActionsRightIcons: { flexDirection: 'row', gap: 6, alignItems: 'center' },
-  matchActionIconBtn: { padding: 10, borderRadius: 10, backgroundColor: COLORS.slate50 },
-
-  // Players Section
-  playersSection: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  playerCardSmall: { 
-    width: '48.5%', flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, 
-    padding: 8, borderRadius: 12, borderWidth: 1, borderColor: COLORS.slate100, gap: 8
+  matchResultBar: {
+    position: 'absolute', left: 0, top: 0, bottom: 0, width: 3,
   },
-  numberBadgeSmall: { 
-    width: 24, height: 24, borderRadius: 12, backgroundColor: COLORS.slate50, alignItems: 'center', justifyContent: 'center' 
+  matchTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 4 },
+  matchOpponent: { fontFamily: T.fontBlack, fontSize: 14, color: T.text, flex: 1, letterSpacing: -0.2 },
+  matchMetaText: { fontFamily: T.fontReg, fontSize: 12, color: T.textSub, marginBottom: 12 },
+  scoreBox: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: T.rPill },
+  scoreText: { fontFamily: T.fontBlack, fontSize: 13, letterSpacing: -0.3 },
+  matchDivider: { height: 1, backgroundColor: T.border, marginHorizontal: -14 },
+  matchActions: {
+    flexDirection: 'row', gap: 0,
+    backgroundColor: T.panel,
+    marginHorizontal: -14, paddingHorizontal: 14,
   },
-  numberTextSmall: { fontSize: 11, fontWeight: 'bold', color: COLORS.slate600 },
-  playerNameSmall: { flex: 1, fontSize: 12, color: COLORS.slate800, fontWeight: '500' },
-  roleLabelSmall: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  roleTextSmall: { fontSize: 9, fontWeight: 'bold' },
-  playerEditIcon: { padding: 4 },
+  matchActionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 11 },
+  matchActionBtnPrimary: { backgroundColor: 'rgba(255,106,44,0.06)' },
+  matchActionLabel: { fontFamily: T.fontSemi, fontSize: 12, color: T.textSub },
+  matchActionSep: { width: 1, backgroundColor: T.border, marginVertical: 8 },
 
-  footerSpacer: { height: 40 },
-  deleteTeamLink: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'center' },
-  deleteTeamText: { color: COLORS.danger, fontWeight: 'bold', fontSize: 13 },
+  swipeDelete: { backgroundColor: T.neg, justifyContent: 'center', alignItems: 'center', width: 80 },
 
-  emptySectionText: { textAlign: 'center', color: COLORS.slate400, padding: 20, fontSize: 13 },
-  
-  // Modal Overrides
-  modalBg: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'center', padding: 20 },
-  modalCard: { backgroundColor: COLORS.white, borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.2, shadowRadius: 30, elevation: 20 },
-  modalTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 20, color: COLORS.slate900 },
-  label: { fontSize: 11, fontWeight: 'bold', color: COLORS.slate500, textTransform: 'uppercase', marginBottom: 8, marginTop: 16, letterSpacing: 1 },
-  input: { backgroundColor: COLORS.slate50, borderWidth: 1, borderColor: COLORS.slate200, borderRadius: 12, padding: 14, fontSize: 15, color: COLORS.slate900 },
-  roleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  // Players Grid
+  playersGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  playerCard: {
+    width: '48.5%', flexDirection: 'row', alignItems: 'center', backgroundColor: T.white,
+    padding: 8, borderRadius: T.rCard, borderWidth: 1, borderColor: T.border, gap: 7,
+  },
+  playerNumBox: { width: 26, height: 26, borderRadius: 13, backgroundColor: T.panel, alignItems: 'center', justifyContent: 'center' },
+  playerNum: { fontFamily: T.mono, fontSize: 11, color: T.textSub },
+  playerName: { flex: 1, fontFamily: T.fontMed, fontSize: 12, color: T.text },
+  playerRoleDot: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  playerRoleText: { fontFamily: T.fontBold, fontSize: 9 },
+  playerEditBtn: { padding: 3 },
+
+  emptySectionText: { fontFamily: T.fontReg, color: T.textFaint, textAlign: 'center', padding: 20, fontSize: 13 },
+  accordionBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingVertical: 12, marginTop: 4,
+    backgroundColor: T.white, borderRadius: 12,
+    borderWidth: 1, borderColor: T.border,
+  },
+  accordionText: { fontFamily: T.fontSemi, fontSize: 13, color: T.textSub },
+
+  deleteTeamBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center' },
+  deleteTeamText: { fontFamily: T.fontSemi, color: T.neg, fontSize: 13 },
+
+  // Two-column tablet landscape layout
+  twoColContainer: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  twoColLeft: {
+    flex: 1,
+    borderRightWidth: 1,
+    borderRightColor: T.border,
+  },
+  twoColRight: {
+    flex: 1,
+  },
+
+  // Modals
+  modalBg: { flex: 1, backgroundColor: 'rgba(11,14,20,0.45)', justifyContent: 'center', padding: 20 },
+  modalCard: {
+    backgroundColor: T.white, borderRadius: 24, padding: 24,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.2, shadowRadius: 30, elevation: 20,
+  },
+  modalTitle: { fontFamily: T.fontBold, fontSize: 20, color: T.text, marginBottom: 20 },
+  modalLabel: {
+    fontFamily: T.fontSemi, fontSize: 10, color: T.textFaint,
+    textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, marginTop: 16,
+  },
+  modalInput: {
+    backgroundColor: T.panel, borderWidth: 1, borderColor: T.border,
+    borderRadius: T.rInput, padding: 14, fontSize: 15, color: T.text, fontFamily: T.fontReg,
+  },
+  roleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   roleBtn: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 2, borderColor: 'transparent' },
-  roleBtnText: { fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase' },
-  modalFooter: { flexDirection: 'row', gap: 12, marginTop: 32 },
-  modalBtnCancel: { flex: 1, padding: 16, backgroundColor: COLORS.slate100, borderRadius: 14, alignItems: 'center' },
-  modalBtnSave: { flex: 1, padding: 16, backgroundColor: COLORS.primary, borderRadius: 14, alignItems: 'center' },
-  modalBtnTextCancel: { fontWeight: 'bold', color: COLORS.slate600 },
-  modalBtnTextSave: { fontWeight: 'bold', color: COLORS.white },
-  roleConfigRow: { backgroundColor: COLORS.slate50, padding: 12, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: COLORS.slate100 },
-  colorDot: { width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderColor: 'transparent' },
-  colorDotSelected: { borderColor: COLORS.slate900, borderWidth: 3 },
+  roleBtnText: { fontFamily: T.fontSemi, fontSize: 11, textTransform: 'uppercase' },
+  modalFooter: { flexDirection: 'row', gap: 12, marginTop: 28 },
+  modalCancelBtn: { flex: 1, padding: 16, backgroundColor: T.panel, borderRadius: T.rBtn, alignItems: 'center' },
+  modalCancelText: { fontFamily: T.fontSemi, color: T.textSub, fontSize: 15 },
+  modalSaveWrap: { flex: 1, borderRadius: T.rBtn, overflow: 'hidden' },
+  modalSaveGrad: { padding: 16, alignItems: 'center' },
+  modalSaveText: { fontFamily: T.fontSemi, color: T.white, fontSize: 15 },
 
-  // New Match Config Styles
-  configSection: { backgroundColor: COLORS.white, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: COLORS.slate100 },
-  configSectionGray: { backgroundColor: '#F8FAFC', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#EDF2F7' },
-  inputWithIcon: { flexDirection: 'row', alignItems: 'center', position: 'relative' },
-  inputIcon: { position: 'absolute', right: 14 },
-  toggleRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  toggleBtn: { flex: 1, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: COLORS.slate200, backgroundColor: COLORS.white, alignItems: 'center' },
-  toggleBtnActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryLight },
-  toggleBtnText: { fontWeight: 'bold', color: COLORS.slate500, fontSize: 13 },
-  toggleBtnTextActive: { color: COLORS.primary },
-  
-  transportToggle: { flexDirection: 'row', backgroundColor: COLORS.white, borderRadius: 10, borderWidth: 1, borderColor: COLORS.slate200, padding: 2 },
+  roleConfigRow: { backgroundColor: T.panel, padding: 12, borderRadius: T.rCard, marginBottom: 10, borderWidth: 1, borderColor: T.border },
+  colorDot: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: 'transparent' },
+  colorDotSelected: { borderColor: T.text, borderWidth: 3 },
+
+  modeToggleRow: { flexDirection: 'row', gap: 8 },
+  modeToggleBtn: {
+    flex: 1, paddingVertical: 10, borderRadius: T.rBtn,
+    borderWidth: 1.5, borderColor: T.border,
+    alignItems: 'center', backgroundColor: T.panel,
+  },
+  modeToggleBtnActive: { borderColor: T.orange, backgroundColor: 'rgba(255,107,0,0.08)' },
+  modeToggleText: { fontFamily: T.fontSemi, fontSize: 13, color: T.textFaint },
+  modeToggleTextActive: { color: T.orange },
+
+  // Match Edit (old)
+  configSection: { backgroundColor: T.white, borderRadius: T.rCard, padding: 16, borderWidth: 1, borderColor: T.border },
+  configSectionGray: { backgroundColor: T.panel, borderRadius: T.rCard, padding: 16, borderWidth: 1, borderColor: T.border },
+  toggleRow: { flexDirection: 'row', gap: 10 },
+  toggleBtn: { flex: 1, padding: 12, borderRadius: T.rBtn, borderWidth: 1, borderColor: T.border, backgroundColor: T.white, alignItems: 'center' },
+  toggleBtnActive: { borderColor: T.blue, backgroundColor: T.blueSoft },
+  toggleBtnActiveOrange: { borderColor: T.orange, backgroundColor: T.orangeSoft },
+  toggleBtnText: { fontFamily: T.fontSemi, color: T.textSub, fontSize: 13 },
+  toggleBtnTextActive: { color: T.blue },
+  toggleBtnTextOrange: { color: T.orange },
+  transportToggle: { flexDirection: 'row', backgroundColor: T.white, borderRadius: T.rBtn, borderWidth: 1, borderColor: T.border, padding: 2 },
   transportBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
-  transportBtnActive: { backgroundColor: COLORS.primary },
-  
-  btnSavePrimary: { backgroundColor: COLORS.slate900, padding: 18, borderRadius: 16, alignItems: 'center' },
-  btnSaveText: { color: COLORS.white, fontWeight: 'bold', fontSize: 16 },
-  btnDeleteMatch: { padding: 18, borderRadius: 16, borderWidth: 1, borderColor: '#FEE2E2', alignItems: 'center' },
-  btnDeleteMatchText: { color: COLORS.danger, fontWeight: 'bold' },
-  
-  divider: { height: 1, backgroundColor: COLORS.slate100, marginVertical: 10 },
-  
-  shareGroup: { backgroundColor: COLORS.white, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: COLORS.slate100 },
-  shareGroupTitle: { fontSize: 12, fontWeight: 'bold', color: COLORS.slate600, letterSpacing: 0.5 },
-  shareGroupDesc: { fontSize: 11, color: COLORS.slate400, marginBottom: 12 },
-  shareBtnRow: { flexDirection: 'row', gap: 10 },
-  copyBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12, borderRadius: 12 },
-  copyBtnText: { fontWeight: 'bold', fontSize: 13 },
-  
-  shareGroupBlue: { backgroundColor: '#EFF6FF', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#DBEAFE' },
-  linkActionBtn: { 
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, 
-    padding: 14, borderRadius: 12, backgroundColor: COLORS.white, borderWidth: 1, borderColor: '#BFDBFE', marginTop: 12
-  },
-  linkActionBtnText: { color: COLORS.primary, fontWeight: 'bold' },
-  linkActionBtnCopy: { 
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, 
-    padding: 16, borderRadius: 12, backgroundColor: COLORS.primary, marginTop: 10
-  },
-  linkActionBtnTextWhite: { color: COLORS.white, fontWeight: 'bold' },
-  deleteAction: {
-    backgroundColor: COLORS.danger,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 80,
-  },
-});
+  transportBtnActive: { backgroundColor: T.orangeSoft },
 
+  savePrimaryBtn: { backgroundColor: T.ink, padding: 18, borderRadius: T.rCard, alignItems: 'center' },
+  savePrimaryText: { fontFamily: T.fontSemi, color: T.white, fontSize: 16 },
+  deleteMatchBtn: { padding: 18, borderRadius: T.rCard, borderWidth: 1, borderColor: T.negSoft, alignItems: 'center' },
+  deleteMatchText: { fontFamily: T.fontSemi, color: T.neg },
+
+  // Match Edit Modal (new style)
+  matchEditOverlay: { flex: 1, backgroundColor: 'rgba(11,14,20,0.6)', justifyContent: 'flex-end' },
+  matchEditSheet: {
+    backgroundColor: T.panel, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    maxHeight: '92%', overflow: 'hidden',
+  },
+  matchEditHeader: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16, overflow: 'hidden' },
+  matchEditBackBtn: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center',
+  },
+  matchEditEyebrow: { fontSize: 9, fontFamily: T.fontBold, color: T.orange, letterSpacing: 1.4, textTransform: 'uppercase' },
+  matchEditTitle: { fontSize: 16, fontFamily: T.fontBlack, color: '#fff', letterSpacing: -0.3, marginTop: 2 },
+  matchEditSaveBtn: {
+    width: 38, height: 38, borderRadius: 10,
+    backgroundColor: T.orange, alignItems: 'center', justifyContent: 'center',
+  },
+  meFormCard: { backgroundColor: T.bg, borderRadius: T.rCard, borderWidth: 1, borderColor: T.border, padding: 14 },
+  meFormCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  meFormCardNum: { fontSize: 10, fontFamily: T.monoBold, color: T.orange },
+  meFormCardTitle: { fontSize: 13, fontFamily: T.fontBlack, color: T.text },
+  meFormLabel: { fontSize: 11, fontFamily: T.fontBold, color: T.textSub, marginBottom: 5, marginTop: 8, letterSpacing: -0.1 },
+  meFormInput: {
+    backgroundColor: T.panel, borderWidth: 1, borderColor: T.border,
+    borderRadius: T.rInput, paddingHorizontal: 12, paddingVertical: 10,
+    fontSize: 13, fontFamily: T.fontSemi, color: T.text,
+  },
+  meDeleteBtn: {
+    width: 46, height: 46, borderRadius: T.rBtn, borderWidth: 1, borderColor: T.negSoft,
+    backgroundColor: T.negSoft, alignItems: 'center', justifyContent: 'center',
+  },
+  meSaveBtn: {
+    flex: 1, height: 46, borderRadius: T.rBtn, backgroundColor: T.ink,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  meSaveBtnText: { fontFamily: T.fontBlack, fontSize: 13, color: '#fff' },
+
+  // Config modal — mode selector
+  cfModeRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 12, paddingHorizontal: 4,
+    borderRadius: T.rCard, marginBottom: 2,
+  },
+  cfModeRowActive: { backgroundColor: T.orangeSoft },
+  cfModeRadio: {
+    width: 18, height: 18, borderRadius: 9,
+    borderWidth: 2, borderColor: T.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  cfModeRadioActive: { borderColor: T.orange },
+  cfModeRadioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: T.orange },
+  cfModeLabel: { fontFamily: T.fontSemi, fontSize: 13, color: T.text },
+  cfModeLabelActive: { color: T.orange },
+  cfModeSub: { fontFamily: T.fontReg, fontSize: 11, color: T.textFaint, marginTop: 1 },
+
+  // Config modal — role rows
+  cfRoleRow: { paddingTop: 14, paddingBottom: 8, gap: 10 },
+  cfRoleNameRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cfRolePosBadge: {
+    width: 32, height: 32, borderRadius: 8,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  cfRolePosText: { fontFamily: T.monoBold, fontSize: 13 },
+  cfPosRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cfPosRowLabel: { fontFamily: T.fontSemi, fontSize: 11, color: T.textFaint, width: 90 },
+  cfPosChips: { flexDirection: 'row', gap: 6 },
+  cfPosChip: {
+    width: 30, height: 30, borderRadius: 8,
+    borderWidth: 1.5, borderColor: T.border,
+    backgroundColor: T.panel,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  cfPosChipText: { fontFamily: T.monoBold, fontSize: 12, color: T.textSub },
+  cfColorRow: { flexDirection: 'row', gap: 8 },
+  cfColorDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: 'transparent' },
+  cfOrderInput: {
+    width: 36, height: 36, borderRadius: 8,
+    borderWidth: 1, borderColor: T.border,
+    backgroundColor: T.panel,
+    fontFamily: T.monoBold, fontSize: 13, color: T.text,
+    textAlign: 'center',
+  },
+  cfDeleteBtn: {
+    width: 32, height: 32, borderRadius: 8,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: T.negSoft,
+  },
+  cfAddRoleBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 12, paddingHorizontal: 4,
+    marginTop: 6, borderTopWidth: 1, borderTopColor: T.border,
+  },
+  cfAddRoleBtnText: { fontFamily: T.fontSemi, fontSize: 13, color: T.orange },
+
+  divider: { height: 1, backgroundColor: T.border, marginVertical: 4 },
+
+  shareGroup: { backgroundColor: T.white, padding: 16, borderRadius: T.rCard, borderWidth: 1, borderColor: T.border },
+  shareGroupTitle: { fontFamily: T.fontSemi, fontSize: 11, color: T.textSub, letterSpacing: 0.5 },
+  shareGroupDesc: { fontFamily: T.fontReg, fontSize: 11, color: T.textFaint, marginBottom: 10 },
+  shareBtnRow: { flexDirection: 'row', gap: 10 },
+  copyBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, padding: 12, borderRadius: T.rBtn },
+  copyBtnText: { fontFamily: T.fontSemi, fontSize: 13 },
+
+  shareGroupBlue: { backgroundColor: T.blueSoft, padding: 16, borderRadius: T.rCard, borderWidth: 1, borderColor: 'rgba(64,113,255,0.2)' },
+  linkBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    padding: 14, borderRadius: T.rBtn, backgroundColor: T.white, borderWidth: 1, borderColor: 'rgba(64,113,255,0.3)', marginTop: 10,
+  },
+  linkBtnText: { fontFamily: T.fontSemi, color: T.blue },
+  linkBtnPrimary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14, borderRadius: T.rBtn, backgroundColor: T.blue, marginTop: 8 },
+  linkBtnPrimaryText: { fontFamily: T.fontSemi, color: T.white },
+}); }

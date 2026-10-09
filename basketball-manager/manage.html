@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestionar suscripción · partits.</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    @keyframes spinAnim { to { transform: rotate(360deg); } }
+    .spin { animation: spinAnim 0.8s linear infinite; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+  <div id="root" class="w-full max-w-sm text-center"></div>
+
+  <script>
+    const userId = new URLSearchParams(window.location.search).get('uid');
+    const root = document.getElementById('root');
+
+    function showError(msg) {
+      root.innerHTML = `
+        <div class="bg-white p-8 rounded-3xl shadow-xl border border-slate-100">
+          <p class="text-red-500 font-semibold mb-2">Error</p>
+          <p class="text-slate-500 text-sm">${msg}</p>
+        </div>`;
+    }
+
+    async function openPortal() {
+      if (!userId) { showError('Enlace inválido. Vuelve a la app.'); return; }
+
+      root.innerHTML = `
+        <div class="bg-white p-8 rounded-3xl shadow-xl border border-slate-100">
+          <div class="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full spin mx-auto mb-4"></div>
+          <p class="text-slate-500 text-sm font-medium">Abriendo portal de suscripción...</p>
+        </div>`;
+
+      try {
+        const res = await fetch(
+          'https://europe-west3-basketmanager-ed370.cloudfunctions.net/createPortalSession',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId }),
+          }
+        );
+        const data = await res.json();
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          throw new Error(data.error || 'Error desconocido');
+        }
+      } catch (e) {
+        showError('Error de red: ' + e.message);
+      }
+    }
+
+    openPortal();
+  </script>
+</body>
+</html>
