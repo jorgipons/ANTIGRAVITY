@@ -3246,6 +3246,11 @@
                                                             <p className="text-xs text-slate-400 font-medium">
                                                                 {team.players?.length || 0} Jugadores
                                                             </p>
+                                                            {!premium.isPro && !premium.loading && (
+                                                                <p className="text-[11px] font-semibold text-slate-400">
+                                                                    {Math.min(matches.filter(m => m.teamId === team.id).length, 8)}/8 partidos
+                                                                </p>
+                                                            )}
                                                             {/* Chevron removed per request */}
                                                         </div>
 
@@ -3299,7 +3304,7 @@
             );
         };
 
-        const MatchSetupView = ({ team, navigate, addDoc, collection, db }) => {
+        const MatchSetupView = ({ team, navigate, addDoc, collection, db, checkMatchLimit, openPremiumModal }) => {
             useEffect(() => {
                 if (!team) navigate('teams-list');
             }, [team]);
@@ -3383,6 +3388,11 @@
                         const matchRef = doc(db, 'matches', currentId);
                         await updateDoc(matchRef, matchData);
                     } else {
+                        // Free tier: 8 matches per team. Editing an existing one is never gated.
+                        if (checkMatchLimit && checkMatchLimit(team)) {
+                            openPremiumModal('match_limit');
+                            return null;
+                        }
                         const docRef = await addDoc(collection(db, 'matches'), matchData);
                         await bumpMatchCount(matchData.teamId, 1);
                         currentId = docRef.id;
@@ -5605,6 +5615,20 @@
                 window.location.assign(`${SUBSCRIBE_BASE}/manage?uid=${encodeURIComponent(user.uid)}`);
             };
 
+            // Gate on the real number of matches rather than the stored counter, so the
+            // limit is right even on teams whose matchCount drifted before it was maintained.
+            const realMatchCount = (teamId) => matches.filter(m => m.teamId === teamId).length;
+
+            const checkMatchLimit = (team) => {
+                if (!team) return false;
+                const real = realMatchCount(team.id);
+                if ((team.matchCount || 0) !== real) {
+                    updateDoc(doc(db, 'teams', team.id), { matchCount: real })
+                        .catch(err => console.warn('No se pudo corregir matchCount:', err));
+                }
+                return !premium.isPro && !premium.loading && real >= 8;
+            };
+
             const getSelectedTeam = () => teams.find(t => t.id === selectedTeamId);
             const getActiveMatch = () => matches.find(m => m.id === activeMatchId);
 
@@ -5672,7 +5696,7 @@
                             {view === 'admin-dashboard' && isAdmin && <AdminDashboardView navigate={navigate} db={db} collection={collection} getDocs={getDocs} query={query} where={where} />}
                             {view === 'all-matches-calendar' && <AllMatchesCalendarView teams={teams} matches={matches} navigate={navigate} />}
                             {view === 'team-detail' && <TeamDetailView team={getSelectedTeam()} matches={matches} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} addDoc={addDoc} collection={collection} db={db} />}
-                            {view === 'match-setup' && <MatchSetupView team={getSelectedTeam()} navigate={navigate} addDoc={addDoc} collection={collection} db={db} updateDoc={updateDoc} doc={doc} />}
+                            {view === 'match-setup' && <MatchSetupView team={getSelectedTeam()} navigate={navigate} addDoc={addDoc} collection={collection} db={db} updateDoc={updateDoc} doc={doc} checkMatchLimit={checkMatchLimit} openPremiumModal={openPremiumModal} />}
                             {view === 'active-match' && <ActiveMatchView match={getActiveMatch()} teams={teams} updateMatchInDb={updateMatchInDb} navigate={navigate} getRoles={getRoles} />}
                             {view === 'calendar' && <CalendarView team={getSelectedTeam()} matches={matches} navigate={navigate} />}
                             {view === 'edit-match' && (
