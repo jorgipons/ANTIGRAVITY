@@ -66,7 +66,7 @@ function AppNavigator() {
 
 // Configure deep linking
 const linking = {
-  prefixes: ['basketballmanager://', 'https://tu-dominio.com'],
+  prefixes: ['basketballmanager://', 'https://basketmanager-ed370.web.app'],
   config: {
     screens: {
       MatchAttendance: 'match/:teamId/:matchId',

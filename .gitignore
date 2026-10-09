@@ -13,3 +13,11 @@ Thumbs.db
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Capturas del handoff con datos personales de jugadores menores de edad.
+# El repositorio es publico: no deben subirse.
+basketball-manager-rn/design_handoff_partits_redesign/
+basketball-manager-rn/APP Partits.zip
+
+# Proyecto ajeno a este monorepo, versionado por separado.
+festesbenidoleig2027/

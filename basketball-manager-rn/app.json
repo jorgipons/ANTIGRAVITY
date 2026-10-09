@@ -1,30 +1,31 @@
 {
   "expo": {
-    "name": "basketball-manager-rn",
+    "name": "partits.",
     "slug": "basketball-manager-rn",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icono.png",
-    "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/icon-white.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1A3D77"
+      "backgroundColor": "#0B0E14"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.jorgipons.basketballmanager"
     },
     "android": {
       "package": "com.jorgipons.basketballmanager",
       "versionCode": 1,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icono.png",
-        "backgroundColor": "#1A3D77"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0B0E14"
       }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/icon.png"
     },
     "plugins": [
       "@react-native-google-signin/google-signin",
