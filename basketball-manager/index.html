@@ -2973,7 +2973,83 @@
         };
 
 
-        const TeamsListView = ({ teams, matches, navigate, addDoc, collection, db, doc, premium, startCheckout }) => {
+        const PREMIUM_REASONS = {
+            team_limit: {
+                title: 'Solo 1 equipo en el plan gratuito',
+                description: 'Necesitas el plan Pro para gestionar más de un equipo.',
+            },
+            match_limit: {
+                title: 'Has usado los 8 partidos incluidos',
+                description: 'El plan gratuito incluye 8 partidos por equipo. Hazte Pro para partidos ilimitados.',
+            },
+            upgrade: {
+                title: 'Pásate a Premium',
+                description: 'Gestión de equipos ilimitados, estadísticas avanzadas y más.',
+            },
+        };
+
+        const FREE_FEATURES = ['1 equipo', '8 partidos incluidos', 'Matriz y convocatoria completas'];
+        const PRO_FEATURES = ['Equipos ilimitados', 'Partidos ilimitados', 'Sincronización FBCV automática', 'Futuras funciones premium'];
+
+        const PremiumModal = ({ reason, onClose, onSubscribe }) => {
+            const info = PREMIUM_REASONS[reason] || PREMIUM_REASONS.upgrade;
+
+            useEffect(() => { if (window.lucide) window.lucide.createIcons(); }, []);
+
+            return (
+                <div
+                    className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6"
+                    onClick={onClose}
+                >
+                    <div
+                        className="bg-white rounded-t-3xl sm:rounded-3xl p-6 w-full sm:max-w-md shadow-2xl relative animate-in slide-in-from-bottom duration-300"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400" title="Cerrar">
+                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="x" class="w-5 h-5"></i>' }}></span>
+                        </button>
+
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-orange-100 text-orange-600 text-[11px] font-black tracking-widest mb-3">PRO</span>
+                        <h3 className="text-xl font-black text-slate-800 mb-1.5">{info.title}</h3>
+                        <p className="text-sm text-slate-500 mb-5">{info.description}</p>
+
+                        <div className="flex gap-2.5 mb-5">
+                            <div className="flex-1 rounded-2xl p-3.5 bg-slate-50 border border-slate-200">
+                                <p className="text-[9px] font-black tracking-widest text-slate-400 mb-1">GRATIS</p>
+                                <p className="text-2xl font-black text-slate-800">€0</p>
+                                <ul className="mt-2.5 space-y-1.5">
+                                    {FREE_FEATURES.map(f => (
+                                        <li key={f} className="text-xs text-slate-500">{f}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                            <div className="flex-1 rounded-2xl p-3.5 bg-slate-900 border border-slate-900">
+                                <p className="text-[9px] font-black tracking-widest text-orange-400 mb-1">PRO</p>
+                                <p className="text-2xl font-black text-white">€1.99<span className="text-xs font-normal text-white/50">/mes</span></p>
+                                <p className="text-[11px] text-white/40">o €16.99/año</p>
+                                <ul className="mt-2.5 space-y-1.5">
+                                    {PRO_FEATURES.map(f => (
+                                        <li key={f} className="text-xs text-white/80">{f}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={onSubscribe}
+                            className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 text-white font-black text-base shadow-lg active:scale-95 transition-all"
+                        >
+                            Activar Premium · €1.99/mes
+                        </button>
+                        <button onClick={onClose} className="w-full py-2.5 mt-2 text-sm font-semibold text-slate-400">
+                            Ahora no
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const TeamsListView = ({ teams, matches, navigate, addDoc, collection, db, doc, premium, openPremiumModal }) => {
             const [newTeamName, setNewTeamName] = useState('');
             const [newTeamRuleset, setNewTeamRuleset] = useState(DEFAULT_RULESET);
             const [newTeamFederationId, setNewTeamFederationId] = useState('');
@@ -2990,8 +3066,7 @@
                 if (!newTeamName.trim() || !window.auth.currentUser) return;
                 // --- Nueva Lógica de Límites ---
                 if (teams.length >= 1 && !premium.isPro && !premium.loading) {
-                    showToast('Límite del Plan Gratuito: Solo puedes gestionar 1 equipo. Pásate a Premium para equipos ilimitados.');
-                    startCheckout();
+                    openPremiumModal('team_limit');
                     return;
                 }
 
@@ -3036,7 +3111,13 @@
                                 </button>
                                 <button
                                     id="add-team-btn"
-                                    onClick={() => setShowForm(!showForm)}
+                                    onClick={() => {
+                                        if (!premium.isPro && !premium.loading && teams.length >= 1) {
+                                            openPremiumModal('team_limit');
+                                            return;
+                                        }
+                                        setShowForm(!showForm);
+                                    }}
                                     className={`p-3 rounded-2xl transition-all shadow-lg ${showForm ? 'bg-slate-200 text-slate-600 rotate-45' : 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-105 active:scale-95'}`}
                                     title="Añadir Equipo"
                                 >
@@ -3053,7 +3134,7 @@
                                 <div className="relative z-10">
                                     <h3 className="text-white font-bold text-lg leading-tight mb-1">Pásate a Premium</h3>
                                     <p className="text-blue-100 text-xs mb-3">Gestión de equipos ilimitados, estadísticas avanzadas y más.</p>
-                                    <button onClick={startCheckout} className="px-4 py-2 bg-white text-blue-600 rounded-lg font-bold text-xs shadow-sm active:scale-95 transition-all">
+                                    <button onClick={() => openPremiumModal('upgrade')} className="px-4 py-2 bg-white text-blue-600 rounded-lg font-bold text-xs shadow-sm active:scale-95 transition-all">
                                         Desbloquear equipos
                                     </button>
                                 </div>
@@ -5126,9 +5207,11 @@
             const [premium, setPremium] = useState({ isPro: false, loading: true, source: null });
             const [ownSub, setOwnSub] = useState({ isPro: false, clubId: null, source: null, loading: true });
             const [clubSub, setClubSub] = useState({ isPro: false });
-            const [checkoutLoading, setCheckoutLoading] = useState(false);
             const [isOnline, setIsOnline] = useState(navigator.onLine);
             const [toast, setToast] = useState(null);
+            const [premiumModal, setPremiumModal] = useState({ open: false, reason: 'upgrade' });
+            const openPremiumModal = (reason = 'upgrade') => setPremiumModal({ open: true, reason });
+            const closePremiumModal = () => setPremiumModal({ open: false, reason: 'upgrade' });
 
             // Tutorial State
             const [showTutorial, setShowTutorial] = useState(false);
@@ -5488,32 +5571,6 @@
                 }
             }, [view, isAdmin]);
 
-            const startCheckout = async () => {
-                setCheckoutLoading(true);
-                try {
-                    const checkoutRef = collection(db, 'customers', user.uid, 'checkout_sessions');
-                    const docRef = await addDoc(checkoutRef, {
-                        price: 'price_1T0gwQKPQKkc3mVNhH05plnK', // ID real del producto del usuario
-                        success_url: window.location.href,
-                        cancel_url: window.location.href,
-                    });
-
-                    onSnapshot(docRef, (snap) => {
-                        const { url, error } = snap.data();
-                        if (url) window.location.assign(url);
-                        if (error) {
-                            setCheckoutLoading(false);
-                            if (window.showToast) window.showToast(`Error de Stripe: ${error.message}`);
-                            else alert(`Error de Stripe: ${error.message}`);
-                        }
-                    });
-                } catch (err) {
-                    setCheckoutLoading(false);
-                    if (window.showToast) window.showToast(err.message);
-                    else alert(err.message);
-                }
-            };
-
             // Both pages live behind Firebase Hosting rewrites, which do not exist on
             // GitHub Pages — so these URLs must stay absolute.
             const SUBSCRIBE_BASE = 'https://basketmanager-ed370.web.app';
@@ -5591,7 +5648,7 @@
 
                         <div className="flex-grow">
                             {view === 'public-match' && <PublicMatchView matchId={activeMatchId} user={user} navigate={navigate} db={db} doc={doc} onSnapshot={onSnapshot} updateDoc={updateDoc} collection={collection} query={query} where={where} getDocs={getDocs} />}
-                            {view === 'teams-list' && <TeamsListView teams={teams} matches={matches} navigate={navigate} addDoc={addDoc} collection={collection} db={db} deleteDoc={deleteDoc} doc={doc} premium={premium} startCheckout={startCheckout} />}
+                            {view === 'teams-list' && <TeamsListView teams={teams} matches={matches} navigate={navigate} addDoc={addDoc} collection={collection} db={db} deleteDoc={deleteDoc} doc={doc} premium={premium} openPremiumModal={openPremiumModal} />}
                             {view === 'admin-dashboard' && isAdmin && <AdminDashboardView navigate={navigate} db={db} collection={collection} getDocs={getDocs} query={query} where={where} />}
                             {view === 'all-matches-calendar' && <AllMatchesCalendarView teams={teams} matches={matches} navigate={navigate} />}
                             {view === 'team-detail' && <TeamDetailView team={getSelectedTeam()} matches={matches} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} addDoc={addDoc} collection={collection} db={db} />}
@@ -5640,15 +5697,14 @@
                         )}
                     </div>
 
-                    {checkoutLoading && (
-                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6 text-center">
-                            <div className="bg-white rounded-3xl p-8 max-w-xs w-full shadow-2xl animate-in fade-in zoom-in duration-300">
-                                <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
-                                <h3 className="text-xl font-bold text-slate-800 mb-2">Preparando pago</h3>
-                                <p className="text-slate-500 text-sm">Te estamos redirigiendo a la pasarela segura de Stripe...</p>
-                            </div>
-                        </div>
+                    {premiumModal.open && (
+                        <PremiumModal
+                            reason={premiumModal.reason}
+                            onClose={closePremiumModal}
+                            onSubscribe={() => { closePremiumModal(); goToSubscribe(); }}
+                        />
                     )}
+
                 </div>
             );
         };
