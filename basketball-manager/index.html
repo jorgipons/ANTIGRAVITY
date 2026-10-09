@@ -58,7 +58,7 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, orderBy, where, enableIndexedDbPersistence, getDocs, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, orderBy, where, enableIndexedDbPersistence, getDocs, setDoc, getDoc, increment } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-auth.js";
         import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-messaging.js";
 
@@ -93,7 +93,7 @@
         window.auth = auth;
         window.messaging = messaging;
         window.firebaseMethods = {
-            collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, orderBy, where, getDocs, setDoc, getDoc,
+            collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, orderBy, where, getDocs, setDoc, getDoc, increment,
             signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
             GoogleAuthProvider, signInWithPopup,
             getToken, onMessage
@@ -429,6 +429,19 @@
             const db = window.db;
             const teamRef = doc(db, "teams", teamId);
             await updateDoc(teamRef, updates);
+        };
+
+        // The mobile app gates on teams/{id}.matchCount (useMatches.js:85), so the web app
+        // must keep it accurate. Declared at top level so every view can call it.
+        // A failure here must never block the match operation itself.
+        const bumpMatchCount = async (teamId, delta) => {
+            if (!teamId || !delta) return;
+            const { doc: fsDoc, updateDoc: fsUpdate, increment: fsIncrement } = window.firebaseMethods;
+            try {
+                await fsUpdate(fsDoc(window.db, 'teams', teamId), { matchCount: fsIncrement(delta) });
+            } catch (err) {
+                console.warn('No se pudo actualizar matchCount:', err);
+            }
         };
 
         const generateConvocatoria = (match, team, lang = 'val', players = null) => {
@@ -1299,7 +1312,9 @@
             const handleDeleteMatch = (match) => {
                 if (!confirm(`¿Eliminar el partido contra ${match.opponent}?`)) return;
                 const { doc, deleteDoc } = window.firebaseMethods;
-                deleteDoc(doc(db, 'matches', match.id)).catch(err => alert('Error: ' + err.message));
+                deleteDoc(doc(db, 'matches', match.id))
+                    .then(() => bumpMatchCount(match.teamId, -1))
+                    .catch(err => alert('Error: ' + err.message));
                 setSwipedMatchId(null);
             };
 
@@ -1399,6 +1414,9 @@
                                 }
                             }
                         }
+
+                        // One write for the whole import, not one per match.
+                        if (imported > 0) await bumpMatchCount(team.id, imported);
 
                         if (window.showToast) window.showToast(`✅ Proceso completado: ${imported} nuevos, ${updated} actualizados`);
                         else alert(`✅ Proceso completado\n\n${imported} partidos nuevos importados\n${updated} marcadores actualizados`);
@@ -3366,6 +3384,7 @@
                         await updateDoc(matchRef, matchData);
                     } else {
                         const docRef = await addDoc(collection(db, 'matches'), matchData);
+                        await bumpMatchCount(matchData.teamId, 1);
                         currentId = docRef.id;
                         setMatchId(currentId);
                     }
@@ -3689,6 +3708,7 @@
                 } else {
                     if (!confirm('¿Eliminar partido?')) return;
                     await deleteDoc(doc(db, 'matches', match.id));
+                    await bumpMatchCount(match.teamId, -1);
                     navigate('team-detail', team.id);
                 }
             };
