@@ -1282,7 +1282,7 @@
             );
         };
 
-        const TeamDetailView = ({ team, matches, navigate, updateTeamInDb, getRoles, addDoc, collection, db }) => {
+        const TeamDetailView = ({ team, matches, navigate, updateTeamInDb, getRoles, addDoc, collection, db, isOverMatchLimit, openPremiumModal }) => {
             const { doc, updateDoc } = window.firebaseMethods;
             const [newPlayerName, setNewPlayerName] = useState('');
             const [newPlayerNumber, setNewPlayerNumber] = useState('');
@@ -1359,6 +1359,17 @@
 
                         // Partidos que ya existen en nuestra DB para este equipo
                         const existingMatches = matches.filter(m => m.teamId === team.id);
+
+                        // The free limit applies here too. Without this, importing a 22-match
+                        // FBCV schedule walks straight past the 8-match cap and writes the
+                        // inflated total into the field the mobile app gates on.
+                        const wouldCreate = matchesToImport.filter(fm =>
+                            !existingMatches.find(m => m.federationMatchId === fm.federationMatchId)
+                        ).length;
+                        if (isOverMatchLimit && isOverMatchLimit(team, wouldCreate)) {
+                            openPremiumModal('match_limit');
+                            return;
+                        }
 
                         let imported = 0;
                         let updated = 0;
@@ -3248,7 +3259,7 @@
                                                             </p>
                                                             {!premium.isPro && !premium.loading && (
                                                                 <p className="text-[11px] font-semibold text-slate-400">
-                                                                    {Math.min(matches.filter(m => m.teamId === team.id).length, 8)}/8 partidos
+                                                                    {Math.min(Math.max(team.matchCount || 0, matches.filter(m => m.teamId === team.id).length), 8)}/8 partidos
                                                                 </p>
                                                             )}
                                                             {/* Chevron removed per request */}
@@ -3304,7 +3315,7 @@
             );
         };
 
-        const MatchSetupView = ({ team, navigate, addDoc, collection, db, checkMatchLimit, openPremiumModal }) => {
+        const MatchSetupView = ({ team, navigate, addDoc, collection, db, isOverMatchLimit, openPremiumModal }) => {
             useEffect(() => {
                 if (!team) navigate('teams-list');
             }, [team]);
@@ -3389,7 +3400,10 @@
                         await updateDoc(matchRef, matchData);
                     } else {
                         // Free tier: 8 matches per team. Editing an existing one is never gated.
-                        if (checkMatchLimit && checkMatchLimit(team)) {
+                        if (isOverMatchLimit && isOverMatchLimit(team, 1)) {
+                            // Clear the status first: it is the Guardar button's whole label,
+                            // and leaving it on 'Guardando...' strands the button for good.
+                            setSaveStatus('');
                             openPremiumModal('match_limit');
                             return null;
                         }
@@ -5234,9 +5248,19 @@
             const [authLoading, setAuthLoading] = useState(true);
             // Premium state — mirrors src/hooks/useSubscription.js in the mobile app.
             // Any change to this rule must be applied there too.
-            const [premium, setPremium] = useState({ isPro: false, loading: true, source: null });
             const [ownSub, setOwnSub] = useState({ isPro: false, clubId: null, source: null, loading: true });
             const [clubSub, setClubSub] = useState({ isPro: false });
+
+            // Derived during render, not in an effect: an effect would publish a stale
+            // `premium` for one frame after every change, and that frame is enough to show
+            // a paying user the upsell or refuse them the + button. Mirrors useSubscription.js:64-68.
+            const premium = ownSub.loading
+                ? { isPro: false, loading: true, source: null }
+                : {
+                    isPro: ownSub.isPro || clubSub.isPro,
+                    loading: false,
+                    source: ownSub.isPro ? ownSub.source : (clubSub.isPro ? 'club' : null),
+                };
             const [isOnline, setIsOnline] = useState(navigator.onLine);
             const [toast, setToast] = useState(null);
             const [premiumModal, setPremiumModal] = useState({ open: false, reason: 'upgrade' });
@@ -5543,6 +5567,11 @@
                     setOwnSub({ isPro: false, clubId: null, source: null, loading: false });
                     return;
                 }
+                // Re-arm loading for THIS user. Without it the no-user branch above has
+                // already published loading:false, and a paying user is treated as free
+                // until their snapshot arrives — long enough to show the upsell and to
+                // refuse them the + button.
+                setOwnSub(prev => (prev.loading ? prev : { ...prev, loading: true }));
                 const unsubscribe = onSnapshot(
                     doc(db, 'users', user.uid),
                     (snap) => {
@@ -5581,20 +5610,6 @@
                 return () => unsubscribe();
             }, [ownSub.clubId]);
 
-            // resolvePremium — combines both listeners into the single value the UI reads.
-            useEffect(() => {
-                if (ownSub.loading) {
-                    setPremium({ isPro: false, loading: true, source: null });
-                    return;
-                }
-                const isPro = ownSub.isPro || clubSub.isPro;
-                setPremium({
-                    isPro,
-                    loading: false,
-                    source: ownSub.isPro ? ownSub.source : (clubSub.isPro ? 'club' : null),
-                });
-            }, [ownSub, clubSub]);
-
             useEffect(() => {
                 if (window.lucide) {
                     lucide.createIcons();
@@ -5615,18 +5630,19 @@
                 window.location.assign(`${SUBSCRIBE_BASE}/manage?uid=${encodeURIComponent(user.uid)}`);
             };
 
-            // Gate on the real number of matches rather than the stored counter, so the
-            // limit is right even on teams whose matchCount drifted before it was maintained.
-            const realMatchCount = (teamId) => matches.filter(m => m.teamId === teamId).length;
+            // This client cannot see every match of a team: the `matches` listener filters by
+            // ownerId, and the mobile app does not write ownerId on match documents
+            // (src/hooks/useMatches.js:54). So the locally visible count is a FLOOR, never a
+            // total. Take the larger of it and the stored counter, exactly as the mobile app
+            // does in MatchListScreen.js:185 — and never write a "corrected" absolute value
+            // from it, which would overwrite a correct 8 with a local 0.
+            const effectiveMatchCount = (team) =>
+                Math.max(team?.matchCount || 0, matches.filter(m => m.teamId === team?.id).length);
 
-            const checkMatchLimit = (team) => {
-                if (!team) return false;
-                const real = realMatchCount(team.id);
-                if ((team.matchCount || 0) !== real) {
-                    updateDoc(doc(db, 'teams', team.id), { matchCount: real })
-                        .catch(err => console.warn('No se pudo corregir matchCount:', err));
-                }
-                return !premium.isPro && !premium.loading && real >= 8;
+            // `extra` is how many matches are about to be created.
+            const isOverMatchLimit = (team, extra = 1) => {
+                if (!team || premium.isPro || premium.loading) return false;
+                return effectiveMatchCount(team) + extra > 8;
             };
 
             const getSelectedTeam = () => teams.find(t => t.id === selectedTeamId);
@@ -5695,8 +5711,8 @@
                             {view === 'teams-list' && <TeamsListView teams={teams} matches={matches} navigate={navigate} addDoc={addDoc} collection={collection} db={db} deleteDoc={deleteDoc} doc={doc} premium={premium} openPremiumModal={openPremiumModal} />}
                             {view === 'admin-dashboard' && isAdmin && <AdminDashboardView navigate={navigate} db={db} collection={collection} getDocs={getDocs} query={query} where={where} />}
                             {view === 'all-matches-calendar' && <AllMatchesCalendarView teams={teams} matches={matches} navigate={navigate} />}
-                            {view === 'team-detail' && <TeamDetailView team={getSelectedTeam()} matches={matches} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} addDoc={addDoc} collection={collection} db={db} />}
-                            {view === 'match-setup' && <MatchSetupView team={getSelectedTeam()} navigate={navigate} addDoc={addDoc} collection={collection} db={db} updateDoc={updateDoc} doc={doc} checkMatchLimit={checkMatchLimit} openPremiumModal={openPremiumModal} />}
+                            {view === 'team-detail' && <TeamDetailView team={getSelectedTeam()} matches={matches} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} addDoc={addDoc} collection={collection} db={db} isOverMatchLimit={isOverMatchLimit} openPremiumModal={openPremiumModal} />}
+                            {view === 'match-setup' && <MatchSetupView team={getSelectedTeam()} navigate={navigate} addDoc={addDoc} collection={collection} db={db} updateDoc={updateDoc} doc={doc} isOverMatchLimit={isOverMatchLimit} openPremiumModal={openPremiumModal} />}
                             {view === 'active-match' && <ActiveMatchView match={getActiveMatch()} teams={teams} updateMatchInDb={updateMatchInDb} navigate={navigate} getRoles={getRoles} />}
                             {view === 'calendar' && <CalendarView team={getSelectedTeam()} matches={matches} navigate={navigate} />}
                             {view === 'edit-match' && (
