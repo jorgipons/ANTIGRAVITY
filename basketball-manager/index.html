@@ -444,6 +444,45 @@
             await updateDoc(teamRef, updates);
         };
 
+        // ---------------------------------------------------------------------
+        // Cascara de pagina comun.
+        //
+        // Antes cada vista se inventaba su ancho (max-w-md, lg:max-w-4xl,
+        // max-w-6xl, max-w-lg lg:max-w-2xl...) y su cabecera. De ahi la sensacion
+        // de app de movil estirada: formularios de 448px flotando a la izquierda
+        // de una pantalla de 1900px y titulos centrados con un div de relleno.
+        // Un solo ancho y una sola cabecera para todo.
+        // ---------------------------------------------------------------------
+        const PAGE_MAX = 'max-w-5xl';
+
+        const PageHeader = ({ title, subtitle, onBack, actions }) => {
+            useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
+            return (
+                <header className="bg-white/90 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-20 safe-top">
+                    <div className={`${PAGE_MAX} mx-auto px-4 sm:px-6 h-16 flex items-center gap-3`}>
+                        {onBack && (
+                            <button
+                                onClick={onBack}
+                                aria-label="Volver"
+                                className="p-2 -ml-2 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                            >
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="arrow-left" class="w-5 h-5"></i>' }}></span>
+                            </button>
+                        )}
+                        <div className="min-w-0 flex-1">
+                            <h1 className="text-lg font-bold text-slate-800 truncate leading-tight">{title}</h1>
+                            {subtitle && <p className="text-xs text-slate-400 truncate">{subtitle}</p>}
+                        </div>
+                        {actions && <div className="flex items-center gap-1.5 shrink-0">{actions}</div>}
+                    </div>
+                </header>
+            );
+        };
+
+        const PageBody = ({ children, className = '' }) => (
+            <div className={`${PAGE_MAX} mx-auto px-4 sm:px-6 py-6 ${className}`}>{children}</div>
+        );
+
         // The mobile app gates on teams/{id}.matchCount (useMatches.js:85), so the web app
         // must keep it accurate. Declared at top level so every view can call it.
         // A failure here must never block the match operation itself.
@@ -1578,23 +1617,26 @@
             const teamMatches = matches.filter(m => m.teamId === team.id);
 
             return (
-                <div className="p-4 max-w-md lg:max-w-6xl mx-auto pb-24">
-                    <header className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-2 flex-1">
-                            <button onClick={() => navigate('teams-list')} className="p-2 -ml-2 text-slate-400 hover:text-slate-800 transition-colors"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
-                            <h1 className="text-2xl font-bold text-slate-800">{team.name}</h1>
-                        </div>
-                        <div className="flex gap-2">
-                            <button onClick={() => navigate('calendar', team.id)} className="p-2 text-slate-400 hover:text-slate-800 transition-colors" title="Calendario Global">
-                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="calendar" class="w-6 h-6"></i>' }}></span>
+                <div className="bg-slate-50 min-h-screen pb-20">
+                    <PageHeader
+                        title={team.name}
+                        subtitle={team.federationId ? 'Federado · FBCV' : null}
+                        onBack={() => navigate('teams-list')}
+                        actions={<React.Fragment>
+                            <button onClick={() => navigate('calendar', team.id)} className="p-2 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors" title="Calendario">
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="calendar" class="w-5 h-5"></i>' }}></span>
                             </button>
-                            <button onClick={() => navigate('team-settings', team.id)} className="p-2 text-slate-400 hover:text-slate-800 transition-colors" title="Ajustes de Equipo">
-                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="settings" class="w-6 h-6"></i>' }}></span>
+                            <button onClick={() => navigate('team-settings', team.id)} className="p-2 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors" title="Ajustes del equipo">
+                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="settings" class="w-5 h-5"></i>' }}></span>
                             </button>
-                        </div>
-                    </header>
+                        </React.Fragment>}
+                    />
 
-                    <div className="lg:grid lg:grid-cols-12 lg:gap-8">
+                    <PageBody>
+                    {/* items-start: sin esto el grid estira la columna de la plantilla
+                        hasta la altura de la de partidos, dejando un hueco blanco que
+                        crece segun crece el listado y empuja Roles hacia abajo. */}
+                    <div className="lg:grid lg:grid-cols-12 lg:gap-8 lg:items-start">
                         {/* Left Column: Matches & Federation (Spans 7 cols on lg) */}
                         <div className="lg:col-span-7 space-y-6">
                             {team.federationId && (
@@ -1946,6 +1988,7 @@
                             </div>
                         )
                     }
+                    </PageBody>
                 </div >
             );
         };
@@ -3097,7 +3140,7 @@
                     onClick={onClose}
                 >
                     <div
-                        className="bg-white rounded-t-3xl sm:rounded-3xl p-6 w-full sm:max-w-md shadow-2xl relative animate-in slide-in-from-bottom duration-300"
+                        className="bg-white rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 w-full sm:max-w-lg lg:max-w-3xl shadow-2xl relative animate-in slide-in-from-bottom duration-300"
                         onClick={e => e.stopPropagation()}
                     >
                         <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400" title="Cerrar">
@@ -4020,14 +4063,14 @@
             }, [editingId, players.length]);
 
             return (
-                <div className="p-4 max-w-md lg:max-w-4xl mx-auto">
-                    <header className="flex items-center gap-2 mb-6">
-                        <button onClick={() => navigate('team-detail', team.id)} className="p-2 -ml-2 transition-colors hover:bg-slate-100 rounded-lg">
-                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span>
-                        </button>
-                        <h1 className="text-2xl font-bold text-slate-800">Gestionar Jugadores</h1>
-                    </header>
+                <div className="bg-slate-50 min-h-screen">
+                    <PageHeader
+                        title="Plantilla"
+                        subtitle={team.name}
+                        onBack={() => navigate('team-detail', team.id)}
+                    />
 
+                    <PageBody>
                     <div className="lg:grid lg:grid-cols-12 lg:gap-8">
                         {/* Left Column: Form Info */}
                         <div className="lg:col-span-5 mb-6 lg:mb-0">
@@ -4131,6 +4174,7 @@
                             ))}
                         </div>
                     </div>
+                    </PageBody>
                 </div>
             );
         };
@@ -4524,17 +4568,13 @@
 
             return (
                 <div className="bg-slate-50 min-h-screen pb-20">
-                    <div className="bg-white border-b border-slate-200 sticky top-0 z-10 safe-top">
-                        <div className="flex items-center justify-between px-4 py-3">
-                            <button onClick={() => navigate('team-detail', team.id)} className="p-2 -ml-2 text-slate-400 hover:text-slate-600">
-                                <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="arrow-left" class="w-6 h-6"></i>' }}></span>
-                            </button>
-                            <h1 className="text-lg font-bold text-slate-800">Ajustes del Equipo</h1>
-                            <div className="w-10"></div>
-                        </div>
-                    </div>
+                    <PageHeader
+                        title="Ajustes del equipo"
+                        subtitle={team.name}
+                        onBack={() => navigate('team-detail', team.id)}
+                    />
 
-                    <div className="p-4 space-y-6 max-w-lg lg:max-w-2xl mx-auto">
+                    <PageBody className="space-y-6">
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                             <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
                                 <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="settings" class="w-5 h-5 text-blue-600"></i>' }}></span>
@@ -4670,7 +4710,7 @@
                             <p className="text-xs text-red-700/70 mb-4">Eliminar el equipo borrará permanentemente todos sus partidos y estadísticas.</p>
                             <button onClick={deleteTeam} className="w-full py-3 bg-white border border-red-200 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-all">Eliminar Equipo</button>
                         </div>
-                    </div>
+                    </PageBody>
                 </div>
             );
         };
