@@ -521,7 +521,7 @@ export default function MatchAttendanceScreen() {
 }
 
 function makeStyles(T) { return StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: T.bg },
+  safeArea: { flex: 1, backgroundColor: T.ink2 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   errorText: { fontFamily: T.fontReg, fontSize: 16, color: T.textSub, marginBottom: 16 },
   backBtnCenter: { backgroundColor: T.orangeSoft, paddingHorizontal: 20, paddingVertical: 10, borderRadius: T.rBtn },
@@ -698,3 +698,4 @@ function makeStyles(T) { return StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
 }); }
+

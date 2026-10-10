@@ -188,6 +188,51 @@ export const importFederationMatches = async (federationId, mode = 'smart') => {
   }
 };
 
+// Un nombre se considera "no publicado" cuando la federación solo expone
+// iniciales ("J. G."): no hay ninguna palabra de 3 letras o más.
+export const isNameHidden = (nombre) => !/\p{L}{3,}/u.test(nombre || '');
+
+/**
+ * Descarga la plantilla federada de un equipo.
+ *
+ * LISTA BLANCA DE CAMPOS, a propósito. La respuesta de getTeamCard incluye
+ * además nif, passaport, birthDate, catsalut (tarjeta sanitaria), address,
+ * zipCode, telephoneMobileCR, email y photoUrl. Nada de eso sale de esta
+ * función: en equipos de base son datos personales de menores.
+ *
+ * Devuelve solo fichas de tipo JUGADOR/A — el mismo array trae entrenadores
+ * y delegados, que no son jugadores de la plantilla.
+ */
+export const fetchFederationRoster = async (federationId) => {
+  try {
+    const url = `https://esb.optimalwayconsulting.com/fbcv/1/btz38ZsZlAdaODiH2fGsnJC9mZgSNPeR/FCBQWeb/getTeamCard/${federationId}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Error al conectar con la federación');
+
+    const jsonData = JSON.parse(decodeBase64UTF8(await response.text()));
+    if (jsonData.result !== 'OK') {
+      throw new Error(jsonData.message || 'Error en la respuesta de la federación');
+    }
+
+    const fichas = jsonData.messageData?.players || [];
+    const jugadores = fichas
+      .filter(p => p.licenseTypeName === 'JUGADOR/A')
+      .map(p => {
+        const fullName = `${p.name || ''} ${p.surname || ''}`.replace(/\s+/g, ' ').trim();
+        return {
+          uuid: p.uuid || null,
+          fullName,
+          nameHidden: isNameHidden(fullName),
+        };
+      })
+      .filter(p => p.uuid); // sin identificador estable no se puede enlazar
+
+    return { success: true, players: jugadores, total: fichas.length };
+  } catch (error) {
+    return { success: false, error: error.message, players: [] };
+  }
+};
+
 export const syncWithFederation = async (federationId) => {
   try {
     const url = `https://esb.optimalwayconsulting.com/fbcv/1/btz38ZsZlAdaODiH2fGsnJC9mZgSNPeR/FCBQWeb/getTeamCard/${federationId}`;

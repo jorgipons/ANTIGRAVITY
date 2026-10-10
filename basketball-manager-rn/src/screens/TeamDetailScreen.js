@@ -1312,7 +1312,9 @@ export default function TeamDetailScreen() {
 }
 
 function makeStyles(T) { return StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: T.bg },
+  // ink2, no bg: en iOS este color rellena el hueco de la barra de estado, que
+  // va sobre una cabecera azul. Con T.bg quedaba una franja clara arriba.
+  safeArea: { flex: 1, backgroundColor: T.ink2 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   header: {

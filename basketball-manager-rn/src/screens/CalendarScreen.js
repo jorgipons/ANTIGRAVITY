@@ -206,7 +206,7 @@ export default function CalendarScreen() {
 }
 
 function makeStyles(T) { return StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: T.bg },
+  safeArea: { flex: 1, backgroundColor: T.ink2 },
 
   header: {
     flexDirection: 'row', alignItems: 'center',
@@ -275,3 +275,4 @@ function makeStyles(T) { return StyleSheet.create({
     marginTop: 8,
   },
 }); }
+

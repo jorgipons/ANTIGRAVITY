@@ -364,7 +364,7 @@ export default function SettingsScreen() {
 }
 
 function makeStyles(T) { return StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: T.bg },
+  safeArea: { flex: 1, backgroundColor: T.ink2 },
 
   header: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -444,3 +444,4 @@ function makeStyles(T) { return StyleSheet.create({
   themeSegText: { fontFamily: T.fontSemi, fontSize: 12, color: T.textFaint },
   themeSegTextActive: { color: T.orange },
 }); }
+

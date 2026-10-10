@@ -237,7 +237,7 @@ export default function MatchSummaryScreen() {
 }
 
 function makeStyles(T) { return StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: T.bg },
+  safeArea: { flex: 1, backgroundColor: T.ink2 },
 
   header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -280,3 +280,4 @@ function makeStyles(T) { return StyleSheet.create({
   timelineBar: { flex: 1, height: 10, backgroundColor: T.panel, borderRadius: 5, overflow: 'hidden', position: 'relative' },
   timelineStint: { position: 'absolute', height: '100%', backgroundColor: T.orange, borderRadius: 5 },
 }); }
+

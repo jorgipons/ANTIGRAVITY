@@ -1295,7 +1295,7 @@
             );
         };
 
-        const TeamDetailView = ({ team, matches, navigate, updateTeamInDb, getRoles, addDoc, collection, db, isOverMatchLimit, openPremiumModal }) => {
+        const TeamDetailView = ({ team, matches, navigate, updateTeamInDb, getRoles, addDoc, collection, db, isOverMatchLimit, remainingMatchSlots, openPremiumModal }) => {
             const { doc, updateDoc } = window.firebaseMethods;
             const [newPlayerName, setNewPlayerName] = useState('');
             const [newPlayerNumber, setNewPlayerNumber] = useState('');
@@ -1362,6 +1362,15 @@
                     'next': 'Solo siguiente'
                 };
 
+                // Si ya estas al tope, se sabe ANTES de preguntar y antes de
+                // llamar a la federacion. No tiene sentido hacer esperar para
+                // acabar diciendo que no.
+                const huecos = remainingMatchSlots(team);
+                if (huecos === 0) {
+                    openPremiumModal('match_limit');
+                    return;
+                }
+
                 if (!confirm(`¿Sincronizar partidos (${modeLabels[mode] || mode})? Se crearán partidos nuevos y se actualizarán marcadores.`)) return;
 
                 setImporting(true);
@@ -1373,16 +1382,15 @@
                         // Partidos que ya existen en nuestra DB para este equipo
                         const existingMatches = matches.filter(m => m.teamId === team.id);
 
-                        // The free limit applies here too. Without this, importing a 22-match
-                        // FBCV schedule walks straight past the 8-match cap and writes the
-                        // inflated total into the field the mobile app gates on.
-                        const wouldCreate = matchesToImport.filter(fm =>
+                        // El limite del plan gratuito se aplica tambien aqui, pero
+                        // importando hasta donde llega en vez de no importar nada:
+                        // quedarse con 8 de 22 es mas util que quedarse con 0.
+                        // Los marcadores de los que YA tienes se actualizan siempre.
+                        const nuevos = matchesToImport.filter(fm =>
                             !existingMatches.find(m => m.federationMatchId === fm.federationMatchId)
                         ).length;
-                        if (isOverMatchLimit && isOverMatchLimit(team, wouldCreate)) {
-                            openPremiumModal('match_limit');
-                            return;
-                        }
+                        const cupo = remainingMatchSlots(team);
+                        const descartados = Math.max(0, nuevos - cupo);
 
                         let imported = 0;
                         let updated = 0;
@@ -1391,7 +1399,8 @@
                             const existing = existingMatches.find(m => m.federationMatchId === federatedMatch.federationMatchId);
 
                             if (!existing) {
-                                // Es un partido nuevo
+                                // Es un partido nuevo. Solo si queda cupo en el plan.
+                                if (imported >= cupo) continue;
                                 await addDoc(collection(db, 'matches'), {
                                     ...federatedMatch,
                                     teamId: team.id,
@@ -1442,8 +1451,20 @@
                         // One write for the whole import, not one per match.
                         if (imported > 0) await bumpMatchCount(team.id, imported);
 
-                        if (window.showToast) window.showToast(`✅ Proceso completado: ${imported} nuevos, ${updated} actualizados`);
-                        else alert(`✅ Proceso completado\n\n${imported} partidos nuevos importados\n${updated} marcadores actualizados`);
+                        const resumen = `${imported} nuevos, ${updated} actualizados`;
+                        if (descartados > 0) {
+                            // Decir cuantos se han quedado fuera y por que, en vez de
+                            // importar a medias en silencio.
+                            const msg = `Se han importado ${imported} de ${nuevos} partidos nuevos. `
+                                + `Tu plan gratuito incluye 8 partidos por equipo, así que ${descartados} se han quedado fuera.`;
+                            if (window.showToast) window.showToast(`⚠️ ${msg}`);
+                            else alert(msg);
+                            openPremiumModal('match_limit');
+                        } else if (window.showToast) {
+                            window.showToast(`✅ Proceso completado: ${resumen}`);
+                        } else {
+                            alert(`✅ Proceso completado\n\n${imported} partidos nuevos importados\n${updated} marcadores actualizados`);
+                        }
                     } else {
                         if (window.showToast) window.showToast(`❌ Error: ${result.error}`);
                         else alert(`❌ Error: ${result.error} `);
@@ -5663,6 +5684,14 @@
                 return effectiveMatchCount(team) + extra > 8;
             };
 
+            // Cuantos partidos mas caben en el plan actual. Infinity si es Pro.
+            // Lo usa la sincronizacion para importar hasta donde llega el plan
+            // en vez de no importar nada.
+            const remainingMatchSlots = (team) => {
+                if (!team || premium.isPro || premium.loading) return Infinity;
+                return Math.max(0, 8 - effectiveMatchCount(team));
+            };
+
             const getSelectedTeam = () => teams.find(t => t.id === selectedTeamId);
             const getActiveMatch = () => matches.find(m => m.id === activeMatchId);
 
@@ -5729,7 +5758,7 @@
                             {view === 'teams-list' && <TeamsListView teams={teams} matches={matches} navigate={navigate} addDoc={addDoc} collection={collection} db={db} deleteDoc={deleteDoc} doc={doc} premium={premium} openPremiumModal={openPremiumModal} />}
                             {view === 'admin-dashboard' && isAdmin && <AdminDashboardView navigate={navigate} db={db} collection={collection} getDocs={getDocs} query={query} where={where} />}
                             {view === 'all-matches-calendar' && <AllMatchesCalendarView teams={teams} matches={matches} navigate={navigate} />}
-                            {view === 'team-detail' && <TeamDetailView team={getSelectedTeam()} matches={matches} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} addDoc={addDoc} collection={collection} db={db} isOverMatchLimit={isOverMatchLimit} openPremiumModal={openPremiumModal} />}
+                            {view === 'team-detail' && <TeamDetailView team={getSelectedTeam()} matches={matches} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} addDoc={addDoc} collection={collection} db={db} isOverMatchLimit={isOverMatchLimit} remainingMatchSlots={remainingMatchSlots} openPremiumModal={openPremiumModal} />}
                             {view === 'match-setup' && <MatchSetupView team={getSelectedTeam()} navigate={navigate} addDoc={addDoc} collection={collection} db={db} updateDoc={updateDoc} doc={doc} isOverMatchLimit={isOverMatchLimit} openPremiumModal={openPremiumModal} />}
                             {view === 'active-match' && <ActiveMatchView match={getActiveMatch()} teams={teams} updateMatchInDb={updateMatchInDb} navigate={navigate} getRoles={getRoles} />}
                             {view === 'calendar' && <CalendarView team={getSelectedTeam()} matches={matches} navigate={navigate} />}
