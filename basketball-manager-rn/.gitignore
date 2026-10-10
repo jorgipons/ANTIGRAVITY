@@ -42,3 +42,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# scratch de las verificaciones con navegador
+.playwright-mcp/
