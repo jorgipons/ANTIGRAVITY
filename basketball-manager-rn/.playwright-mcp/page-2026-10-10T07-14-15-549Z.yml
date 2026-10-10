@@ -1,0 +1,899 @@
+- generic [ref=f12e2]:
+  - generic [ref=f12e3]:
+    - link "Skip to content" [ref=f12e4] [cursor=pointer]:
+      - /url: "#start-of-content"
+    - banner [ref=f12e9]:
+      - heading "Navigation Menu" [level=2] [ref=f12e10]
+      - generic [ref=f12e11]:
+        - link "Homepage" [ref=f12e13] [cursor=pointer]:
+          - /url: /
+        - generic [ref=f12e16]:
+          - navigation "Global" [ref=f12e17]:
+            - list [ref=f12e18]:
+              - listitem [ref=f12e19]:
+                - button "Platform" [ref=f12e21] [cursor=pointer]
+              - listitem [ref=f12e24]:
+                - button "Solutions" [ref=f12e26] [cursor=pointer]
+              - listitem [ref=f12e29]:
+                - button "Resources" [ref=f12e31] [cursor=pointer]
+              - listitem [ref=f12e34]:
+                - button "Open Source" [ref=f12e36] [cursor=pointer]
+              - listitem [ref=f12e39]:
+                - button "Enterprise" [ref=f12e41] [cursor=pointer]
+              - listitem [ref=f12e44]:
+                - link "Pricing" [ref=f12e45] [cursor=pointer]:
+                  - /url: https://github.com/pricing
+          - generic [ref=f12e46]:
+            - button "Search or jump to, type / to search" [ref=f12e48] [cursor=pointer]:
+              - generic [ref=f12e51]:
+                - generic [ref=f12e52]: Search
+                - generic [aria-hidden] [ref=f12e53]: /
+            - link "Sign in" [ref=f12e55] [cursor=pointer]:
+              - /url: /login?return_to=https%3A%2F%2Fgithub.com%2Fjorgipons%2FANTIGRAVITY%2Fcommits%2Fdev-rn
+            - link "Sign up" [ref=f12e58] [cursor=pointer]:
+              - /url: /signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E%2Fcommits%2Fshow&source=header-repo&source_repo=jorgipons%2FANTIGRAVITY
+            - button "Appearance settings" [ref=f12e61] [cursor=pointer]
+  - main [ref=f12e68]:
+    - generic "Global navigation menu" [ref=f12e71]:
+      - navigation "Breadcrumbs" [ref=f12e74]:
+        - list [ref=f12e75]:
+          - listitem [ref=f12e76]:
+            - link "jorgipons" [ref=f12e77] [cursor=pointer]:
+              - /url: /jorgipons
+          - listitem [ref=f12e79]:
+            - link "ANTIGRAVITY" [ref=f12e80] [cursor=pointer]:
+              - /url: /jorgipons/ANTIGRAVITY
+      - heading "Repository navigation" [level=2] [ref=f12e83]
+      - navigation "Repository" [ref=f12e84]:
+        - list [ref=f12e85]:
+          - listitem [ref=f12e86]:
+            - link "Code" [ref=f12e87] [cursor=pointer]:
+              - /url: /jorgipons/ANTIGRAVITY
+          - listitem [ref=f12e92]:
+            - link "Issues" [ref=f12e93] [cursor=pointer]:
+              - /url: /jorgipons/ANTIGRAVITY/issues
+          - listitem [ref=f12e99]:
+            - link "Pull requests" [ref=f12e100] [cursor=pointer]:
+              - /url: /jorgipons/ANTIGRAVITY/pulls
+          - listitem [ref=f12e105]:
+            - link "Actions" [ref=f12e106] [cursor=pointer]:
+              - /url: /jorgipons/ANTIGRAVITY/actions
+          - listitem [ref=f12e111]:
+            - link "Projects" [ref=f12e112] [cursor=pointer]:
+              - /url: /jorgipons/ANTIGRAVITY/projects
+          - listitem [ref=f12e117]:
+            - link "Security and quality" [ref=f12e118] [cursor=pointer]:
+              - /url: /jorgipons/ANTIGRAVITY/security
+          - listitem [ref=f12e123]:
+            - link "Insights" [ref=f12e124] [cursor=pointer]:
+              - /url: /jorgipons/ANTIGRAVITY/pulse
+    - generic [ref=f12e134]:
+      - heading "Commits" [level=1] [ref=f12e138]
+      - generic [ref=f12e143]:
+        - generic [ref=f12e144]:
+          - heading "Branch selector" [level=2] [ref=f12e145]
+          - button "dev-rn branch" [ref=f12e146] [cursor=pointer]:
+            - generic [ref=f12e147]: dev-rn
+          - generic [ref=f12e151]:
+            - heading "User selector" [level=2] [ref=f12e152]
+            - button "All users" [ref=f12e154] [cursor=pointer]
+            - heading "Datepicker" [level=2] [ref=f12e162]
+            - button "All time" [ref=f12e163] [cursor=pointer]
+        - generic [ref=f12e166]:
+          - heading "Commit history" [level=2] [ref=f12e167]
+          - list [ref=f12e168]:
+            - listitem [ref=f12e169]:
+              - generic [ref=f12e174]:
+                - heading "Commits on Oct 9, 2026" [level=3] [ref=f12e175]
+                - list "Commits on Oct 9, 2026" [ref=f12e178]:
+                  - listitem "More information available below." [ref=f12e179]:
+                    - generic [ref=f12e180]:
+                      - heading [level=4] [ref=f12e181]:
+                        - 'link "feat: unify the ruleset catalogue and add Libre 4P" [ref=f12e182] [cursor=pointer]':
+                          - /url: /jorgipons/ANTIGRAVITY/commit/7cde8e6b1f7983d9c52df5ab33c8e8917f56d768
+                      - button "Show description for 7cde8e6" [ref=f12e183] [cursor=pointer]
+                    - generic [ref=f12e190]:
+                      - generic [ref=f12e192]:
+                        - img "jorgipons" [ref=f12e193]
+                        - img "claude" [ref=f12e194]
+                      - link "commits by jorgipons" [ref=f12e196] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                        - text: jorgipons
+                      - generic [ref=f12e197]: and
+                      - link "commits by claude" [ref=f12e199] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/commits?author=claude
+                        - text: claude
+                      - generic [ref=f12e200]: committed
+                    - generic [ref=f12e206]:
+                      - generic [ref=f12e207]:
+                        - link "7cde8e6" [ref=f12e208] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/7cde8e6b1f7983d9c52df5ab33c8e8917f56d768
+                        - button "Copy full SHA for 7cde8e6" [ref=f12e212] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e216] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/7cde8e6b1f7983d9c52df5ab33c8e8917f56d768
+                  - listitem "More information available below." [ref=f12e219]:
+                    - generic [ref=f12e220]:
+                      - heading [level=4] [ref=f12e221]:
+                        - 'link "docs: spec and plan for the unified Premium state on the web" [ref=f12e222] [cursor=pointer]':
+                          - /url: /jorgipons/ANTIGRAVITY/commit/f93091d5e48c07e9adba3583edc30457dd82199e
+                      - button "Show description for f93091d" [ref=f12e223] [cursor=pointer]
+                    - generic [ref=f12e230]:
+                      - generic [ref=f12e232]:
+                        - img "jorgipons" [ref=f12e233]
+                        - img "claude" [ref=f12e234]
+                      - link "commits by jorgipons" [ref=f12e236] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                        - text: jorgipons
+                      - generic [ref=f12e237]: and
+                      - link "commits by claude" [ref=f12e239] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/commits?author=claude
+                        - text: claude
+                      - generic [ref=f12e240]: committed
+                    - generic [ref=f12e246]:
+                      - generic [ref=f12e247]:
+                        - link "f93091d" [ref=f12e248] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/f93091d5e48c07e9adba3583edc30457dd82199e
+                        - button "Copy full SHA for f93091d" [ref=f12e252] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e256] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/f93091d5e48c07e9adba3583edc30457dd82199e
+                  - listitem "More information available below." [ref=f12e259]:
+                    - generic [ref=f12e260]:
+                      - heading [level=4] [ref=f12e261]:
+                        - 'link "fix(web): correct the match gate, the Premium frame lag and two bypasses" [ref=f12e262] [cursor=pointer]':
+                          - /url: /jorgipons/ANTIGRAVITY/commit/dc3bc9bd7d4eb875c37f724cbd393604796922b2
+                      - button "Show description for dc3bc9b" [ref=f12e263] [cursor=pointer]
+                    - generic [ref=f12e270]:
+                      - generic [ref=f12e272]:
+                        - img "jorgipons" [ref=f12e273]
+                        - img "claude" [ref=f12e274]
+                      - link "commits by jorgipons" [ref=f12e276] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                        - text: jorgipons
+                      - generic [ref=f12e277]: and
+                      - link "commits by claude" [ref=f12e279] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/commits?author=claude
+                        - text: claude
+                      - generic [ref=f12e280]: committed
+                    - generic [ref=f12e286]:
+                      - generic [ref=f12e287]:
+                        - link "dc3bc9b" [ref=f12e288] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/dc3bc9bd7d4eb875c37f724cbd393604796922b2
+                        - button "Copy full SHA for dc3bc9b" [ref=f12e292] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e296] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/dc3bc9bd7d4eb875c37f724cbd393604796922b2
+                  - listitem "More information available below." [ref=f12e299]:
+                    - generic [ref=f12e300]:
+                      - heading [level=4] [ref=f12e301]:
+                        - 'link "feat(web): enforce the 8-match free limit with a x/8 counter" [ref=f12e302] [cursor=pointer]':
+                          - /url: /jorgipons/ANTIGRAVITY/commit/e5d5f75379b373bbf12fb66ef173f14e1b3354e8
+                      - button "Show description for e5d5f75" [ref=f12e303] [cursor=pointer]
+                    - generic [ref=f12e310]:
+                      - generic [ref=f12e312]:
+                        - img "jorgipons" [ref=f12e313]
+                        - img "claude" [ref=f12e314]
+                      - link "commits by jorgipons" [ref=f12e316] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                        - text: jorgipons
+                      - generic [ref=f12e317]: and
+                      - link "commits by claude" [ref=f12e319] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/commits?author=claude
+                        - text: claude
+                      - generic [ref=f12e320]: committed
+                    - generic [ref=f12e326]:
+                      - generic [ref=f12e327]:
+                        - link "e5d5f75" [ref=f12e328] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/e5d5f75379b373bbf12fb66ef173f14e1b3354e8
+                        - button "Copy full SHA for e5d5f75" [ref=f12e332] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e336] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/e5d5f75379b373bbf12fb66ef173f14e1b3354e8
+                  - listitem "More information available below." [ref=f12e339]:
+                    - generic [ref=f12e340]:
+                      - heading [level=4] [ref=f12e341]:
+                        - 'link "fix(web): maintain teams/{id}.matchCount so the mobile limit holds" [ref=f12e342] [cursor=pointer]':
+                          - /url: /jorgipons/ANTIGRAVITY/commit/bde8b395ea60e92061160f83cd1b38c588af8e68
+                      - button "Show description for bde8b39" [ref=f12e343] [cursor=pointer]
+                    - generic [ref=f12e350]:
+                      - generic [ref=f12e352]:
+                        - img "jorgipons" [ref=f12e353]
+                        - img "claude" [ref=f12e354]
+                      - link "commits by jorgipons" [ref=f12e356] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                        - text: jorgipons
+                      - generic [ref=f12e357]: and
+                      - link "commits by claude" [ref=f12e359] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/commits?author=claude
+                        - text: claude
+                      - generic [ref=f12e360]: committed
+                    - generic [ref=f12e366]:
+                      - generic [ref=f12e367]:
+                        - link "bde8b39" [ref=f12e368] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/bde8b395ea60e92061160f83cd1b38c588af8e68
+                        - button "Copy full SHA for bde8b39" [ref=f12e372] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e376] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/bde8b395ea60e92061160f83cd1b38c588af8e68
+                  - listitem "More information available below." [ref=f12e379]:
+                    - generic [ref=f12e380]:
+                      - heading [level=4] [ref=f12e381]:
+                        - 'link "feat(web): warn before checkout with a PremiumModal" [ref=f12e382] [cursor=pointer]':
+                          - /url: /jorgipons/ANTIGRAVITY/commit/33d59e482a4b351b8a08d331f5f46f2dcbb7c90a
+                      - button "Show description for 33d59e4" [ref=f12e383] [cursor=pointer]
+                    - generic [ref=f12e390]:
+                      - generic [ref=f12e392]:
+                        - img "jorgipons" [ref=f12e393]
+                        - img "claude" [ref=f12e394]
+                      - link "commits by jorgipons" [ref=f12e396] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                        - text: jorgipons
+                      - generic [ref=f12e397]: and
+                      - link "commits by claude" [ref=f12e399] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/commits?author=claude
+                        - text: claude
+                      - generic [ref=f12e400]: committed
+                    - generic [ref=f12e406]:
+                      - generic [ref=f12e407]:
+                        - link "33d59e4" [ref=f12e408] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/33d59e482a4b351b8a08d331f5f46f2dcbb7c90a
+                        - button "Copy full SHA for 33d59e4" [ref=f12e412] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e416] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/33d59e482a4b351b8a08d331f5f46f2dcbb7c90a
+                  - listitem "More information available below." [ref=f12e419]:
+                    - generic [ref=f12e420]:
+                      - heading [level=4] [ref=f12e421]:
+                        - 'link "feat(web): add /subscribe and /manage navigation helpers" [ref=f12e422] [cursor=pointer]':
+                          - /url: /jorgipons/ANTIGRAVITY/commit/be556a8e9716be9e6c547ee1b272be5f22a075e3
+                      - button "Show description for be556a8" [ref=f12e423] [cursor=pointer]
+                    - generic [ref=f12e430]:
+                      - generic [ref=f12e432]:
+                        - img "jorgipons" [ref=f12e433]
+                        - img "claude" [ref=f12e434]
+                      - link "commits by jorgipons" [ref=f12e436] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                        - text: jorgipons
+                      - generic [ref=f12e437]: and
+                      - link "commits by claude" [ref=f12e439] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/commits?author=claude
+                        - text: claude
+                      - generic [ref=f12e440]: committed
+                    - generic [ref=f12e446]:
+                      - generic [ref=f12e447]:
+                        - link "be556a8" [ref=f12e448] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/be556a8e9716be9e6c547ee1b272be5f22a075e3
+                        - button "Copy full SHA for be556a8" [ref=f12e452] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e456] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/be556a8e9716be9e6c547ee1b272be5f22a075e3
+                  - listitem "More information available below." [ref=f12e459]:
+                    - generic [ref=f12e460]:
+                      - heading [level=4] [ref=f12e461]:
+                        - 'link "refactor(web): read Premium from users/{uid} and clubs/{clubId}" [ref=f12e462] [cursor=pointer]':
+                          - /url: /jorgipons/ANTIGRAVITY/commit/8548272e2fe7148656eebb8bd7c77330bcedef55
+                      - button "Show description for 8548272" [ref=f12e463] [cursor=pointer]
+                    - generic [ref=f12e470]:
+                      - generic [ref=f12e472]:
+                        - img "jorgipons" [ref=f12e473]
+                        - img "claude" [ref=f12e474]
+                      - link "commits by jorgipons" [ref=f12e476] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                        - text: jorgipons
+                      - generic [ref=f12e477]: and
+                      - link "commits by claude" [ref=f12e479] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/commits?author=claude
+                        - text: claude
+                      - generic [ref=f12e480]: committed
+                    - generic [ref=f12e486]:
+                      - generic [ref=f12e487]:
+                        - link "8548272" [ref=f12e488] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/8548272e2fe7148656eebb8bd7c77330bcedef55
+                        - button "Copy full SHA for 8548272" [ref=f12e492] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e496] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/8548272e2fe7148656eebb8bd7c77330bcedef55
+                  - listitem "More information available below." [ref=f12e499]:
+                    - generic [ref=f12e500]:
+                      - heading [level=4] [ref=f12e501]:
+                        - 'link "fix(partits): tema automatico, identidad de marca y assets de icono" [ref=f12e502] [cursor=pointer]':
+                          - /url: /jorgipons/ANTIGRAVITY/commit/439ad534125e687b23694377f911f0d5ed54cb7e
+                      - button "Show description for 439ad53" [ref=f12e503] [cursor=pointer]
+                    - generic [ref=f12e510]:
+                      - generic [ref=f12e512]:
+                        - img "jorgipons" [ref=f12e513]
+                        - img "claude" [ref=f12e514]
+                      - link "commits by jorgipons" [ref=f12e516] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                        - text: jorgipons
+                      - generic [ref=f12e517]: and
+                      - link "commits by claude" [ref=f12e519] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/commits?author=claude
+                        - text: claude
+                      - generic [ref=f12e520]: committed
+                    - generic [ref=f12e526]:
+                      - generic [ref=f12e527]:
+                        - link "439ad53" [ref=f12e528] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/439ad534125e687b23694377f911f0d5ed54cb7e
+                        - button "Copy full SHA for 439ad53" [ref=f12e532] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e536] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/439ad534125e687b23694377f911f0d5ed54cb7e
+                  - listitem "More information available below." [ref=f12e539]:
+                    - generic [ref=f12e540]:
+                      - heading [level=4] [ref=f12e541]:
+                        - 'link "feat(partits): rediseño visual + onboarding, offline, pagos y clubes" [ref=f12e542] [cursor=pointer]':
+                          - /url: /jorgipons/ANTIGRAVITY/commit/bdf10270200388f08efdc7ca4467d6ab8b595d9e
+                      - button "Show description for bdf1027" [ref=f12e543] [cursor=pointer]
+                    - generic [ref=f12e550]:
+                      - generic [ref=f12e552]:
+                        - img "jorgipons" [ref=f12e553]
+                        - img "claude" [ref=f12e554]
+                      - link "commits by jorgipons" [ref=f12e556] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                        - text: jorgipons
+                      - generic [ref=f12e557]: and
+                      - link "commits by claude" [ref=f12e559] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/commits?author=claude
+                        - text: claude
+                      - generic [ref=f12e560]: committed
+                    - generic [ref=f12e566]:
+                      - generic [ref=f12e567]:
+                        - link "bdf1027" [ref=f12e568] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/bdf10270200388f08efdc7ca4467d6ab8b595d9e
+                        - button "Copy full SHA for bdf1027" [ref=f12e572] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e576] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/bdf10270200388f08efdc7ca4467d6ab8b595d9e
+            - listitem [ref=f12e579]:
+              - generic [ref=f12e584]:
+                - heading "Commits on May 8, 2026" [level=3] [ref=f12e585]
+                - list "Commits on May 8, 2026" [ref=f12e588]:
+                  - listitem "More information available below." [ref=f12e589]:
+                    - heading [level=4] [ref=f12e591]:
+                      - 'link "feat: implement core basketball management features including calendar, match matrix, and ruleset validation logic" [ref=f12e592] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/51622e76aaee1649fb9755b644f3fbcd4e9b89e7
+                    - generic [ref=f12e597]:
+                      - generic [ref=f12e598]:
+                        - link [ref=f12e599] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e600]
+                        - link "commits by jorgipons" [ref=f12e601] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e602]: committed
+                    - generic [ref=f12e608]:
+                      - generic [ref=f12e609]:
+                        - link "51622e7" [ref=f12e610] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/51622e76aaee1649fb9755b644f3fbcd4e9b89e7
+                        - button "Copy full SHA for 51622e7" [ref=f12e614] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e618] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/51622e76aaee1649fb9755b644f3fbcd4e9b89e7
+            - listitem [ref=f12e621]:
+              - generic [ref=f12e626]:
+                - heading "Commits on Mar 29, 2026" [level=3] [ref=f12e627]
+                - list "Commits on Mar 29, 2026" [ref=f12e630]:
+                  - listitem "More information available below." [ref=f12e631]:
+                    - heading [level=4] [ref=f12e633]:
+                      - 'link "fix(sync): ensure history only contains string IDs and improve web robustness" [ref=f12e634] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/82e93305c3f6c551906c89bf457cc48c7d56c498
+                    - generic [ref=f12e639]:
+                      - generic [ref=f12e640]:
+                        - link [ref=f12e641] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e642]
+                        - link "commits by jorgipons" [ref=f12e643] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e644]: committed
+                    - generic [ref=f12e650]:
+                      - generic [ref=f12e651]:
+                        - link "82e9330" [ref=f12e652] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/82e93305c3f6c551906c89bf457cc48c7d56c498
+                        - button "Copy full SHA for 82e9330" [ref=f12e656] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e660] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/82e93305c3f6c551906c89bf457cc48c7d56c498
+                  - listitem "More information available below." [ref=f12e663]:
+                    - heading [level=4] [ref=f12e665]:
+                      - 'link "fix(sync): implement dot-notation updates for web and finalize app UI fixes" [ref=f12e666] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/13568f99a0ca5def3bc2eb0f378431feceb618b9
+                    - generic [ref=f12e671]:
+                      - generic [ref=f12e672]:
+                        - link [ref=f12e673] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e674]
+                        - link "commits by jorgipons" [ref=f12e675] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e676]: committed
+                    - generic [ref=f12e682]:
+                      - generic [ref=f12e683]:
+                        - link "13568f9" [ref=f12e684] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/13568f99a0ca5def3bc2eb0f378431feceb618b9
+                        - button "Copy full SHA for 13568f9" [ref=f12e688] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e692] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/13568f99a0ca5def3bc2eb0f378431feceb618b9
+                  - listitem "More information available below." [ref=f12e695]:
+                    - heading [level=4] [ref=f12e697]:
+                      - 'link "feat: initialize basketball manager project with Firebase integration and core UI components" [ref=f12e698] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/097b45a18952e6733279ea39f2dfa90bd116c97d
+                    - generic [ref=f12e703]:
+                      - generic [ref=f12e704]:
+                        - link [ref=f12e705] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e706]
+                        - link "commits by jorgipons" [ref=f12e707] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e708]: committed
+                    - generic [ref=f12e714]:
+                      - generic [ref=f12e715]:
+                        - link "097b45a" [ref=f12e716] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/097b45a18952e6733279ea39f2dfa90bd116c97d
+                        - button "Copy full SHA for 097b45a" [ref=f12e720] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e724] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/097b45a18952e6733279ea39f2dfa90bd116c97d
+            - listitem [ref=f12e727]:
+              - generic [ref=f12e732]:
+                - heading "Commits on Mar 14, 2026" [level=3] [ref=f12e733]
+                - list "Commits on Mar 14, 2026" [ref=f12e736]:
+                  - listitem "More information available below." [ref=f12e737]:
+                    - heading [level=4] [ref=f12e739]:
+                      - 'link "feat: Initialize basketball manager React Native application with match, team, and player management." [ref=f12e740] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/931b7de97e514e6aa6bc17fdb04f53e42d5d2275
+                    - generic [ref=f12e745]:
+                      - generic [ref=f12e746]:
+                        - link [ref=f12e747] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e748]
+                        - link "commits by jorgipons" [ref=f12e749] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e750]: committed
+                    - generic [ref=f12e756]:
+                      - generic [ref=f12e757]:
+                        - link "931b7de" [ref=f12e758] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/931b7de97e514e6aa6bc17fdb04f53e42d5d2275
+                        - button "Copy full SHA for 931b7de" [ref=f12e762] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e766] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/931b7de97e514e6aa6bc17fdb04f53e42d5d2275
+            - listitem [ref=f12e769]:
+              - generic [ref=f12e774]:
+                - heading "Commits on Mar 13, 2026" [level=3] [ref=f12e775]
+                - list "Commits on Mar 13, 2026" [ref=f12e778]:
+                  - listitem "More information available below." [ref=f12e779]:
+                    - heading [level=4] [ref=f12e781]:
+                      - 'link "fix: update GoogleSignin webClientId to match google-services.json" [ref=f12e782] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/832a293dc046522247228f04e4278d2057685086
+                    - generic [ref=f12e787]:
+                      - generic [ref=f12e788]:
+                        - link [ref=f12e789] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e790]
+                        - link "commits by jorgipons" [ref=f12e791] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e792]: committed
+                    - generic [ref=f12e798]:
+                      - generic [ref=f12e799]:
+                        - link "832a293" [ref=f12e800] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/832a293dc046522247228f04e4278d2057685086
+                        - button "Copy full SHA for 832a293" [ref=f12e804] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e808] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/832a293dc046522247228f04e4278d2057685086
+                  - listitem "More information available below." [ref=f12e811]:
+                    - heading [level=4] [ref=f12e813]:
+                      - 'link "feat: config googleServicesFile for native GoogleSignIn in app.json" [ref=f12e814] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/236ea81e282d82606dd17da111ab204dade25087
+                    - generic [ref=f12e819]:
+                      - generic [ref=f12e820]:
+                        - link [ref=f12e821] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e822]
+                        - link "commits by jorgipons" [ref=f12e823] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e824]: committed
+                    - generic [ref=f12e830]:
+                      - generic [ref=f12e831]:
+                        - link "236ea81" [ref=f12e832] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/236ea81e282d82606dd17da111ab204dade25087
+                        - button "Copy full SHA for 236ea81" [ref=f12e836] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e840] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/236ea81e282d82606dd17da111ab204dade25087
+                  - listitem "More information available below." [ref=f12e843]:
+                    - heading [level=4] [ref=f12e845]:
+                      - 'link "fix: add androidClientId to Google Auth for EAS build" [ref=f12e846] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/1475c2a54ad533468a07bd2b511d8db38a2b6abe
+                    - generic [ref=f12e851]:
+                      - generic [ref=f12e852]:
+                        - link [ref=f12e853] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e854]
+                        - link "commits by jorgipons" [ref=f12e855] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e856]: committed
+                    - generic [ref=f12e862]:
+                      - generic [ref=f12e863]:
+                        - link "1475c2a" [ref=f12e864] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/1475c2a54ad533468a07bd2b511d8db38a2b6abe
+                        - button "Copy full SHA for 1475c2a" [ref=f12e868] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e872] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/1475c2a54ad533468a07bd2b511d8db38a2b6abe
+                  - listitem "More information available below." [ref=f12e875]:
+                    - heading [level=4] [ref=f12e877]:
+                      - 'link "fix: update Firebase auth persistence import for SDK 10+" [ref=f12e878] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/ce1e5223e8e4b17f7dcbf9b6c8b4fb9dc8002424
+                    - generic [ref=f12e883]:
+                      - generic [ref=f12e884]:
+                        - link [ref=f12e885] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e886]
+                        - link "commits by jorgipons" [ref=f12e887] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e888]: committed
+                    - generic [ref=f12e894]:
+                      - generic [ref=f12e895]:
+                        - link "ce1e522" [ref=f12e896] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/ce1e5223e8e4b17f7dcbf9b6c8b4fb9dc8002424
+                        - button "Copy full SHA for ce1e522" [ref=f12e900] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e904] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/ce1e5223e8e4b17f7dcbf9b6c8b4fb9dc8002424
+                  - listitem "More information available below." [ref=f12e907]:
+                    - heading [level=4] [ref=f12e909]:
+                      - 'link "fix: add missing expo-web-browser" [ref=f12e910] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/75481814632e26ca20deaac7ca5357899135bbc2
+                    - generic [ref=f12e915]:
+                      - generic [ref=f12e916]:
+                        - link [ref=f12e917] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e918]
+                        - link "commits by jorgipons" [ref=f12e919] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e920]: committed
+                    - generic [ref=f12e926]:
+                      - generic [ref=f12e927]:
+                        - link "7548181" [ref=f12e928] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/75481814632e26ca20deaac7ca5357899135bbc2
+                        - button "Copy full SHA for 7548181" [ref=f12e932] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e936] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/75481814632e26ca20deaac7ca5357899135bbc2
+                  - listitem "More information available below." [ref=f12e939]:
+                    - heading [level=4] [ref=f12e941]:
+                      - 'link "feat: Phase 4 Native push notifications setup" [ref=f12e942] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/dbd2f741cbae0e699f2c0f24a179d0d738d991e2
+                    - generic [ref=f12e947]:
+                      - generic [ref=f12e948]:
+                        - link [ref=f12e949] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e950]
+                        - link "commits by jorgipons" [ref=f12e951] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e952]: committed
+                    - generic [ref=f12e958]:
+                      - generic [ref=f12e959]:
+                        - link "dbd2f74" [ref=f12e960] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/dbd2f741cbae0e699f2c0f24a179d0d738d991e2
+                        - button "Copy full SHA for dbd2f74" [ref=f12e964] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e968] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/dbd2f741cbae0e699f2c0f24a179d0d738d991e2
+                  - listitem "More information available below." [ref=f12e971]:
+                    - heading [level=4] [ref=f12e973]:
+                      - 'link "feat: Phase 3d Public Attendance View" [ref=f12e974] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/19d7bc404905b7437a0fdd79100409cf57432a07
+                    - generic [ref=f12e979]:
+                      - generic [ref=f12e980]:
+                        - link [ref=f12e981] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e982]
+                        - link "commits by jorgipons" [ref=f12e983] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e984]: committed
+                    - generic [ref=f12e990]:
+                      - generic [ref=f12e991]:
+                        - link "19d7bc4" [ref=f12e992] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/19d7bc404905b7437a0fdd79100409cf57432a07
+                        - button "Copy full SHA for 19d7bc4" [ref=f12e996] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e1000] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/19d7bc404905b7437a0fdd79100409cf57432a07
+                  - listitem "More information available below." [ref=f12e1003]:
+                    - heading [level=4] [ref=f12e1005]:
+                      - 'link "feat: Phase 3c Match Matrix implementation" [ref=f12e1006] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/d9f98eb742ee3a0e32229dc6f508b8e79302100a
+                    - generic [ref=f12e1011]:
+                      - generic [ref=f12e1012]:
+                        - link [ref=f12e1013] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e1014]
+                        - link "commits by jorgipons" [ref=f12e1015] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e1016]: committed
+                    - generic [ref=f12e1022]:
+                      - generic [ref=f12e1023]:
+                        - link "d9f98eb" [ref=f12e1024] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/d9f98eb742ee3a0e32229dc6f508b8e79302100a
+                        - button "Copy full SHA for d9f98eb" [ref=f12e1028] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e1032] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/d9f98eb742ee3a0e32229dc6f508b8e79302100a
+                  - listitem "More information available below." [ref=f12e1035]:
+                    - heading [level=4] [ref=f12e1037]:
+                      - 'link "feat: Phase 3b Matches and Roster management" [ref=f12e1038] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/4c2278eb1ef030739a3757291ef908076774a970
+                    - generic [ref=f12e1043]:
+                      - generic [ref=f12e1044]:
+                        - link [ref=f12e1045] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e1046]
+                        - link "commits by jorgipons" [ref=f12e1047] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e1048]: committed
+                    - generic [ref=f12e1054]:
+                      - generic [ref=f12e1055]:
+                        - link "4c2278e" [ref=f12e1056] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/4c2278eb1ef030739a3757291ef908076774a970
+                        - button "Copy full SHA for 4c2278e" [ref=f12e1060] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e1064] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/4c2278eb1ef030739a3757291ef908076774a970
+                  - listitem "More information available below." [ref=f12e1067]:
+                    - heading [level=4] [ref=f12e1069]:
+                      - 'link "feat: Phase 3a Teams and Players management" [ref=f12e1070] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/38d8ebd891c9f44ab14a27907a32be3789c3a87a
+                    - generic [ref=f12e1075]:
+                      - generic [ref=f12e1076]:
+                        - link [ref=f12e1077] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e1078]
+                        - link "commits by jorgipons" [ref=f12e1079] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e1080]: committed
+                    - generic [ref=f12e1086]:
+                      - generic [ref=f12e1087]:
+                        - link "38d8ebd" [ref=f12e1088] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/38d8ebd891c9f44ab14a27907a32be3789c3a87a
+                        - button "Copy full SHA for 38d8ebd" [ref=f12e1092] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e1096] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/38d8ebd891c9f44ab14a27907a32be3789c3a87a
+                  - listitem "More information available below." [ref=f12e1099]:
+                    - heading [level=4] [ref=f12e1101]:
+                      - 'link "feat: Phase 2 Auth and Navigation setup" [ref=f12e1102] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/3bf4a12c79ea9d134e5e3f9288f4a654283695b2
+                    - generic [ref=f12e1107]:
+                      - generic [ref=f12e1108]:
+                        - link [ref=f12e1109] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e1110]
+                        - link "commits by jorgipons" [ref=f12e1111] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e1112]: committed
+                    - generic [ref=f12e1118]:
+                      - generic [ref=f12e1119]:
+                        - link "3bf4a12" [ref=f12e1120] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/3bf4a12c79ea9d134e5e3f9288f4a654283695b2
+                        - button "Copy full SHA for 3bf4a12" [ref=f12e1124] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e1128] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/3bf4a12c79ea9d134e5e3f9288f4a654283695b2
+                  - listitem "More information available below." [ref=f12e1131]:
+                    - heading [level=4] [ref=f12e1133]:
+                      - 'link "feat: Phase 1 setup for React Native migration" [ref=f12e1134] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/517902f863db9fbc9bd5263cdd12880aee3f8260
+                    - generic [ref=f12e1139]:
+                      - generic [ref=f12e1140]:
+                        - link [ref=f12e1141] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e1142]
+                        - link "commits by jorgipons" [ref=f12e1143] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e1144]: committed
+                    - generic [ref=f12e1150]:
+                      - generic [ref=f12e1151]:
+                        - link "517902f" [ref=f12e1152] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/517902f863db9fbc9bd5263cdd12880aee3f8260
+                        - button "Copy full SHA for 517902f" [ref=f12e1156] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e1160] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/517902f863db9fbc9bd5263cdd12880aee3f8260
+            - listitem [ref=f12e1163]:
+              - generic [ref=f12e1168]:
+                - heading "Commits on Mar 11, 2026" [level=3] [ref=f12e1169]
+                - list "Commits on Mar 11, 2026" [ref=f12e1172]:
+                  - listitem "More information available below." [ref=f12e1173]:
+                    - heading [level=4] [ref=f12e1175]:
+                      - 'link "feat: Initialize main application structure with React, Firebase, and Tailwind CSS." [ref=f12e1176] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/068da78efc4fedca9ed1dc2c9e55dbf705be7d74
+                    - generic [ref=f12e1181]:
+                      - generic [ref=f12e1182]:
+                        - link [ref=f12e1183] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e1184]
+                        - link "commits by jorgipons" [ref=f12e1185] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e1186]: committed
+                    - generic [ref=f12e1192]:
+                      - generic [ref=f12e1193]:
+                        - link "068da78" [ref=f12e1194] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/068da78efc4fedca9ed1dc2c9e55dbf705be7d74
+                        - button "Copy full SHA for 068da78" [ref=f12e1198] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e1202] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/068da78efc4fedca9ed1dc2c9e55dbf705be7d74
+                  - listitem "More information available below." [ref=f12e1205]:
+                    - heading [level=4] [ref=f12e1207]:
+                      - 'link "feat: Add initial web application entry point with React, Firebase, and Tailwind CSS, along with a Firebase hosting cache file." [ref=f12e1208] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/79d5d0f0d6068541c49d96b54e5f97ac1e221870
+                    - generic [ref=f12e1213]:
+                      - generic [ref=f12e1214]:
+                        - link [ref=f12e1215] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e1216]
+                        - link "commits by jorgipons" [ref=f12e1217] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e1218]: committed
+                    - generic [ref=f12e1224]:
+                      - generic [ref=f12e1225]:
+                        - link "79d5d0f" [ref=f12e1226] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/79d5d0f0d6068541c49d96b54e5f97ac1e221870
+                        - button "Copy full SHA for 79d5d0f" [ref=f12e1230] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e1234] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/79d5d0f0d6068541c49d96b54e5f97ac1e221870
+                  - listitem "More information available below." [ref=f12e1237]:
+                    - heading [level=4] [ref=f12e1239]:
+                      - 'link "feat: Initialize the Basketball Manager web application with React, Firebase, and Tailwind CSS." [ref=f12e1240] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/92a594de09257696bb0f80f4489e2352ab11018c
+                    - generic [ref=f12e1245]:
+                      - generic [ref=f12e1246]:
+                        - link [ref=f12e1247] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e1248]
+                        - link "commits by jorgipons" [ref=f12e1249] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e1250]: committed
+                    - generic [ref=f12e1256]:
+                      - generic [ref=f12e1257]:
+                        - link "92a594d" [ref=f12e1258] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/92a594de09257696bb0f80f4489e2352ab11018c
+                        - button "Copy full SHA for 92a594d" [ref=f12e1262] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e1266] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/92a594de09257696bb0f80f4489e2352ab11018c
+                  - listitem "More information available below." [ref=f12e1269]:
+                    - heading [level=4] [ref=f12e1271]:
+                      - 'link "feat: Set up Firebase hosting for a Single Page Application with PWA features and the core application in index.html." [ref=f12e1272] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/11d6adcad24e32efcc1ef002ffad8ba473f78671
+                    - generic [ref=f12e1277]:
+                      - generic [ref=f12e1278]:
+                        - link [ref=f12e1279] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e1280]
+                        - link "commits by jorgipons" [ref=f12e1281] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e1282]: committed
+                    - generic [ref=f12e1288]:
+                      - generic [ref=f12e1289]:
+                        - link "11d6adc" [ref=f12e1290] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/11d6adcad24e32efcc1ef002ffad8ba473f78671
+                        - button "Copy full SHA for 11d6adc" [ref=f12e1294] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e1298] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/11d6adcad24e32efcc1ef002ffad8ba473f78671
+                  - listitem "More information available below." [ref=f12e1301]:
+                    - heading [level=4] [ref=f12e1303]:
+                      - 'link "feat: initial commit of the Basketball Team Manager application using React, Firebase, and Tailwind CSS." [ref=f12e1304] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/e5b9970d6206816be92ccc62868de227ca381b05
+                    - generic [ref=f12e1309]:
+                      - generic [ref=f12e1310]:
+                        - link [ref=f12e1311] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e1312]
+                        - link "commits by jorgipons" [ref=f12e1313] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e1314]: committed
+                    - generic [ref=f12e1320]:
+                      - generic [ref=f12e1321]:
+                        - link "e5b9970" [ref=f12e1322] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/e5b9970d6206816be92ccc62868de227ca381b05
+                        - button "Copy full SHA for e5b9970" [ref=f12e1326] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e1330] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/e5b9970d6206816be92ccc62868de227ca381b05
+                  - listitem "More information available below." [ref=f12e1333]:
+                    - heading [level=4] [ref=f12e1335]:
+                      - 'link "feat: Implement the initial setup for the Basketball Team Manager web application." [ref=f12e1336] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/1436b5a79118abc26f35dc9a962609a68e180e4e
+                    - generic [ref=f12e1341]:
+                      - generic [ref=f12e1342]:
+                        - link [ref=f12e1343] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e1344]
+                        - link "commits by jorgipons" [ref=f12e1345] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e1346]: committed
+                    - generic [ref=f12e1352]:
+                      - generic [ref=f12e1353]:
+                        - link "1436b5a" [ref=f12e1354] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/1436b5a79118abc26f35dc9a962609a68e180e4e
+                        - button "Copy full SHA for 1436b5a" [ref=f12e1358] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e1362] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/1436b5a79118abc26f35dc9a962609a68e180e4e
+                  - listitem "More information available below." [ref=f12e1365]:
+                    - heading [level=4] [ref=f12e1367]:
+                      - 'link "feat: Implement the initial Basketball Team Manager React application with Firebase integration and UI." [ref=f12e1368] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/35043ae1fa2332c119a916fc44a0a1f0715f7e22
+                    - generic [ref=f12e1373]:
+                      - generic [ref=f12e1374]:
+                        - link [ref=f12e1375] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e1376]
+                        - link "commits by jorgipons" [ref=f12e1377] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e1378]: committed
+                    - generic [ref=f12e1384]:
+                      - generic [ref=f12e1385]:
+                        - link "35043ae" [ref=f12e1386] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/35043ae1fa2332c119a916fc44a0a1f0715f7e22
+                        - button "Copy full SHA for 35043ae" [ref=f12e1390] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e1394] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/35043ae1fa2332c119a916fc44a0a1f0715f7e22
+                  - listitem "More information available below." [ref=f12e1397]:
+                    - heading [level=4] [ref=f12e1399]:
+                      - 'link "feat: Add initial frontend application with React, Firebase, and responsive styling." [ref=f12e1400] [cursor=pointer]':
+                        - /url: /jorgipons/ANTIGRAVITY/commit/60cffccd3a8fc3b2023474164aabacc77203fa21
+                    - generic [ref=f12e1405]:
+                      - generic [ref=f12e1406]:
+                        - link [ref=f12e1407] [cursor=pointer]:
+                          - /url: /jorgipons
+                          - img "jorgipons" [ref=f12e1408]
+                        - link "commits by jorgipons" [ref=f12e1409] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commits?author=jorgipons
+                          - text: jorgipons
+                      - generic [ref=f12e1410]: committed
+                    - generic [ref=f12e1416]:
+                      - generic [ref=f12e1417]:
+                        - link "60cffcc" [ref=f12e1418] [cursor=pointer]:
+                          - /url: /jorgipons/ANTIGRAVITY/commit/60cffccd3a8fc3b2023474164aabacc77203fa21
+                        - button "Copy full SHA for 60cffcc" [ref=f12e1422] [cursor=pointer]
+                      - link "Browse repository at this point" [ref=f12e1426] [cursor=pointer]:
+                        - /url: /jorgipons/ANTIGRAVITY/tree/60cffccd3a8fc3b2023474164aabacc77203fa21
+        - navigation "Pagination" [ref=f12e1429]:
+          - generic [ref=f12e1430]:
+            - generic [aria-hidden] [ref=f12e1431]: Previous
+            - link "Next Page" [ref=f12e1434] [cursor=pointer]:
+              - /url: /jorgipons/ANTIGRAVITY/commits/dev-rn?after=7cde8e6b1f7983d9c52df5ab33c8e8917f56d768+34
+              - text: Next
+  - contentinfo [ref=f12e1437]:
+    - heading "Footer" [level=2] [ref=f12e1438]
+    - generic [ref=f12e1439]:
+      - generic [ref=f12e1440]:
+        - link "GitHub Homepage" [ref=f12e1441] [cursor=pointer]:
+          - /url: https://github.com
+        - generic [ref=f12e1444]: © 2026 GitHub, Inc.
+      - navigation "Footer" [ref=f12e1445]:
+        - heading "Footer navigation" [level=3] [ref=f12e1446]
+        - list "Footer navigation" [ref=f12e1447]:
+          - listitem [ref=f12e1448]:
+            - link "Terms" [ref=f12e1449] [cursor=pointer]:
+              - /url: https://docs.github.com/site-policy/github-terms/github-terms-of-service
+          - listitem [ref=f12e1450]:
+            - link "Privacy" [ref=f12e1451] [cursor=pointer]:
+              - /url: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement
+          - listitem [ref=f12e1452]:
+            - link "Security" [ref=f12e1453] [cursor=pointer]:
+              - /url: https://github.com/security
+          - listitem [ref=f12e1454]:
+            - link "Status" [ref=f12e1455] [cursor=pointer]:
+              - /url: https://www.githubstatus.com/
+          - listitem [ref=f12e1456]:
+            - link "Community" [ref=f12e1457] [cursor=pointer]:
+              - /url: https://github.community/
+          - listitem [ref=f12e1458]:
+            - link "Docs" [ref=f12e1459] [cursor=pointer]:
+              - /url: https://docs.github.com/
+          - listitem [ref=f12e1460]:
+            - link "Contact" [ref=f12e1461] [cursor=pointer]:
+              - /url: https://support.github.com?tags=dotcom-footer
+          - listitem [ref=f12e1462]:
+            - button "Manage cookies" [ref=f12e1464] [cursor=pointer]
+          - listitem [ref=f12e1465]:
+            - button "Do not share my personal information" [ref=f12e1467] [cursor=pointer]

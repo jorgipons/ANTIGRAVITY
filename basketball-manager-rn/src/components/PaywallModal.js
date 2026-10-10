@@ -32,7 +32,8 @@ const FREE_FEATURES = [
 const PRO_FEATURES = [
   'Equipos ilimitados',
   'Partidos ilimitados',
-  'Sincronización FBCV automática',
+  'Temporada completa de la FBCV',
+  'Sincronizar la plantilla con la FBCV',
   'Futuras funciones premium',
 ];
 

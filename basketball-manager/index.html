@@ -850,7 +850,7 @@
             }
         };
 
-        const DesktopSidebar = ({ navigate, view, signOut, premium, isOnline, startTutorial, isAdmin, teams = [], matches = [], onManage }) => {
+        const DesktopSidebar = ({ navigate, view, signOut, premium, isOnline, startTutorial, isAdmin, teams = [], matches = [], onManage, onUpgrade }) => {
             const handleLogout = async () => {
                 if (confirm('¿Cerrar sesión?')) {
                     await signOut(window.auth);
@@ -929,6 +929,34 @@
                             </div>
                         )}
                     </div>
+
+                    {/* Tarjeta de Premium: ocupa el hueco del sidebar y enumera lo que
+                        incluye, para que no haya que abrir el modal para enterarse.
+                        Solo se ve si no eres Pro y si ya sabemos que no lo eres. */}
+                    {!premium.isPro && !premium.loading && (
+                        <div className="px-3 pb-3">
+                            <div className="rounded-2xl p-3.5 bg-gradient-to-br from-blue-600 to-blue-700 shadow-lg">
+                                <div className="flex items-center gap-1.5 mb-2">
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="crown" class="w-4 h-4"></i>' }} style={{ color: '#FFD700' }}></span>
+                                    <span className="text-sm font-bold text-white">Pásate a Premium</span>
+                                </div>
+                                <ul className="space-y-1 mb-3">
+                                    {PRO_FEATURES.map(f => (
+                                        <li key={f} className="flex items-start gap-1.5 text-[11px] text-blue-100 leading-snug">
+                                            <span className="text-blue-300 mt-px">·</span>
+                                            <span>{f}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <button
+                                    onClick={() => onUpgrade && onUpgrade('upgrade')}
+                                    className="w-full py-2 rounded-xl bg-white text-blue-700 text-xs font-black shadow-sm active:scale-95 transition-all"
+                                >
+                                    Desde €1.99/mes
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Bottom user area */}
                     <div className="px-3 py-4 border-t space-y-2" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
@@ -3056,7 +3084,7 @@
         };
 
         const FREE_FEATURES = ['1 equipo', '8 partidos incluidos', 'Matriz y convocatoria completas'];
-        const PRO_FEATURES = ['Equipos ilimitados', 'Partidos ilimitados', 'Sincronización FBCV automática', 'Futuras funciones premium'];
+        const PRO_FEATURES = ['Equipos ilimitados', 'Partidos ilimitados', 'Temporada completa de la FBCV', 'Sincronizar la plantilla con la FBCV', 'Futuras funciones premium'];
 
         const PremiumModal = ({ reason, onClose, onSubscribe }) => {
             const info = PREMIUM_REASONS[reason] || PREMIUM_REASONS.upgrade;
@@ -5737,7 +5765,7 @@
                     )}
 
                     {/* Desktop sidebar – only visible on lg+ and NOT in public-match */}
-                    {view !== 'public-match' && <DesktopSidebar navigate={navigate} view={view} signOut={signOut} premium={premium} isOnline={isOnline} startTutorial={startTutorial} isAdmin={isAdmin} teams={teams} matches={matches} onManage={goToManage} />}
+                    {view !== 'public-match' && <DesktopSidebar navigate={navigate} view={view} signOut={signOut} premium={premium} isOnline={isOnline} startTutorial={startTutorial} isAdmin={isAdmin} teams={teams} matches={matches} onManage={goToManage} onUpgrade={openPremiumModal} />}
 
                     {/* Main column: mobile top-bar + scrollable content */}
                     <div className="flex flex-col flex-1 min-w-0 lg:overflow-y-auto">

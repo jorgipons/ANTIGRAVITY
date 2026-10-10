@@ -270,18 +270,36 @@ export default function TeamDetailScreen() {
     }
   };
 
+  // Cuantos partidos mas caben en el plan. Infinity si es Pro. Igual que la web.
+  const remainingMatchSlots = () => {
+    if (isPro) return Infinity;
+    return Math.max(0, 8 - Math.max(team?.matchCount || 0, matches.length));
+  };
+
   const handleSyncMatches = async (mode = 'smart') => {
     if (!team.federationId || syncingAll) return;
+
+    // Si ya no caben mas, se dice antes de llamar a la federacion.
+    const cupo = remainingMatchSlots();
+    if (cupo === 0) {
+      setSyncMenuVisible(false);
+      showPaywall('Más partidos');
+      return;
+    }
+
     setSyncingAll(true);
     setSyncMenuVisible(false);
     try {
       const res = await importFederationMatches(team.federationId, mode);
       if (!res.success) { Alert.alert('Error', res.error); return; }
-      let imported = 0, updated = 0;
+      let imported = 0, updated = 0, descartados = 0;
       const initialPlayers = team.players || [];
       for (const fedMatch of res.matches) {
         const existing = matches.find(m => m.federationMatchId === fedMatch.federationMatchId);
         if (!existing) {
+          // El plan gratuito importa hasta donde llega; el resto se cuenta
+          // para avisar, en vez de no importar nada o saltarse el limite.
+          if (imported >= cupo) { descartados++; continue; }
           await addMatch({ ...fedMatch, players: initialPlayers, rulesetId: resolveRulesetId(team) });
           imported++;
         } else {
@@ -303,7 +321,15 @@ export default function TeamDetailScreen() {
         setTeam(prev => ({ ...prev, federationData: standRes.data }));
         await writeDoc('teams', teamId, { federationData: standRes.data });
       }
-      Alert.alert('Sincronización completa', `${imported} partidos nuevos, ${updated} actualizados.`);
+      if (descartados > 0) {
+        Alert.alert(
+          'Importados solo los que caben',
+          `Se han importado ${imported} partidos. Tu plan gratuito incluye 8 por equipo, así que ${descartados} se han quedado fuera.`,
+          [{ text: 'Ahora no' }, { text: 'Ver Premium', onPress: () => showPaywall('Más partidos') }]
+        );
+      } else {
+        Alert.alert('Sincronización completa', `${imported} partidos nuevos, ${updated} actualizados.`);
+      }
     } catch {
       Alert.alert('Error', 'Fallo al importar partidos');
     } finally {
@@ -527,7 +553,7 @@ export default function TeamDetailScreen() {
                     <TouchableOpacity
                       style={styles.syncBtn}
                       onPress={() => {
-                        if (!isPro) { showPaywall('Sincronización FBCV'); return; }
+                        // La sincronizacion ya no es Pro: handleSyncMatches importa hasta donde llega el plan.
                         setSyncMenuVisible(!syncMenuVisible);
                       }}
                     >
@@ -706,7 +732,7 @@ export default function TeamDetailScreen() {
                   <TouchableOpacity
                     style={styles.syncBtn}
                     onPress={() => {
-                      if (!isPro) { showPaywall('Sincronización FBCV'); return; }
+                      // La sincronizacion ya no es Pro: handleSyncMatches importa hasta donde llega el plan.
                       setSyncMenuVisible(!syncMenuVisible);
                     }}
                   >
@@ -1644,3 +1670,4 @@ function makeStyles(T) { return StyleSheet.create({
   linkBtnPrimary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14, borderRadius: T.rBtn, backgroundColor: T.blue, marginTop: 8 },
   linkBtnPrimaryText: { fontFamily: T.fontSemi, color: T.white },
 }); }
+
