@@ -5199,11 +5199,15 @@
                         ></div>
 
                         {/* El logo, grande y translucido, haciendo de marca de agua */}
+                        {/* Centrado respecto al panel, no respecto al flujo del flex:
+                            con `absolute` a secas se quedaba donde habria caido en
+                            el flujo y se salia por la derecha. El ancho en % lo
+                            mantiene dentro sea cual sea el tamano de la ventana. */}
                         <img
                             src="./icon.png"
                             alt=""
-                            className="absolute w-[38rem] h-[38rem] object-contain opacity-[0.07] select-none pointer-events-none"
-                            style={{ transform: 'rotate(-8deg)' }}
+                            className="absolute left-1/2 top-1/2 w-[78%] max-w-[34rem] object-contain opacity-[0.07] select-none pointer-events-none"
+                            style={{ transform: 'translate(-50%, -50%) rotate(-8deg)' }}
                         />
 
                         <div className="relative z-10 max-w-md px-12">
