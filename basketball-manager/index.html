@@ -5160,9 +5160,15 @@
                 /* min-h-dvh evita el salto de 100vh en moviles, con min-h-screen
                    de respaldo para navegadores que no lo soporten. w-full para
                    que la rejilla ocupe siempre el ancho completo. */
-                <div className="w-full min-h-screen min-h-dvh bg-white lg:grid lg:grid-cols-2">
-                    <div className="flex items-center justify-center px-6 py-12 sm:px-12 lg:px-16">
-                        <div className="w-full max-w-sm xl:max-w-md">
+                /* En escritorio la altura es fija y es la COLUMNA del formulario la
+                   que hace scroll, para que el panel de marca no se mueva. El
+                   centrado va con m-auto en el hijo, no con justify-center en el
+                   contenedor: si el contenido no cabe, justify-center lo desborda
+                   por arriba y esa parte no se puede alcanzar con el scroll.
+                   En movil todo vuelve al flujo normal y scrollea la pagina. */
+                <div className="w-full min-h-screen min-h-dvh bg-white lg:grid lg:grid-cols-2 lg:h-dvh lg:min-h-0">
+                    <div className="flex flex-col px-6 py-10 sm:px-12 lg:px-16 lg:h-dvh lg:overflow-y-auto">
+                        <div className="w-full max-w-sm xl:max-w-md m-auto">
                             <div className="mb-8 lg:hidden">
                                 <img
                                     src="./icon2.png"
@@ -5231,7 +5237,7 @@
                     {/* Panel de marca. Solo en escritorio: en movil no aporta y
                         robaria la mitad de la pantalla al formulario. */}
                     <aside
-                        className="hidden lg:flex relative overflow-hidden items-center justify-center"
+                        className="hidden lg:flex relative overflow-hidden items-center justify-center lg:h-dvh"
                         style={{ background: 'linear-gradient(145deg, #1E4A8F 0%, #1A3D77 55%, #132E62 100%)' }}
                         aria-hidden="true"
                     >
