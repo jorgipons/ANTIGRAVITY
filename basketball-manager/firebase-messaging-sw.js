@@ -2,7 +2,9 @@ importScripts('https://www.gstatic.com/firebasejs/11.2.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/11.2.0/firebase-messaging-compat.js');
 
 // Service Worker for offline caching (Consolidated)
-const CACHE_NAME = 'basket-manager-v2';
+// OJO: subir CACHE_NAME en cada cambio de estrategia. El install solo vuelve a
+// ejecutarse cuando cambia ESTE fichero, asi que es el unico modo de renovar.
+const CACHE_NAME = 'basket-manager-v3';
 const urlsToCache = [
     './',
     './index.html',
@@ -37,15 +39,55 @@ self.addEventListener('install', event => {
     );
 });
 
+// Limpia cachés de versiones anteriores y toma el control de las pestañas ya
+// abiertas, para que el cambio de estrategia surta efecto sin cerrar la app.
+self.addEventListener('activate', event => {
+    event.waitUntil(
+        caches.keys()
+            .then(keys => Promise.all(
+                keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
+            ))
+            .then(() => self.clients.claim())
+    );
+});
+
+const guardarEnCache = (request, response) => {
+    // Las respuestas opacas (CDN con no-cors) tienen status 0 y no se revalidan.
+    if (!response || (response.status !== 200 && response.type !== 'opaque')) return;
+    const copia = response.clone();
+    caches.open(CACHE_NAME).then(c => c.put(request, copia)).catch(() => {});
+};
+
 self.addEventListener('fetch', event => {
+    const req = event.request;
+    if (req.method !== 'GET') return;
+
+    let url;
+    try { url = new URL(req.url); } catch { return; }
+
+    // El HTML va a RED PRIMERO. Con cache-first, un despliegue nuevo nunca
+    // llegaba a quien ya tuviera la app cacheada: se quedaba clavado para
+    // siempre en la version del dia que la abrio por primera vez.
+    const esAppShell = req.mode === 'navigate'
+        || url.pathname.endsWith('/')
+        || url.pathname.endsWith('.html');
+
+    if (esAppShell) {
+        event.respondWith(
+            fetch(req)
+                .then(res => { guardarEnCache(req, res); return res; })
+                .catch(() => caches.match(req).then(r => r || caches.match('./index.html')))
+        );
+        return;
+    }
+
+    // El resto (librerias de CDN, manifest, iconos) sigue en cache primero:
+    // son estaticos y versionados por URL, y asi la app arranca sin conexion.
     event.respondWith(
-        caches.match(event.request)
-            .then(response => {
-                if (response) {
-                    return response;
-                }
-                return fetch(event.request);
-            })
+        caches.match(req).then(cached => cached || fetch(req).then(res => {
+            guardarEnCache(req, res);
+            return res;
+        }))
     );
 });
 
