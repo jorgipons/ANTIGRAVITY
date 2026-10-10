@@ -635,6 +635,113 @@
             }
         };
 
+        // ---------------------------------------------------------------------
+        // Sincronizacion de plantilla con la FBCV.
+        // Espejo de basketball-manager-rn/src/utils/rosterMatch.js. Si cambia la
+        // regla de emparejamiento alli, cambiarla aqui tambien.
+        // ---------------------------------------------------------------------
+
+        const isNameHidden = (nombre) => !/\p{L}{3,}/u.test(nombre || '');
+
+        // LISTA BLANCA a proposito: getTeamCard devuelve ademas nif, passaport,
+        // birthDate, catsalut, address, telefono, email y foto. Nada de eso sale
+        // de aqui; en equipos de base son datos de menores.
+        const fetchFederationRoster = async (federationId) => {
+            try {
+                const url = `https://esb.optimalwayconsulting.com/fbcv/1/btz38ZsZlAdaODiH2fGsnJC9mZgSNPeR/FCBQWeb/getTeamCard/${federationId}`;
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Error al conectar con la federación');
+                const jsonData = JSON.parse(decodeBase64UTF8(await response.text()));
+                if (jsonData.result !== 'OK') throw new Error(jsonData.message || 'Error en la respuesta de la federación');
+
+                // El array mezcla jugadores con entrenadores y delegados.
+                const jugadores = (jsonData.messageData?.players || [])
+                    .filter(p => p.licenseTypeName === 'JUGADOR/A')
+                    .map(p => {
+                        const fullName = `${p.name || ''} ${p.surname || ''}`.replace(/\s+/g, ' ').trim();
+                        return { uuid: p.uuid || null, fullName, nameHidden: isNameHidden(fullName) };
+                    })
+                    .filter(p => p.uuid);
+
+                return { success: true, players: jugadores };
+            } catch (error) {
+                return { success: false, error: error.message, players: [] };
+            }
+        };
+
+        const normalizeName = (s) => (s || '')
+            .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+            .toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .replace(/\s+/g, ' ').trim();
+
+        const scoreMatch = (localName, fedFullName) => {
+            const a = normalizeName(localName);
+            const b = normalizeName(fedFullName);
+            if (!a || !b) return 0;
+            if (a === b) return 100;
+            if (b.startsWith(`${a} `)) return 85;
+            const ta = a.split(' '), tb = b.split(' ');
+            if (ta[0] === tb[0]) return (ta[1] && tb[1] && ta[1][0] === tb[1][0]) ? 80 : 60;
+            // Diminutivos: "Dani" por "Daniel". Sin esto el jugador se duplica.
+            if (ta.length === 1 && ta[0].length >= 3 && tb[0].startsWith(ta[0])) return 70;
+            return 0;
+        };
+
+        const MATCH_THRESHOLD = 60;
+
+        const buildRosterPlan = (localPlayers = [], fedPlayers = []) => {
+            const linked = [], suggestions = [], unmatched = [], pendientes = [];
+            const fedByUuid = new Map(fedPlayers.map(f => [f.uuid, f]));
+            const usados = new Set();
+
+            for (const local of localPlayers) {
+                const ya = local.federationUuid && fedByUuid.get(local.federationUuid);
+                if (ya) { usados.add(ya.uuid); linked.push({ local, fed: ya }); }
+                else pendientes.push(local);
+            }
+
+            const candidatos = [];
+            for (const local of pendientes) {
+                for (const fed of fedPlayers) {
+                    if (usados.has(fed.uuid) || fed.nameHidden) continue;
+                    const score = scoreMatch(local.name, fed.fullName);
+                    if (score >= MATCH_THRESHOLD) candidatos.push({ local, fed, score });
+                }
+            }
+            candidatos.sort((x, y) => y.score - x.score);
+
+            const resueltos = new Set();
+            for (const c of candidatos) {
+                if (usados.has(c.fed.uuid) || resueltos.has(c.local.id)) continue;
+                usados.add(c.fed.uuid); resueltos.add(c.local.id);
+                suggestions.push(c);
+            }
+            for (const local of pendientes) if (!resueltos.has(local.id)) unmatched.push(local);
+
+            const restantes = fedPlayers.filter(f => !usados.has(f.uuid));
+            return {
+                linked, suggestions, unmatched,
+                hidden: restantes.filter(f => f.nameHidden),
+                newcomers: restantes.filter(f => !f.nameHidden),
+            };
+        };
+
+        // Nunca borra a nadie y nunca pisa nombre, dorsal ni posicion ya guardados.
+        const applyRosterPlan = (localPlayers, { links = [], additions = [] }) => {
+            const porLocal = new Map(links.map(l => [l.localId, l.uuid]));
+            const actualizados = localPlayers.map(p =>
+                porLocal.has(p.id) ? { ...p, federationUuid: porLocal.get(p.id) } : p
+            );
+            const nuevos = additions.map(f => ({
+                id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                name: f.fullName,
+                number: '',
+                role: 'receptor',
+                federationUuid: f.uuid,
+            }));
+            return [...actualizados, ...nuevos];
+        };
+
         const syncWithFederation = async (federationId) => {
             if (!navigator.onLine) {
                 return { success: false, error: 'No tienes conexión a internet. Inténtalo más tarde.' };
@@ -3111,6 +3218,170 @@
         };
 
 
+        // Modal de emparejamiento de plantilla. Nada se aplica solo: cada enlace
+        // y cada alta es una casilla que el entrenador marca.
+        const RosterSyncModal = ({ plan, onClose, onApply, saving }) => {
+            const [links, setLinks] = useState(() =>
+                Object.fromEntries(plan.suggestions.map(s => [s.local.id, s.fed.uuid]))
+            );
+            const [additions, setAdditions] = useState(() =>
+                Object.fromEntries(plan.newcomers.map(f => [f.uuid, true]))
+            );
+
+            useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
+
+            // Fichas federadas que no estan ya reservadas por otro enlace.
+            const fedDisponibles = (paraLocal) => {
+                const tomadas = new Set(Object.entries(links)
+                    .filter(([id]) => id !== paraLocal)
+                    .map(([, uuid]) => uuid));
+                return [...plan.suggestions.map(s => s.fed), ...plan.newcomers, ...plan.hidden]
+                    .filter(f => !tomadas.has(f.uuid));
+            };
+
+            const aplicar = () => onApply({
+                links: Object.entries(links).filter(([, uuid]) => uuid).map(([localId, uuid]) => ({ localId, uuid })),
+                additions: [...plan.newcomers, ...plan.hidden].filter(f => additions[f.uuid] && !Object.values(links).includes(f.uuid)),
+            });
+
+            const nEnlaces = Object.values(links).filter(Boolean).length;
+            const nAltas = [...plan.newcomers, ...plan.hidden].filter(f => additions[f.uuid] && !Object.values(links).includes(f.uuid)).length;
+
+            const Seccion = ({ titulo, nota, children }) => (
+                <div className="mb-5">
+                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-1">{titulo}</p>
+                    {nota && <p className="text-xs text-slate-400 mb-2.5">{nota}</p>}
+                    <div className="space-y-1.5">{children}</div>
+                </div>
+            );
+
+            return (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6" onClick={onClose}>
+                    <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-2xl max-h-[88vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="px-6 pt-6 pb-4 border-b border-slate-100">
+                            <h3 className="text-xl font-black text-slate-800">Sincronizar plantilla</h3>
+                            <p className="text-sm text-slate-500 mt-1">
+                                Revisa los emparejamientos antes de aplicar. No se borra ningún jugador,
+                                ni se cambian los dorsales que ya tengas puestos.
+                            </p>
+                        </div>
+
+                        <div className="px-6 py-5 overflow-y-auto flex-1">
+                            {plan.linked.length > 0 && (
+                                <Seccion titulo={`Ya enlazados (${plan.linked.length})`} nota="De una sincronización anterior.">
+                                    {plan.linked.map(l => (
+                                        <div key={l.local.id} className="flex items-center gap-2 text-sm text-slate-400 px-3 py-2">
+                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="link" class="w-3.5 h-3.5"></i>' }}></span>
+                                            <span className="font-semibold text-slate-600">{l.local.name}</span>
+                                            <span className="text-slate-300">·</span>
+                                            <span className="truncate">{l.fed.fullName}</span>
+                                        </div>
+                                    ))}
+                                </Seccion>
+                            )}
+
+                            {plan.suggestions.length > 0 && (
+                                <Seccion titulo="Sugerencias" nota="Desmarca las que no cuadren.">
+                                    {plan.suggestions.map(s => (
+                                        <label key={s.local.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="w-4 h-4 rounded accent-blue-600"
+                                                checked={!!links[s.local.id]}
+                                                onChange={e => setLinks(prev => ({ ...prev, [s.local.id]: e.target.checked ? s.fed.uuid : null }))}
+                                            />
+                                            <span className="font-bold text-slate-800 shrink-0">{s.local.name}</span>
+                                            <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>' }} className="text-slate-300 shrink-0"></span>
+                                            <span className="text-sm text-slate-600 truncate">{s.fed.fullName}</span>
+                                        </label>
+                                    ))}
+                                </Seccion>
+                            )}
+
+                            {plan.unmatched.length > 0 && (
+                                <Seccion titulo="Sin emparejar" nota="Tuyos, sin candidato claro. Puedes elegir a mano o dejarlos como están.">
+                                    {plan.unmatched.map(u => (
+                                        <div key={u.id} className="flex items-center gap-3 px-3 py-2 rounded-xl border border-slate-200">
+                                            <span className="font-bold text-slate-800 shrink-0 w-28 truncate">{u.name}</span>
+                                            <select
+                                                className="flex-1 text-sm p-2 border border-slate-200 rounded-lg bg-white outline-none focus:border-blue-500"
+                                                value={links[u.id] || ''}
+                                                onChange={e => setLinks(prev => ({ ...prev, [u.id]: e.target.value || null }))}
+                                            >
+                                                <option value="">No enlazar</option>
+                                                {fedDisponibles(u.id).map(f => (
+                                                    <option key={f.uuid} value={f.uuid}>
+                                                        {f.nameHidden ? `${f.fullName} (sin nombre publicado)` : f.fullName}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    ))}
+                                </Seccion>
+                            )}
+
+                            {plan.hidden.length > 0 && (
+                                <Seccion titulo="Sin nombre publicado" nota="La federación solo da sus iniciales porque pidieron no aparecer. Enlázalos arriba si sabes quiénes son, o añádelos y ponles tú el nombre.">
+                                    {plan.hidden.map(f => (
+                                        <label key={f.uuid} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="w-4 h-4 rounded accent-blue-600"
+                                                checked={!!additions[f.uuid]}
+                                                disabled={Object.values(links).includes(f.uuid)}
+                                                onChange={e => setAdditions(prev => ({ ...prev, [f.uuid]: e.target.checked }))}
+                                            />
+                                            <span className="text-sm font-semibold text-slate-500">{f.fullName}</span>
+                                        </label>
+                                    ))}
+                                </Seccion>
+                            )}
+
+                            {plan.newcomers.length > 0 && (
+                                <Seccion titulo="Nuevos en la federación" nota="Se añadirán sin dorsal: la licencia no lo incluye.">
+                                    {plan.newcomers.map(f => (
+                                        <label key={f.uuid} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="w-4 h-4 rounded accent-blue-600"
+                                                checked={!!additions[f.uuid]}
+                                                disabled={Object.values(links).includes(f.uuid)}
+                                                onChange={e => setAdditions(prev => ({ ...prev, [f.uuid]: e.target.checked }))}
+                                            />
+                                            <span className="text-sm font-semibold text-slate-700">{f.fullName}</span>
+                                        </label>
+                                    ))}
+                                </Seccion>
+                            )}
+
+                            {plan.suggestions.length === 0 && plan.unmatched.length === 0
+                                && plan.newcomers.length === 0 && plan.hidden.length === 0 && (
+                                <p className="text-sm text-slate-500 text-center py-8">
+                                    Tu plantilla ya coincide con la de la federación. No hay nada que cambiar.
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between gap-3">
+                            <p className="text-xs text-slate-400">
+                                {nEnlaces} enlace{nEnlaces === 1 ? '' : 's'} · {nAltas} alta{nAltas === 1 ? '' : 's'}
+                            </p>
+                            <div className="flex gap-2">
+                                <button onClick={onClose} className="px-4 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-800">Cancelar</button>
+                                <button
+                                    onClick={aplicar}
+                                    disabled={saving || (nEnlaces === 0 && nAltas === 0)}
+                                    className="px-5 py-2.5 rounded-xl bg-slate-800 text-white text-sm font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-900 transition-colors"
+                                >
+                                    {saving ? 'Guardando…' : 'Aplicar'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         const PREMIUM_REASONS = {
             team_limit: {
                 title: 'Solo 1 equipo en el plan gratuito',
@@ -3123,6 +3394,10 @@
             upgrade: {
                 title: 'Pásate a Premium',
                 description: 'Gestión de equipos ilimitados, estadísticas avanzadas y más.',
+            },
+            roster_sync: {
+                title: 'Sincronizar la plantilla es Pro',
+                description: 'Trae los jugadores desde la FBCV y enlázalos con los tuyos, sin teclear nombre por nombre.',
             },
         };
 
@@ -4001,7 +4276,7 @@
             );
         };
 
-        const ManagePlayersView = ({ team, navigate, updateTeamInDb, getRoles, match, updateMatchInDb }) => {
+        const ManagePlayersView = ({ team, navigate, updateTeamInDb, getRoles, match, updateMatchInDb, premium, openPremiumModal }) => {
             useEffect(() => {
                 if (!team) navigate('teams-list');
             }, [team]);
@@ -4012,6 +4287,53 @@
                 .map(([id, info]) => ({ id, ...info }))
                 .sort((a, b) => (a.order || 0) - (b.order || 0));
             const isFromMatch = !!match; // Detectar si venimos desde un partido
+
+            // Sincronizacion de plantilla con la FBCV (funcion Pro)
+            const [rosterPlan, setRosterPlan] = useState(null);
+            const [rosterLoading, setRosterLoading] = useState(false);
+            const [rosterSaving, setRosterSaving] = useState(false);
+
+            const sincronizarPlantilla = async () => {
+                if (!premium?.isPro) { openPremiumModal && openPremiumModal('roster_sync'); return; }
+                if (!team.federationId) {
+                    if (window.showToast) window.showToast('Este equipo no tiene ID de federación configurado.');
+                    return;
+                }
+                setRosterLoading(true);
+                try {
+                    const res = await fetchFederationRoster(team.federationId);
+                    if (!res.success) {
+                        if (window.showToast) window.showToast(`Error: ${res.error}`);
+                        return;
+                    }
+                    const locales = team.players || [];
+                    const plan = buildRosterPlan(locales, res.players);
+                    // Equipo vacio: no hay nada que emparejar, se traen y ya.
+                    if (locales.length === 0 && (plan.newcomers.length || plan.hidden.length)) {
+                        const nuevos = applyRosterPlan([], { links: [], additions: [...plan.newcomers, ...plan.hidden] });
+                        await updateTeamInDb(team.id, { players: nuevos });
+                        if (window.showToast) window.showToast(`${nuevos.length} jugadores importados de la FBCV.`);
+                        return;
+                    }
+                    setRosterPlan(plan);
+                } finally {
+                    setRosterLoading(false);
+                }
+            };
+
+            const aplicarPlantilla = async (decisiones) => {
+                setRosterSaving(true);
+                try {
+                    const actualizados = applyRosterPlan(team.players || [], decisiones);
+                    await updateTeamInDb(team.id, { players: actualizados });
+                    setRosterPlan(null);
+                    if (window.showToast) {
+                        window.showToast(`Plantilla sincronizada: ${decisiones.links.length} enlazados, ${decisiones.additions.length} añadidos.`);
+                    }
+                } finally {
+                    setRosterSaving(false);
+                }
+            };
 
             const [newPlayerName, setNewPlayerName] = useState('');
             const [newPlayerNumber, setNewPlayerNumber] = useState('');
@@ -4068,7 +4390,30 @@
                         title="Plantilla"
                         subtitle={team.name}
                         onBack={() => navigate('team-detail', team.id)}
+                        actions={team.federationId ? (
+                            <button
+                                onClick={sincronizarPlantilla}
+                                disabled={rosterLoading}
+                                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800 text-white text-xs font-bold hover:bg-slate-900 disabled:opacity-50 transition-colors"
+                                title="Traer la plantilla desde la FBCV"
+                            >
+                                <span dangerouslySetInnerHTML={{ __html: `<i data-lucide="${rosterLoading ? 'loader' : 'refresh-cw'}" class="w-3.5 h-3.5${rosterLoading ? ' animate-spin' : ''}"></i>` }}></span>
+                                <span className="hidden sm:inline">{rosterLoading ? 'Consultando…' : 'Sincronizar plantilla'}</span>
+                                {!premium?.isPro && (
+                                    <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="crown" class="w-3 h-3"></i>' }} style={{ color: '#FFD700' }}></span>
+                                )}
+                            </button>
+                        ) : null}
                     />
+
+                    {rosterPlan && (
+                        <RosterSyncModal
+                            plan={rosterPlan}
+                            saving={rosterSaving}
+                            onClose={() => setRosterPlan(null)}
+                            onApply={aplicarPlantilla}
+                        />
+                    )}
 
                     <PageBody>
                     <div className="lg:grid lg:grid-cols-12 lg:gap-8">
@@ -4502,6 +4847,16 @@
                 });
                 if (window.showToast) window.showToast('✅ Configuración guardada');
                 else alert('✅ Configuración guardada');
+
+                // Acaba de vincular el equipo con la federacion y no tiene
+                // plantilla: es el momento exacto de ofrecer traerla.
+                const acabaDeVincular = editFederationId.trim() && !team.federationId;
+                const sinPlantilla = !(team.players || []).length;
+                if (acabaDeVincular && sinPlantilla) {
+                    if (confirm('Equipo vinculado con la FBCV.\n\n¿Quieres traer ahora la plantilla desde la federación?')) {
+                        navigate('manage-players', team.id);
+                    }
+                }
             };
 
             const archiveTeam = async () => {
@@ -4770,7 +5125,7 @@
                             </div>
 
                             <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight mb-2">
-                                {isLogin ? 'Bienvenido de nuevo' : 'Crea tu cuenta'}
+                                {isLogin ? 'Bienvenido' : 'Crea tu cuenta'}
                             </h1>
                             <p className="text-slate-500 mb-8">
                                 {isLogin ? 'Entra para gestionar tus equipos.' : 'Empieza gratis, sin tarjeta.'}
@@ -5889,7 +6244,7 @@
                                 </div>
                             )}
                             {view === 'attendance-status' && <AttendanceStatusView match={getActiveMatch()} team={getSelectedTeam()} navigate={navigate} />}
-                            {view === 'manage-players' && <ManagePlayersView team={getSelectedTeam()} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} match={getActiveMatch()} updateMatchInDb={updateMatchInDb} />}
+                            {view === 'manage-players' && <ManagePlayersView team={getSelectedTeam()} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} match={getActiveMatch()} updateMatchInDb={updateMatchInDb} premium={premium} openPremiumModal={openPremiumModal} />}
                             {view === 'manage-roles' && <ManageRolesView team={getSelectedTeam()} navigate={navigate} updateTeamInDb={updateTeamInDb} getRoles={getRoles} />}
                             {view === 'team-settings' && <TeamSettingsView team={getSelectedTeam()} navigate={navigate} updateTeamInDb={updateTeamInDb} deleteDoc={deleteDoc} doc={doc} db={db} />}
                         </div>
