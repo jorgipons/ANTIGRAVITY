@@ -25,7 +25,14 @@ export function useMatches(teamId) {
     });
 
     // 2. Listener Firestore
-    const q = query(collection(db, 'matches'), where('teamId', '==', teamId));
+    // El filtro por ownerId no es opcional: las reglas solo permiten listar
+    // partidos propios, y lo comprueban contra la consulta, no contra el
+    // resultado. Sin esta clausula Firestore rechaza la query entera.
+    const q = query(
+      collection(db, 'matches'),
+      where('ownerId', '==', user.uid),
+      where('teamId', '==', teamId)
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const matchesData = snapshot.docs
         .map(d => ({ id: d.id, ...d.data() }))
@@ -55,6 +62,9 @@ export function useMatches(teamId) {
       ...matchData,
       id: newId,
       teamId,
+      // Sin ownerId las reglas de Firestore no pueden saber de quien es el
+      // partido, y la web tampoco lo ve: consulta los partidos por ownerId.
+      ownerId: user.uid,
       state: 'pending',
       currentPeriod: 1,
       history: {},

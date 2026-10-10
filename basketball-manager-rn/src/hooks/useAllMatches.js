@@ -30,7 +30,12 @@ export function useAllMatches() {
     });
 
     // 2. Listener Firestore — filtra por teamId en servidor (max 30 equipos por límite Firestore)
-    const q = query(collection(db, 'matches'), where('teamId', 'in', teamIds));
+    // El filtro por ownerId lo exigen las reglas: solo se listan los propios.
+    const q = query(
+      collection(db, 'matches'),
+      where('ownerId', '==', user.uid),
+      where('teamId', 'in', teamIds)
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const matchesData = [];
       snapshot.forEach((d) => {

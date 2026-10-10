@@ -1,0 +1,101 @@
+rules_version = '2';
+
+// Reglas de seguridad de Firestore para basketmanager-ed370.
+//
+// Principio: la coleccion NUNCA se puede listar sin ser su dueño. La lectura de
+// un documento suelto por id sigue abierta solo donde la necesita el enlace
+// publico de asistencia, al que se llega con el id ya en la URL.
+//
+// Las Cloud Functions usan el Admin SDK y se saltan estas reglas, asi que el
+// webhook de Stripe y las funciones de club siguen funcionando igual.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function esMio(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function esDueno(datos) {
+      return signedIn() && datos.ownerId == request.auth.uid;
+    }
+
+    function esAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Campos que el cliente NO puede tocar nunca en su propio documento de
+    // usuario: 'subscription' la escribe el webhook de Stripe y 'isAdmin' se
+    // concede a mano. Sin esto, cualquiera se regala Pro o se hace admin.
+    function noTocaCamposProtegidos() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['subscription', 'isAdmin', 'clubId']);
+    }
+
+    // ---------------------------------------------------------------- users
+    match /users/{userId} {
+      allow get: if esMio(userId) || esAdmin();
+      allow list: if esAdmin();
+
+      // Al crear, el cliente no puede autoconcederse nada.
+      allow create: if esMio(userId)
+        && !request.resource.data.keys().hasAny(['subscription', 'isAdmin', 'clubId']);
+
+      allow update: if esMio(userId) && noTocaCamposProtegidos();
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------- teams
+    match /teams/{teamId} {
+      // Por id: lo necesita attendance.html, que recibe el id en el enlace.
+      allow get: if true;
+
+      // Listar exige ser el dueño: la consulta debe filtrar por ownerId.
+      // Esto es lo que cierra la enumeracion de plantillas.
+      allow list: if esAdmin() || esDueno(resource.data);
+
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if esDueno(resource.data) || esAdmin();
+    }
+
+    // -------------------------------------------------------------- matches
+    match /matches/{matchId} {
+      allow get: if true;
+      allow list: if esAdmin() || esDueno(resource.data);
+
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow delete: if esDueno(resource.data) || esAdmin();
+
+      // El dueño puede todo. Cualquiera con el enlace publico puede confirmar
+      // asistencia, pero SOLO tocando el campo attendance.
+      allow update: if esDueno(resource.data)
+        || esAdmin()
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendance']);
+    }
+
+    // ---------------------------------------------------------------- clubs
+    // Se leen desde la app para resolver el Premium de club. Se escriben solo
+    // desde Cloud Functions, que se saltan las reglas.
+    match /clubs/{clubId} {
+      allow get: if signedIn();
+      allow list: if esAdmin();
+      allow write: if false;
+    }
+
+    // ----------------------------------------------------------- userTokens
+    match /userTokens/{userId} {
+      allow read, write: if esMio(userId);
+    }
+
+    // Todo lo demas, cerrado.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

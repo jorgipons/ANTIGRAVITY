@@ -97,7 +97,12 @@ export function useTeams() {
       return updated;
     });
     try {
-      const matchesQ = query(collection(db, 'matches'), where('teamId', '==', teamId));
+      // ownerId exigido por las reglas para poder listar.
+      const matchesQ = query(
+        collection(db, 'matches'),
+        where('ownerId', '==', user.uid),
+        where('teamId', '==', teamId)
+      );
       const matchesSnapshot = await getDocs(matchesQ);
       await Promise.all(matchesSnapshot.docs.map(d => deleteDoc(doc(db, 'matches', d.id))));
       await deleteDoc(doc(db, 'teams', teamId));
