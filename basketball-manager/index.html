@@ -5157,9 +5157,12 @@
             return (
                 /* Pantalla partida: el formulario en su mitad y la marca en la otra.
                    En movil el panel se oculta y queda solo el formulario. */
-                <div className="min-h-screen bg-white lg:grid lg:grid-cols-2">
-                    <div className="flex items-center justify-center px-6 py-12 sm:px-12">
-                        <div className="w-full max-w-sm">
+                /* min-h-dvh evita el salto de 100vh en moviles, con min-h-screen
+                   de respaldo para navegadores que no lo soporten. w-full para
+                   que la rejilla ocupe siempre el ancho completo. */
+                <div className="w-full min-h-screen min-h-dvh bg-white lg:grid lg:grid-cols-2">
+                    <div className="flex items-center justify-center px-6 py-12 sm:px-12 lg:px-16">
+                        <div className="w-full max-w-sm xl:max-w-md">
                             <div className="mb-8 lg:hidden">
                                 <img
                                     src="./icon2.png"
