@@ -23,6 +23,7 @@ import AppDrawer from '../components/AppDrawer';
 import GuidedTourOverlay from '../components/GuidedTourOverlay';
 import { ROLES, getRoleConfig, getAvailableRoleKeys } from '../constants/roles';
 import { resolveRuleset, MAX_PERIODS } from '../constants/ruleset';
+import { PUBLIC_WEB_BASE } from '../utils/sharing';
 import { db } from '../constants/firebase';
 import { doc, onSnapshot, getDoc, deleteDoc, deleteField } from 'firebase/firestore';
 import OfflineBanner from '../components/OfflineBanner';
@@ -1710,7 +1711,7 @@ export default function MatchMatrixScreen() {
                 </View>
                 <TouchableOpacity
                   style={[styles.shareBtn, { backgroundColor: T.blueSoft, marginTop: 2 }]}
-                  onPress={() => copyToClipboard('https://jorgipons.github.io/ANTIGRAVITY/basketball-manager/?matchId=' + matchId)}
+                  onPress={() => copyToClipboard(`${PUBLIC_WEB_BASE}/?matchId=${matchId}`)}
                 >
                   <ExternalLink color={T.blue} size={14} />
                   <Text style={[styles.shareBtnText, { color: T.blue }]}>Copiar enlace de asistencia</Text>

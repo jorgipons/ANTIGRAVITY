@@ -44,6 +44,10 @@ export const generateInfoConvo = (match, team, players, lang = 'val') => {
   }
 };
 
+// Único sitio donde vive la URL pública de la web. Antes convivían dos: esta y
+// la de GitHub Pages, que sirve desde la rama main y por tanto una versión vieja.
+export const PUBLIC_WEB_BASE = 'https://basketmanager-ed370.web.app';
+
 export const getAttendanceLink = (teamId, matchId, isPublic = true) => {
-  return `https://basketmanager-ed370.web.app/attendance?matchId=${matchId}`;
+  return `${PUBLIC_WEB_BASE}/attendance?matchId=${matchId}`;
 };
