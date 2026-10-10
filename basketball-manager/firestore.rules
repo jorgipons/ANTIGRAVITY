@@ -88,6 +88,26 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // --------------------------------------------------------- crashReports
+    // Las apps escriben aqui cuando algo revienta. Solo CREAR, y solo informes
+    // propios: nadie puede leer los de otro ni enumerar la coleccion, porque
+    // una traza puede filtrar rutas e ids. Leerlos es cosa del panel de admin.
+    match /crashReports/{reportId} {
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+             'message', 'stack', 'componentStack', 'fingerprint', 'source',
+             'platform', 'osVersion', 'appVersion', 'screen', 'fatal',
+             'userId', 'createdAt', 'resolved'
+           ])
+        && request.resource.data.resolved == false
+        && request.resource.data.message is string
+        && request.resource.data.message.size() < 1000;
+
+      allow get, list: if esAdmin();
+      allow update, delete: if esAdmin();
+    }
+
     // ----------------------------------------------------------- userTokens
     match /userTokens/{userId} {
       allow read, write: if esMio(userId);

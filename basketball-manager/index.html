@@ -425,6 +425,78 @@
 
         const getRoles = (team) => team?.roles || DEFAULT_ROLES;
 
+        // ---------------------------------------------------------------------
+        // Registro de fallos. Espejo de basketball-manager-rn/src/utils/crashReporter.js
+        // Solo mensaje, traza, version y plataforma: ningun dato de jugadores.
+        // ---------------------------------------------------------------------
+        const fingerprintOf = (message, stack) => {
+            const primera = String(stack || '').split('\n').map(l => l.trim()).find(l => l.startsWith('at ')) || '';
+            const base = `${message}|${primera}`;
+            let h = 5381;
+            for (let i = 0; i < base.length; i++) h = ((h << 5) + h + base.charCodeAt(i)) | 0;
+            return `m${(h >>> 0).toString(36)}`;
+        };
+
+        const reportCrash = async (error, extra = {}) => {
+            try {
+                const user = window.auth?.currentUser;
+                if (!user) return; // las reglas solo permiten crear informes propios
+                const message = String(error?.message || error || 'Error desconocido').slice(0, 500);
+                const stack = String(error?.stack || '').slice(0, 4000);
+                const { addDoc, collection } = window.firebaseMethods;
+                await addDoc(collection(window.db, 'crashReports'), {
+                    message,
+                    stack,
+                    componentStack: String(extra.componentStack || '').slice(0, 4000) || null,
+                    fingerprint: fingerprintOf(message, stack),
+                    source: 'web',
+                    platform: navigator.platform || 'web',
+                    osVersion: (navigator.userAgent || '').slice(0, 200),
+                    appVersion: APP_VERSION,
+                    screen: extra.screen || window.location.hash || null,
+                    fatal: !!extra.fatal,
+                    userId: user.uid,
+                    createdAt: new Date().toISOString(),
+                    resolved: false,
+                });
+            } catch {
+                // Si el propio registro falla, no se empeora el fallo original.
+            }
+        };
+
+        window.addEventListener('error', (e) => reportCrash(e.error || e.message, { fatal: true }));
+        window.addEventListener('unhandledrejection', (e) => reportCrash(e.reason, { fatal: false }));
+
+        // Red de seguridad de la interfaz: sin esto, un error al renderizar deja
+        // la pagina en blanco sin decir nada.
+        class ErrorBoundary extends React.Component {
+            constructor(props) { super(props); this.state = { error: null, info: null }; }
+            static getDerivedStateFromError(error) { return { error }; }
+            componentDidCatch(error, info) {
+                this.setState({ info });
+                reportCrash(error, { componentStack: info?.componentStack });
+            }
+            render() {
+                if (!this.state.error) return this.props.children;
+                const { error, info } = this.state;
+                const detalle = `${error?.message || error}\n\n${error?.stack || ''}\n\n${info?.componentStack || ''}`;
+                return (
+                    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+                        <div className="w-full max-w-2xl bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                            <h1 className="text-xl font-black text-slate-800 mb-1">La aplicación ha encontrado un error</h1>
+                            <p className="text-sm text-slate-500 mb-5">Ya se ha registrado. Puedes copiar el detalle si quieres enviármelo.</p>
+                            <p className="text-sm font-bold text-red-600 mb-3">{String(error?.message || error)}</p>
+                            <pre className="text-[11px] bg-slate-50 border border-slate-200 rounded-xl p-3 overflow-auto max-h-64 text-slate-500 whitespace-pre-wrap">{detalle}</pre>
+                            <div className="flex gap-2 mt-5">
+                                <button onClick={() => window.location.reload()} className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">Recargar</button>
+                                <button onClick={() => navigator.clipboard?.writeText(detalle)} className="px-5 py-2.5 rounded-xl bg-slate-800 text-white text-sm font-black hover:bg-slate-900">Copiar detalle</button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+        }
+
         /**
          * Los roles llegan en DOS formatos y hay que soportar ambos:
          *  - clases de Tailwind ('text-blue-600' / 'bg-blue-50'), que escribe el
@@ -4700,7 +4772,9 @@
         const AdminDashboardView = ({ navigate, db, collection, getDocs, query, where }) => {
             const [users, setUsers] = useState([]);
             const [teams, setTeams] = useState([]);
+            const [crashes, setCrashes] = useState([]);
             const [loading, setLoading] = useState(true);
+            const [abierto, setAbierto] = useState(null);
 
             useEffect(() => {
                 if (window.lucide) window.lucide.createIcons();
@@ -4708,6 +4782,13 @@
                     try {
                         const usersSnapshot = await getDocs(collection(db, 'users'));
                         const teamsSnapshot = await getDocs(collection(db, 'teams'));
+                        // Los informes de fallo solo los puede leer un admin (firestore.rules).
+                        try {
+                            const crashSnap = await getDocs(collection(db, 'crashReports'));
+                            setCrashes(crashSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+                        } catch (e) {
+                            console.warn('No se pudieron leer los informes de fallo:', e);
+                        }
 
                         const usersData = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         const teamsData = teamsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -4729,6 +4810,19 @@
 
             if (loading) return <div className="p-8 text-center">Cargando datos de administración...</div>;
 
+            // Fallos agrupados por huella: un error que se repite 200 veces es
+            // una fila con un contador, no 200 filas.
+            const gruposFallo = Object.values(crashes.reduce((acc, c) => {
+                const k = c.fingerprint || c.message || c.id;
+                if (!acc[k]) acc[k] = { key: k, muestra: c, veces: 0, ultima: c.createdAt, afectados: new Set(), sinResolver: 0 };
+                const g = acc[k];
+                g.veces++;
+                if (c.userId) g.afectados.add(c.userId);
+                if (!c.resolved) g.sinResolver++;
+                if (c.createdAt > g.ultima) { g.ultima = c.createdAt; g.muestra = c; }
+                return acc;
+            }, {})).sort((a, b) => (b.ultima || '').localeCompare(a.ultima || ''));
+
             // Process data for display
             const userStats = users.map(user => {
                 const userTeams = teams.filter(t => t.ownerId === user.id);
@@ -4749,12 +4843,77 @@
                     <div className="flex items-center justify-between mb-8">
                         <div>
                             <h1 className="text-3xl font-bold text-slate-900">Panel de Administración</h1>
-                            <p className="text-slate-500">Gestión de usuarios y estadísticas</p>
+                            <p className="text-slate-500">Usuarios, estadísticas e incidencias</p>
                         </div>
                         <button onClick={() => navigate('teams-list')} className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500">
                             <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="x" class="w-6 h-6"></i>' }}></span>
                         </button>
                     </div>
+
+                    {/* ---- Incidencias ---- */}
+                    <section className="mb-10">
+                        <div className="flex items-baseline justify-between mb-3">
+                            <h2 className="text-lg font-black text-slate-800">Incidencias</h2>
+                            <p className="text-xs text-slate-400">
+                                {gruposFallo.length === 0
+                                    ? 'Ningún fallo registrado'
+                                    : `${gruposFallo.length} distinto${gruposFallo.length === 1 ? '' : 's'} · ${crashes.length} en total`}
+                            </p>
+                        </div>
+
+                        {gruposFallo.length === 0 ? (
+                            <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center">
+                                <p className="text-sm text-slate-500">
+                                    Nada que mirar. Las apps registran aquí cualquier error que las rompa.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                {gruposFallo.map(g => {
+                                    const c = g.muestra;
+                                    const desplegado = abierto === g.key;
+                                    return (
+                                        <div key={g.key} className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                                            <button
+                                                onClick={() => setAbierto(desplegado ? null : g.key)}
+                                                className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full ${c.source === 'mobile' ? 'bg-indigo-50 text-indigo-600' : 'bg-sky-50 text-sky-600'}`}>
+                                                        {c.source === 'mobile' ? 'MÓVIL' : 'WEB'}
+                                                    </span>
+                                                    <span className="flex-1 min-w-0 text-sm font-bold text-slate-800 truncate">{c.message}</span>
+                                                    {g.veces > 1 && (
+                                                        <span className="shrink-0 text-[11px] font-black text-slate-400">×{g.veces}</span>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-400">
+                                                    <span>{g.ultima ? new Date(g.ultima).toLocaleString() : 'sin fecha'}</span>
+                                                    <span>v{c.appVersion}</span>
+                                                    <span>{c.platform}</span>
+                                                    {g.afectados.size > 1 && <span>{g.afectados.size} usuarios</span>}
+                                                    {c.screen && <span className="truncate">{c.screen}</span>}
+                                                </div>
+                                            </button>
+                                            {desplegado && (
+                                                <div className="px-4 pb-4 border-t border-slate-100 pt-3">
+                                                    <pre className="text-[11px] bg-slate-50 border border-slate-200 rounded-xl p-3 overflow-auto max-h-72 text-slate-600 whitespace-pre-wrap">
+{`${c.stack || '(sin traza)'}${c.componentStack ? `\n\nCOMPONENTE:\n${c.componentStack}` : ''}`}
+                                                    </pre>
+                                                    <button
+                                                        onClick={() => navigator.clipboard?.writeText(`${c.message}\n\n${c.stack || ''}\n\n${c.componentStack || ''}`)}
+                                                        className="mt-3 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                                                    >
+                                                        Copiar
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </section>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -6341,7 +6500,7 @@
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        root.render(<ErrorBoundary><App /></ErrorBoundary>);
     </script>
 </body>
 

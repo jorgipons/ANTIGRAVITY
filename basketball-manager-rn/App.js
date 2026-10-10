@@ -4,6 +4,9 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import RootNavigation from './src/navigation/RootNavigation';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
+import ErrorBoundary from './src/components/ErrorBoundary';
+import { installGlobalHandler, flushPendingCrashes, setCrashContext } from './src/utils/crashReporter';
+import Constants from 'expo-constants';
 import {
   useFonts,
   Inter_400Regular,
@@ -25,7 +28,16 @@ function ThemedStatusBar() {
   return <StatusBar style="light" backgroundColor={T.ink2} />;
 }
 
+// Se instala una sola vez, antes de que React monte nada: en un build de
+// release un error de JS no capturado cierra la app sin dejar rastro, y este
+// manejador es lo unico que lo ve pasar.
+installGlobalHandler();
+setCrashContext({ version: Constants.expoConfig?.version || 'desconocida' });
+
 export default function App() {
+  // Reenvia lo que quedo encolado por no haber conexion. No bloquea el arranque.
+  React.useEffect(() => { flushPendingCrashes(); }, []);
+
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -39,13 +51,15 @@ export default function App() {
   if (!fontsLoaded) return null;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <ThemeProvider>
-          <ThemedStatusBar />
-          <RootNavigation />
-        </ThemeProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <ThemeProvider>
+            <ThemedStatusBar />
+            <RootNavigation />
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
