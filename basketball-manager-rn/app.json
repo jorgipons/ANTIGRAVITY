@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "partits.",
+    "name": "partits",
     "slug": "basketball-manager-rn",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -17,7 +17,6 @@
     },
     "android": {
       "package": "com.jorgipons.basketballmanager",
-      "versionCode": 1,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
