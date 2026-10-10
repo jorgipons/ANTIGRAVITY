@@ -425,6 +425,33 @@
 
         const getRoles = (team) => team?.roles || DEFAULT_ROLES;
 
+        /**
+         * Los roles llegan en DOS formatos y hay que soportar ambos:
+         *  - clases de Tailwind ('text-blue-600' / 'bg-blue-50'), que escribe el
+         *    editor de roles de esta web;
+         *  - hexadecimal ('#2563eb' / '#dbeafe'), que escribe el editor del movil
+         *    y que ademas reescribe TODOS los roles del equipo al guardar.
+         * Pasarle un hex a className no pinta nada, que es por lo que la matriz
+         * perdia el color en cuanto se tocaban los roles desde el telefono.
+         *
+         * La inicial sale de la ETIQUETA, no de la clave: la clave puede seguir
+         * siendo 'receptor' con etiqueta 'Escolta', o ser una marca de tiempo.
+         */
+        const roleVisual = (cfg, roleKey) => {
+            const esHex = (v) => typeof v === 'string' && v.startsWith('#');
+            if (!cfg) {
+                return { clsBg: '', clsColor: '', styleBg: {}, styleColor: {}, inicial: null };
+            }
+            const etiqueta = (cfg.label || '').trim();
+            return {
+                clsBg:      esHex(cfg.bg)    ? '' : (cfg.bg || ''),
+                clsColor:   esHex(cfg.color) ? '' : (cfg.color || ''),
+                styleBg:    esHex(cfg.bg)    ? { backgroundColor: cfg.bg } : {},
+                styleColor: esHex(cfg.color) ? { color: cfg.color } : {},
+                inicial:    (etiqueta[0] || roleKey?.[0] || '').toUpperCase() || null,
+            };
+        };
+
         const COLORS = [
             { id: 'blue', label: 'Azul', text: 'text-blue-600', bg: 'bg-blue-50' },
             { id: 'green', label: 'Verde', text: 'text-green-600', bg: 'bg-green-50' },
@@ -2758,23 +2785,31 @@
                                                 const shouldShowCell = isSelected || isOut;
                                                 const isCompact = viewType === 'compact';
                                                 const isCurrent = period === currentP;
+                                                const rv = roleVisual(role && roles[role], role);
                                                 return (
                                                     <td
                                                         key={period}
                                                         onClick={() => { if (!isLocked && isEditable && !isDisabled) togglePlay(period, p.id); }}
                                                         onContextMenu={(e) => clearPlay(e, period, p.id)}
-                                                        className={`text-center border-r last:border-r-0 transition-all select-none relative ${viewType === 'compact' ? 'p-0' : 'p-1'} ${viewType === 'compact' ? (period === currentP ? 'w-12' : 'w-5') : (period === currentP ? 'w-16' : 'min-w-[40px]')} ${shouldShowCell ? (isDisabled ? 'bg-slate-400' : (role && roles[role] ? roles[role].bg : (isOut ? 'bg-red-50' : 'bg-blue-500'))) : (isEditable && !isDisabled && !isLocked ? 'hover:bg-slate-100 cursor-pointer' : '')} ${!isEditable || isLocked ? 'opacity-80' : ''} ${period === currentP && !shouldShowCell && !isDisabled ? 'bg-blue-50/50' : ''} ${(isOut || isIn) ? '!bg-slate-200' : ''}`}
+                                                        className={`text-center border-r last:border-r-0 transition-all select-none relative ${viewType === 'compact' ? 'p-0' : 'p-1'} ${viewType === 'compact' ? (period === currentP ? 'w-12' : 'w-5') : (period === currentP ? 'w-16' : 'min-w-[40px]')} ${shouldShowCell ? (isDisabled ? 'bg-slate-400' : (role && roles[role] ? rv.clsBg : (isOut ? 'bg-red-50' : 'bg-blue-500'))) : (isEditable && !isDisabled && !isLocked ? 'hover:bg-slate-100 cursor-pointer' : '')} ${!isEditable || isLocked ? 'opacity-80' : ''} ${period === currentP && !shouldShowCell && !isDisabled ? 'bg-blue-50/50' : ''} ${(isOut || isIn) ? '!bg-slate-200' : ''}`}
+                                                        style={shouldShowCell && !isDisabled && !isOut && !isIn ? rv.styleBg : undefined}
                                                     >
                                                         {shouldShowCell && (
-                                                            <div className={`w-full h-full flex items-center justify-center font-bold text-xs ${isDisabled ? 'text-white' : (role && roles[role] ? roles[role].color : 'text-white')} ${(isOut || isIn) ? '!text-slate-500' : ''}`}>
+                                                            <div
+                                                                className={`w-full h-full flex items-center justify-center font-bold text-xs ${isDisabled ? 'text-white' : (role && roles[role] ? rv.clsColor : 'text-white')} ${(isOut || isIn) ? '!text-slate-500' : ''}`}
+                                                                style={!isDisabled && !isOut && !isIn ? rv.styleColor : undefined}
+                                                            >
                                                                 {isCompact && !isCurrent ? (
-                                                                    <div className={`w-1.5 h-1.5 rounded-full ${isDisabled ? 'bg-white' : (role && roles[role] ? roles[role].bg.replace('-50', '-500') : 'bg-blue-600')}`}></div>
+                                                                    <div
+                                                                        className={`w-1.5 h-1.5 rounded-full ${isDisabled ? 'bg-white' : (role && roles[role] ? (rv.clsBg ? rv.clsBg.replace('-50', '-500') : '') : 'bg-blue-600')}`}
+                                                                        style={!isDisabled && rv.styleColor.color ? { backgroundColor: rv.styleColor.color } : undefined}
+                                                                    ></div>
                                                                 ) : (
                                                                     isOut ? (
                                                                         <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="arrow-down" class="w-4 h-4 text-red-500"></i>' }}></span>
                                                                     ) : (isIn ? (
                                                                         <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="arrow-up" class="w-4 h-4 text-green-600"></i>' }}></span>
-                                                                    ) : (role ? role.substring(0, 1).toUpperCase() : (
+                                                                    ) : (role ? (rv.inicial || role.substring(0, 1).toUpperCase()) : (
                                                                         <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="check" class="w-4 h-4"></i>' }}></span>
                                                                     )))
                                                                 )}
