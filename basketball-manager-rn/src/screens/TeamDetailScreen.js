@@ -10,7 +10,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import {
   Menu, ChevronLeft, Plus, UserPlus, Trash2, Edit2, AlertCircle, Settings,
   Calendar, Clock, MapPin, Users, Activity, RefreshCw, Trophy, ChevronDown,
-  XCircle, Dribbble, Bell, Copy, ExternalLink, Save, Check, HelpCircle,
+  XCircle, Dribbble, Bell, Copy, ExternalLink, Save, Check, HelpCircle, Crown,
 } from 'lucide-react-native';
 import { useTheme } from '../theme/ThemeContext';
 import AppDrawer from '../components/AppDrawer';
@@ -33,6 +33,9 @@ import { useSubscription } from '../hooks/useSubscription';
 import PaywallModal from '../components/PaywallModal';
 import CreateMatchModal from '../components/CreateMatchModal';
 import { RULESETS, resolveRulesetId } from '../constants/ruleset';
+import RosterSyncModal from '../components/RosterSyncModal';
+import { fetchFederationRoster } from '../utils/federation';
+import { buildRosterPlan, applyRosterPlan } from '../utils/rosterMatch';
 
 export default function TeamDetailScreen() {
   const T = useTheme();
@@ -267,6 +270,59 @@ export default function TeamDetailScreen() {
       Alert.alert('Error', 'Fallo en la sincronización');
     } finally {
       setSyncingAll(false);
+    }
+  };
+
+  // --- Sincronizacion de plantilla con la FBCV (funcion Pro) ---
+  const [rosterPlan, setRosterPlan] = useState(null);
+  const [rosterLoading, setRosterLoading] = useState(false);
+  const [rosterSaving, setRosterSaving] = useState(false);
+
+  const sincronizarPlantilla = async () => {
+    if (!isPro) { showPaywall('Sincronización de plantilla'); return; }
+    if (!team?.federationId) return;
+    setRosterLoading(true);
+    try {
+      const res = await fetchFederationRoster(team.federationId);
+      if (!res.success) { Alert.alert('Error', res.error || 'No se pudo consultar la federación'); return; }
+
+      const locales = team.players || [];
+      const plan = buildRosterPlan(locales, res.players);
+
+      // Plantilla vacia: no hay nada que emparejar, se traen y ya.
+      if (locales.length === 0 && (plan.newcomers.length || plan.hidden.length)) {
+        const nuevos = applyRosterPlan([], {
+          links: [],
+          additions: [...plan.newcomers, ...plan.hidden],
+        }, () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+        setTeam(prev => ({ ...prev, players: nuevos }));
+        await writeDoc('teams', teamId, { players: nuevos });
+        Alert.alert('Plantilla importada', `${nuevos.length} jugadores traídos de la FBCV.`);
+        return;
+      }
+      setRosterPlan(plan);
+    } finally {
+      setRosterLoading(false);
+    }
+  };
+
+  const aplicarPlantilla = async (decisiones) => {
+    setRosterSaving(true);
+    try {
+      const actualizados = applyRosterPlan(
+        team.players || [],
+        decisiones,
+        () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      );
+      setTeam(prev => ({ ...prev, players: actualizados }));
+      await writeDoc('teams', teamId, { players: actualizados });
+      setRosterPlan(null);
+      Alert.alert(
+        'Plantilla sincronizada',
+        `${decisiones.links.length} enlazados, ${decisiones.additions.length} añadidos.`
+      );
+    } finally {
+      setRosterSaving(false);
     }
   };
 
@@ -507,10 +563,19 @@ export default function TeamDetailScreen() {
               onLayout={(e) => setPlayersSectionY(e.nativeEvent.layout.y)}
             >
               <Text style={styles.sectionTitle}>Jugadores ({sortedPlayers.length})</Text>
-              <TouchableOpacity ref={addPlayerBtnRef} onPress={() => openPlayerModal()} style={styles.addLinkBtn}>
-                <Plus color={T.orange} size={16} />
-                <Text style={styles.addLinkText}>Añadir</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                {!!team?.federationId && (
+                  <TouchableOpacity onPress={sincronizarPlantilla} disabled={rosterLoading} style={styles.addLinkBtn}>
+                    <RefreshCw color={T.orange} size={15} />
+                    <Text style={styles.addLinkText}>{rosterLoading ? 'Consultando…' : 'FBCV'}</Text>
+                    {!isPro && <Crown color="#FFD700" size={12} />}
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity ref={addPlayerBtnRef} onPress={() => openPlayerModal()} style={styles.addLinkBtn}>
+                  <Plus color={T.orange} size={16} />
+                  <Text style={styles.addLinkText}>Añadir</Text>
+                </TouchableOpacity>
+              </View>
             </View>
             <View style={styles.playersGrid}>
               {sortedPlayers.map(item => {
@@ -1325,6 +1390,13 @@ export default function TeamDetailScreen() {
         onClose={() => setPaywallVisible(false)}
         reason="feature"
         featureName={paywallFeature}
+      />
+      <RosterSyncModal
+        visible={!!rosterPlan}
+        plan={rosterPlan}
+        saving={rosterSaving}
+        onClose={() => setRosterPlan(null)}
+        onApply={aplicarPlantilla}
       />
       <CreateMatchModal
         visible={createMatchVisible}
