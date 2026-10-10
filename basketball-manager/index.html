@@ -1152,7 +1152,7 @@
                             MODO SIN CONEXIÓN
                         </div>
                     )}
-                    <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+                    <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
                         {/* Left - Premium badge & Admin */}
                         <div className="flex items-center gap-2">
                             {isAdmin && (
@@ -1325,7 +1325,7 @@
             );
 
             return (
-                <div className="p-4 max-w-4xl mx-auto pb-24">
+                <div className="p-4 max-w-5xl mx-auto pb-24">
                     <header className="flex items-center gap-2 mb-6">
                         <button onClick={() => navigate('team-detail', team.id)} className="p-2 -ml-2 text-slate-400 hover:text-slate-800 transition-colors">
                             <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span>
@@ -2114,7 +2114,7 @@
             }, []);
 
             return (
-                <div className="p-4 max-w-md lg:max-w-4xl mx-auto">
+                <div className="p-4 max-w-5xl mx-auto">
                     <h2 className="font-bold text-lg mb-4 text-red-600 flex items-center gap-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="activity" class="w-5 h-5"></i>' }}></span> Sustitución por Lesión (P{currentP})</h2>
                     <div className="space-y-4">
                         <div>
@@ -2574,7 +2574,7 @@
                 const currentIds = (match.players || []).map(p => p.id);
                 const availablePlayers = (team.players || []).filter(p => !currentIds.includes(p.id));
                 return (
-                    <div className="p-4 max-w-md lg:max-w-4xl mx-auto">
+                    <div className="p-4 max-w-5xl mx-auto">
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="font-bold text-lg">Añadir Jugador Tardío</h2>
                             <button
@@ -2617,7 +2617,7 @@
 
             if (mode === 'summary') {
                 return (
-                    <div className="p-4 max-w-md lg:max-w-4xl mx-auto">
+                    <div className="p-4 max-w-5xl mx-auto">
                         <header className="mb-6 flex items-center gap-2">
                             <button onClick={() => navigate('team-detail', match.teamId)} className="p-2 -ml-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
                             <h1 className="text-2xl font-bold">Resumen</h1>
@@ -2642,7 +2642,7 @@
 
             if (mode === 'edit-match') {
                 return (
-                    <div className="p-4 max-w-md lg:max-w-4xl mx-auto">
+                    <div className="p-4 max-w-5xl mx-auto">
                         <EditMatchView
                             match={match}
                             team={team}
@@ -2669,7 +2669,7 @@
             }
 
             return (
-                <div className="p-4 max-w-md lg:max-w-4xl mx-auto pb-24 mobile-landscape-stretch">
+                <div className="p-4 max-w-5xl mx-auto pb-24 mobile-landscape-stretch">
                     <header className="mb-4 mobile-landscape-compact-nav">
                         <div className="flex items-center justify-between mb-2">
                             <button onClick={() => navigate('team-detail', match.teamId)} className="p-2 -ml-2 text-slate-600 hover:text-slate-900"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left" class="w-6 h-6"></i>' }}></span></button>
@@ -3506,7 +3506,7 @@
             }, [teams, showForm, premium.isPro, showArchived]);
 
             return (
-                <div className="max-w-md lg:max-w-4xl mx-auto">
+                <div className="max-w-5xl mx-auto">
                     <div className="px-4 pt-6">
                         <header className="flex justify-between items-center mb-8">
                             <div>
@@ -3824,11 +3824,13 @@
             }, []);
 
             return (
-                <div className="p-4 max-w-md lg:max-w-4xl mx-auto">
-                    <header className="flex items-center gap-2 mb-6">
-                        <button onClick={() => navigate('team-detail', team.id)} className="p-2 -ml-2 text-slate-400 hover:text-slate-800 transition-colors"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
-                        <h1 className="text-2xl font-bold text-slate-800">Nuevo Partido</h1>
-                    </header>
+                <div className="bg-slate-50 min-h-screen">
+                    <PageHeader
+                        title="Nuevo partido"
+                        subtitle={team.name}
+                        onBack={() => navigate('team-detail', team.id)}
+                    />
+                    <PageBody>
 
                     <div className="lg:grid lg:grid-cols-2 lg:gap-8">
                         {/* Left Column: Form Info */}
@@ -4068,6 +4070,7 @@
                             <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="play" class="w-5 h-5 fill-white"></i>' }}></span> Empezar Partido
                         </button>
                     </div>
+                    </PageBody>
                 </div>
             );
         };
@@ -4127,11 +4130,13 @@
             };
 
             return (
-                <div className="p-4 max-w-md lg:max-w-4xl mx-auto">
-                    <header className="flex items-center gap-2 mb-6">
-                        <button onClick={handleBack} className="p-2 -ml-2 text-slate-400 hover:text-slate-800 transition-colors"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
-                        <h1 className="text-2xl font-bold text-slate-800">Editar Partido</h1>
-                    </header>
+                <div className="bg-slate-50 min-h-screen">
+                    <PageHeader
+                        title="Editar partido"
+                        subtitle={match?.opponent || null}
+                        onBack={handleBack}
+                    />
+                    <PageBody>
 
                     <div className="lg:grid lg:grid-cols-2 lg:gap-8">
                         {/* Left Column: Form Info */}
@@ -4272,6 +4277,7 @@
                             </div>
                         </div>
                     </div>
+                    </PageBody>
                 </div>
             );
         };
@@ -4590,11 +4596,13 @@
             }, [editingRoleId, rolesList.length]);
 
             return (
-                <div className="p-4 max-w-md lg:max-w-4xl mx-auto">
-                    <header className="flex items-center gap-2 mb-6">
-                        <button onClick={() => navigate('team-detail', team.id)} className="p-2 -ml-2"><span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span></button>
-                        <h1 className="text-2xl font-bold">Configurar Roles</h1>
-                    </header>
+                <div className="bg-slate-50 min-h-screen">
+                    <PageHeader
+                        title="Roles y posiciones"
+                        subtitle={team.name}
+                        onBack={() => navigate('team-detail', team.id)}
+                    />
+                    <PageBody>
 
                     <div className="lg:grid lg:grid-cols-12 lg:gap-8">
                         {/* Left Column: Add Role Form */}
@@ -4649,6 +4657,7 @@
                             ))}
                         </div>
                     </div>
+                    </PageBody>
                 </div>
             );
         };
@@ -5616,7 +5625,7 @@
             };
 
             return (
-                <div className="p-4 max-w-md lg:max-w-4xl mx-auto pb-24">
+                <div className="p-4 max-w-5xl mx-auto pb-24">
                     <header className="flex items-center gap-2 mb-6">
                         <button onClick={() => navigate('edit-match', team.id, match.id)} className="p-2 -ml-2 text-slate-400 hover:text-slate-800 transition-colors">
                             <span dangerouslySetInnerHTML={{ __html: '<i data-lucide="chevron-left"></i>' }}></span>
@@ -6234,7 +6243,7 @@
                             {view === 'active-match' && <ActiveMatchView match={getActiveMatch()} teams={teams} updateMatchInDb={updateMatchInDb} navigate={navigate} getRoles={getRoles} />}
                             {view === 'calendar' && <CalendarView team={getSelectedTeam()} matches={matches} navigate={navigate} />}
                             {view === 'edit-match' && (
-                                <div className="p-4 max-w-md lg:max-w-4xl mx-auto">
+                                <div className="p-4 max-w-5xl mx-auto">
                                     <EditMatchView
                                         match={getActiveMatch()}
                                         team={getSelectedTeam()}
