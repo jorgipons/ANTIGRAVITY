@@ -4756,18 +4756,25 @@
             };
 
             return (
-                <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
-                    <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
-                        <div className="p-8">
-                            <div className="flex justify-center mb-6">
+                /* Pantalla partida: el formulario en su mitad y la marca en la otra.
+                   En movil el panel se oculta y queda solo el formulario. */
+                <div className="min-h-screen bg-white lg:grid lg:grid-cols-2">
+                    <div className="flex items-center justify-center px-6 py-12 sm:px-12">
+                        <div className="w-full max-w-sm">
+                            <div className="mb-8 lg:hidden">
                                 <img
                                     src="./icon2.png"
                                     alt="Basket Manager"
-                                    className="w-20 h-20 object-contain drop-shadow-xl"
+                                    className="w-14 h-14 object-contain"
                                 />
                             </div>
-                            <h1 className="text-3xl font-bold text-center text-slate-800 mb-2">Basket Manager</h1>
-                            <p className="text-center text-slate-500 mb-8">{isLogin ? 'Inicia sesión para continuar' : 'Crea tu cuenta gratuita'}</p>
+
+                            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight mb-2">
+                                {isLogin ? 'Bienvenido de nuevo' : 'Crea tu cuenta'}
+                            </h1>
+                            <p className="text-slate-500 mb-8">
+                                {isLogin ? 'Entra para gestionar tus equipos.' : 'Empieza gratis, sin tarjeta.'}
+                            </p>
 
                             <form onSubmit={handleSubmit} className="space-y-4">
                                 <div>
@@ -4818,6 +4825,43 @@
                             </div>
                         </div>
                     </div>
+
+                    {/* Panel de marca. Solo en escritorio: en movil no aporta y
+                        robaria la mitad de la pantalla al formulario. */}
+                    <aside
+                        className="hidden lg:flex relative overflow-hidden items-center justify-center"
+                        style={{ background: 'linear-gradient(145deg, #1E4A8F 0%, #1A3D77 55%, #132E62 100%)' }}
+                        aria-hidden="true"
+                    >
+                        {/* Halo difuminado para que el fondo no sea un plano liso */}
+                        <div
+                            className="absolute -top-32 -right-24 w-[32rem] h-[32rem] rounded-full blur-3xl"
+                            style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 70%)' }}
+                        ></div>
+                        <div
+                            className="absolute -bottom-40 -left-20 w-[28rem] h-[28rem] rounded-full blur-3xl"
+                            style={{ background: 'radial-gradient(circle, rgba(255,106,44,0.22) 0%, rgba(255,106,44,0) 70%)' }}
+                        ></div>
+
+                        {/* El logo, grande y translucido, haciendo de marca de agua */}
+                        <img
+                            src="./icon.png"
+                            alt=""
+                            className="absolute w-[38rem] h-[38rem] object-contain opacity-[0.07] select-none pointer-events-none"
+                            style={{ transform: 'rotate(-8deg)' }}
+                        />
+
+                        <div className="relative z-10 max-w-md px-12">
+                            <img src="./icon.png" alt="" className="w-16 h-16 object-contain mb-8 opacity-90" />
+                            <p className="text-3xl font-black text-white leading-tight tracking-tight mb-4">
+                                La pizarra de tu equipo, ordenada.
+                            </p>
+                            <p className="text-blue-100/70 leading-relaxed">
+                                Convocatorias, rotaciones y el reglamento de la Pasarela controlado
+                                periodo a periodo. Sincronizado con la FBCV.
+                            </p>
+                        </div>
+                    </aside>
                 </div>
             );
         };
